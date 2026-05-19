@@ -1,5 +1,20 @@
 @extends('layouts.base')
 
+@section('css')
+    <style>
+        .nav-wrapper .nav-link {
+            transition: all 0.2s ease !important;
+        }
+
+        .nav-wrapper .nav-link:hover:not(.active) {
+            background-color: #f0f2f5 !important;
+            box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.05) !important;
+            transform: translateY(-1px);
+            cursor: pointer;
+        }
+    </style>
+@endsection
+
 @section('content')
     <div class="nav-wrapper position-relative end-0">
         <ul class="nav nav-pills nav-fill p-1" role="tablist">
