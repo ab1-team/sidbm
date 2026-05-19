@@ -586,7 +586,7 @@
 
             waSocket.on('message_sent', (res) => {
                 if (res.device_id === deviceId) {
-                    if (window.location.pathname.indexOf('/pengaturan/whatsapp') === -1) {
+                    if (window.location.pathname.indexOf('/pengaturan/sop') === -1 && window.location.pathname.indexOf('/pengaturan/whatsapp') === -1) {
                         Toastr('success', `WA: Pesan terkirim ke ${res.recipient}`);
                     }
                 }
@@ -599,14 +599,16 @@
             });
 
             waSocket.on('ready', (res) => {
-                if (window.location.pathname.indexOf('/pengaturan/whatsapp') !== -1) {
+                if (window.location.pathname.indexOf('/pengaturan/sop') !== -1 || window.location.pathname.indexOf('/pengaturan/whatsapp') !== -1) {
                     MultiToast('success', `WhatsApp Aktif (${res.phone_number})`);
                 }
             });
 
             waSocket.on('status', (res) => {
                 if (res.status === 'disconnected' || res.status === 'close') {
-                    MultiToast('warning', `WhatsApp Terputus!`);
+                    if (window.location.pathname.indexOf('/pengaturan/sop') !== -1 || window.location.pathname.indexOf('/pengaturan/whatsapp') !== -1) {
+                        MultiToast('warning', `WhatsApp Terputus!`);
+                    }
                 }
             });
         });
