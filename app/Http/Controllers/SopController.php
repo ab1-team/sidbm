@@ -931,9 +931,20 @@ class SopController extends Controller
 
     public function delete_whatsapp_session(Request $request)
     {
-        $id = Session::get('lokasi');
-        Whatsapp::where('lokasi', $id)->delete();
+        $lokasi = $request->input('lokasi', Session::get('lokasi'));
+        if ($lokasi === null || $lokasi === '') {
+            return response()->json([
+                'success' => false,
+                'deleted' => 0,
+                'message' => 'Lokasi tidak ditemukan.',
+            ], 422);
+        }
 
-        return response()->json(['success' => true]);
+        $deleted = Whatsapp::where('lokasi', $lokasi)->delete();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted,
+        ]);
     }
 }

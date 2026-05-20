@@ -442,14 +442,16 @@
                         },
                         success: function(result) {
                             $.post('/pengaturan/whatsapp/delete_session', {
-                                _token: '{{ csrf_token() }}'
+                                _token: '{{ csrf_token() }}',
+                                lokasi: LOKASI_ID
                             }, function(res) {
                                 window.location.reload()
                             })
                         },
                         error: function() {
                             $.post('/pengaturan/whatsapp/delete_session', {
-                                _token: '{{ csrf_token() }}'
+                                _token: '{{ csrf_token() }}',
+                                lokasi: LOKASI_ID
                             }, function(res) {
                                 window.location.reload()
                             })
