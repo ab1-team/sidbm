@@ -11,13 +11,6 @@ class IdentifyTenant
 {
     public function handle(Request $request, Closure $next)
     {
-        if (request()->user()) {
-            $suffix = request()->user()->lokasi;
-            config(['tenant.suffix' => "_" . $suffix]);
-
-            return $next($request);
-        }
-
         $domain = $request->getHost();
         $domainId = str_replace('.net', '.id', $domain);
 
@@ -29,6 +22,16 @@ class IdentifyTenant
 
         if ($tenantFromB) {
             config(['database.default' => 'mysql_b']);
+        }
+
+        if (request()->user()) {
+            $suffix = request()->user()->lokasi;
+            config(['tenant.suffix' => "_" . $suffix]);
+
+            return $next($request);
+        }
+
+        if ($tenantFromB) {
             $tenant = Kecamatan::on('mysql_b')->find($tenantFromB->id);
         } else {
             $tenant = Kecamatan::where('web_kec', $domain)->orWhere('web_alternatif', $domain)->first();
