@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Kecamatan;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class IdentifyTenant
 {
@@ -23,6 +24,17 @@ class IdentifyTenant
         $suffix = $tenant ? "_{$tenant->id}" : '_1';
 
         config(['tenant.suffix' => $suffix]);
+
+        if (!$tenant) {
+            config(['database.default' => 'mysql_b']);
+            DB::purge('mysql_b');
+            DB::reconnect('mysql_b');
+        } elseif (str_contains($tenant->web_kec, '.id') || str_contains((string) $tenant->web_alternatif, '.id')) {
+            config(['database.default' => 'mysql_b']);
+            DB::purge('mysql_b');
+            DB::reconnect('mysql_b');
+        }
+
         return $next($request);
     }
 }
