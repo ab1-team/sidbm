@@ -19,21 +19,23 @@ class IdentifyTenant
         }
 
         $domain = $request->getHost();
+        $domainId = str_replace('.net', '.id', $domain);
 
-        $tenant = Kecamatan::where('web_kec', $domain)->orwhere('web_alternatif', $domain)->first();
-        $suffix = $tenant ? "_{$tenant->id}" : '_1';
+        $tenantFromB = DB::connection('mysql_b')
+            ->table('kecamatan')
+            ->where('web_kec', $domainId)
+            ->orWhere('web_alternatif', $domainId)
+            ->first();
 
-        config(['tenant.suffix' => $suffix]);
-
-        if (!$tenant) {
+        if ($tenantFromB) {
             config(['database.default' => 'mysql_b']);
-            DB::purge('mysql_b');
-            DB::reconnect('mysql_b');
-        } elseif (str_contains($tenant->web_kec, '.id') || str_contains((string) $tenant->web_alternatif, '.id')) {
-            config(['database.default' => 'mysql_b']);
-            DB::purge('mysql_b');
-            DB::reconnect('mysql_b');
+            $tenant = Kecamatan::on('mysql_b')->find($tenantFromB->id);
+        } else {
+            $tenant = Kecamatan::where('web_kec', $domain)->orWhere('web_alternatif', $domain)->first();
         }
+
+        $suffix = $tenant ? "_{$tenant->id}" : '_1';
+        config(['tenant.suffix' => $suffix]);
 
         return $next($request);
     }
