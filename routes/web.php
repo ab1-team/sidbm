@@ -107,13 +107,14 @@ Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => 'kab'], functio
     Route::post('/logout', [KabupatenAuthController::class, 'logout']);
 });
 
-Route::get('/', [AuthController::class, 'index'])->middleware('guest')->name('/');
-Route::get('/login', [AuthController::class, 'index'])->middleware('guest');
-Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
-Route::get('/app', [AuthController::class, 'app']);
-Route::get('/download-app', [AuthController::class, 'downloadApp']);
 
 Route::group(['middleware' => 'tenant'], function () {
+    Route::get('/', [AuthController::class, 'index'])->middleware('guest')->name('/');
+    Route::get('/login', [AuthController::class, 'index'])->middleware('guest');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
+    Route::get('/app', [AuthController::class, 'app']);
+    Route::get('/download-app', [AuthController::class, 'downloadApp']);
+    
     Route::get('/pelaporan', [PelaporanController::class, 'index'])->middleware('basic');
     Route::get('/pelaporan/sub_laporan/{file}', [PelaporanController::class, 'subLaporan'])->middleware('basic');
     Route::post('/pelaporan/preview', [PelaporanController::class, 'preview'])->middleware('basic');
