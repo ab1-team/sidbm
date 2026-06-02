@@ -23,7 +23,24 @@ class GenerateController extends Controller
 
     public function index()
     {
-        $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
+        $domain = request()->getHost();
+        $domainId = str_replace('.net', '.id', $domain);
+
+        $tenantFromB = \Illuminate\Support\Facades\DB::connection('mysql_b')
+            ->table('kecamatan')
+            ->where('web_kec', $domainId)
+            ->orWhere('web_alternatif', $domainId)
+            ->first();
+
+        if ($tenantFromB) {
+            $kec = Kecamatan::on('mysql_b')->find($tenantFromB->id);
+        } else {
+            $kec = Kecamatan::where('web_kec', $domain)
+                ->orWhere('web_alternatif', $domain)
+                ->first();
+        }
+
+        Session::put('lokasi', $kec->id);
 
         $logo = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
