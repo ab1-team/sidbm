@@ -17,6 +17,14 @@ class AdminController extends Controller
         return view('admin.index')->with(compact('title'));
     }
 
+    public function switchServer()
+    {
+        $server = request()->server;
+        session(['master_server' => $server]);
+
+        return response()->json(['success' => true]);
+    }
+
     public function laporan()
     {
         $wilayah = Wilayah::WhereRaw('LENGTH(kode)=2')->orderBy('nama', 'ASC')->get();

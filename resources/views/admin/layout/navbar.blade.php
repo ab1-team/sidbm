@@ -16,6 +16,16 @@
             </div>
             <ul class="navbar-nav justify-content-end align-items-center">
                 <li class="nav-item ps-3">
+                    <select class="form-select form-select-sm" id="master-server-switcher"
+                        style="min-width: 120px; font-weight: bold;">
+                        <option value="mysql_b"
+                            {{ session('master_server') == 'mysql_b' || !session()->has('master_server') ? 'selected' : '' }}>
+                            Server SIUPK</option>
+                        <option value="mysql" {{ session('master_server') == 'mysql' ? 'selected' : '' }}>Server SIDBM
+                        </option>
+                    </select>
+                </li>
+                <li class="nav-item ps-3">
                     <a href="javascript:;" class="nav-link text-body p-0">
                         <i class="material-icons fixed-plugin-button-nav cursor-pointer">
                             settings

@@ -17,6 +17,9 @@ class MasterMiddleware
     {
         if (auth()->guard('master')->check()) {
             if (auth()->guard('master')->user()->akses == 'master') {
+                $server = session('master_server', 'mysql_b'); // Default ke server B
+                config(['database.default' => $server]);
+                
                 return $next($request);
             }
         }

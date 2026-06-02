@@ -187,6 +187,25 @@
     @yield('script')
 
     <script>
+        $(document).ready(function() {
+            $('#master-server-switcher').change(function() {
+                var selectedServer = $(this).val();
+                $.ajax({
+                    url: '/master/switch_server',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        server: selectedServer
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            window.location.reload();
+                        }
+                    }
+                });
+            });
+        });
+
         var formatter = new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,

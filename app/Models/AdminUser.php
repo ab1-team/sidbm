@@ -10,6 +10,7 @@ class AdminUser extends Authenticatable
     use HasFactory;
 
     protected $table = 'admin_users';
+    protected $connection = 'mysql_b';
     public $timestamps = false;
 
     protected $guarded = ['id'];
