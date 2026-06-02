@@ -23,11 +23,7 @@ class GenerateController extends Controller
 
     public function index()
     {
-        $kec = Kecamatan::where('web_kec', explode('//', URL::to('/'))[1])
-            ->orWhere('web_alternatif', explode('//', URL::to('/'))[1])
-            ->first();
-
-        Session::put('lokasi', $kec->id);
+        $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
 
         $logo = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
