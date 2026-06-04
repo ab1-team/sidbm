@@ -1,6 +1,9 @@
 @php
     use App\Models\Wilayah;
 
+    $server = session('master_server', 'mysql_b');
+    config(['database.default' => $server]);
+
     $wilayah = Wilayah::whereRaw('LENGTH(kode) = 2')
         ->with([
             'kab' => function ($query) {
