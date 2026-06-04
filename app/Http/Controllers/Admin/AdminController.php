@@ -19,7 +19,7 @@ class AdminController extends Controller
 
     public function switchServer()
     {
-        $server = request()->server;
+        $server = request()->input('server');
         session(['master_server' => $server]);
 
         return response()->json(['success' => true]);
