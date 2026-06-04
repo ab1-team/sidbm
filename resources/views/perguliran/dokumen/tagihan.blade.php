@@ -160,6 +160,28 @@
                             <b>Rp. {{ number_format($tunggakan_pokok + $tunggakan_jasa) }}</b>
                         </td>
                     </tr>
+                    @if(session('lokasi') == 220)
+                        @php
+                            $denda = ceil(0.02 * ($tunggakan_pokok + $tunggakan_jasa));
+                            $total_dengan_denda = $tunggakan_pokok + $tunggakan_jasa + $denda;
+                        @endphp
+                        <tr>
+                            <td>4.</td>
+                            <td>Denda (2% x Total Tunggakan)</td>
+                            <td>:</td>
+                            <td>
+                                <b>Rp. {{ number_format($denda) }}</b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>5.</td>
+                            <td><b>Total (Tunggakan + Denda)</b></td>
+                            <td>:</td>
+                            <td>
+                                <b>Rp. {{ number_format($total_dengan_denda) }}</b>
+                            </td>
+                        </tr>
+                    @endif
                 </table>
 
                 <p style="text-align: justify;">
