@@ -73,13 +73,17 @@
                 <br>
                 <br>
                 <br>
-                <div>
-                    @if ($dir_utama)
-                        <b>{{ $dir_utama->namadepan . ' ' . $dir_utama->namabelakang }}</b>
-                    @else
-                        <b>{{ $dir->namadepan . ' ' . $dir->namabelakang }}</b>
-                    @endif
-                </div>
+                @if (!empty($tanda_tangan))
+                    {!! $tanda_tangan !!}
+                @else
+                    <div>
+                        @if ($dir_utama)
+                            <b>{{ $dir_utama->namadepan . ' ' . $dir_utama->namabelakang }}</b>
+                        @else
+                            <b>{{ $dir->namadepan . ' ' . $dir->namabelakang }}</b>
+                        @endif
+                    </div>
+                @endif
             </td>
         </tr>
         <tr>

@@ -25,6 +25,7 @@
                                 <option value="">---</option>
                                 <option value="dokumen_pinjaman">Dokumen Pinjaman</option>
                                 <option value="pelaporan">Pelaporan</option>
+                                <option value="surat_pengantar">Surat Pengantar</option>
                             </select>
                             <small class="text-danger" id="msg_jenis_laporan"></small>
                         </div>
@@ -136,6 +137,11 @@
             title: 'Semua Pelaporan'
         }];
 
+        var daftarSuratPengantar = [{
+            id: 0,
+            title: 'Surat Pengantar'
+        }];
+
         var jenis_laporan = new Choices($('select#jenis_laporan')[0], {
             shouldSort: false,
             fuseOptions: {
@@ -173,6 +179,15 @@
 
             if (jenis == 'pelaporan') {
                 daftarPelaporan.map(function(item) {
+                    listLaporan.push({
+                        value: item.id,
+                        label: item.title
+                    })
+                })
+            }
+
+            if (jenis == 'surat_pengantar') {
+                daftarSuratPengantar.map(function(item) {
                     listLaporan.push({
                         value: item.id,
                         label: item.title

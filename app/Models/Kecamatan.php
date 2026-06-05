@@ -29,7 +29,7 @@ class Kecamatan extends Model
 
     public function tanda_tangan()
     {
-        return $this->hasOne(TandaTanganDokumen::class, 'lokasi')->where('dokumen_pinjaman_id', '0');
+        return $this->hasOne(TandaTanganDokumen::class, 'lokasi')->where('dokumen_pinjaman_id', '0')->where('jenis_laporan', 'pelaporan');
     }
 
     public function saldo()

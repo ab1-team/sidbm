@@ -14,6 +14,7 @@ use App\Models\Kecamatan;
 use App\Models\PinjamanKelompok;
 use App\Models\Rekening;
 use App\Models\Saldo;
+use App\Models\TandaTanganDokumen;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Utils\Keuangan;
@@ -415,6 +416,13 @@ class PelaporanController extends Controller
             ['jabatan', '65'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
         ])->first();
+
+        $tanda_tangan = TandaTanganDokumen::where([
+            ['lokasi', str_replace('_', '', config('tenant.suffix'))],
+            ['dokumen_pinjaman_id', '0'],
+            ['jenis_laporan', 'surat_pengantar'],
+        ])->first();
+        $data['tanda_tangan'] = Pinjaman::keyword($tanda_tangan->tanda_tangan ?? '', $data);
 
         $view = view('pelaporan.view.surat_pengantar', $data)->render();
 
