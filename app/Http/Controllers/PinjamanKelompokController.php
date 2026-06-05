@@ -1630,6 +1630,16 @@ class PinjamanKelompokController extends Controller
             'kelompok.d.sebutan_desa',
         ])->withCount('pinjaman_anggota')->first();
 
+        $jenis_dokumen = request()->get('jenis') ?: 'dokumen_proposal';
+        $dokumenPinjaman = DokumenPinjaman::where([
+            ['file', $data['report']],
+            ['jenis_dokumen', $jenis_dokumen],
+        ])->with('tanda_tangan')->first();
+        $data['tanda_tangan'] = '';
+        if ($dokumenPinjaman && $dokumenPinjaman->tanda_tangan) {
+            $data['tanda_tangan'] = Pinjaman::keyword($dokumenPinjaman->tanda_tangan->tanda_tangan, $data);
+        }
+
         $data['logo'] = $this->supabaseToBase64(env('SUPABASE_PUBLIC_URL').'/logo_kab/'.$data['kab']->id.'.jpg');
 
         $data['keuangan'] = $keuangan;
