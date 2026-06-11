@@ -565,14 +565,14 @@ class GenerateService
 
     protected function jatuh_tempo($index, $sa_pokok, $tanggal)
     {
-        $penambahan = ($sa_pokok == 12) ? '+'.($index * 7).' days' : "+$index month";
-        $base = date('Y-m', strtotime($tanggal));
-        $target = date('Y-m', strtotime($penambahan, strtotime($base)));
-        $day = date('d', strtotime($tanggal));
-        if ($day > date('t', strtotime($target))) {
-            return date('Y-m-t', strtotime($target));
-        }
+        // $tanggal diasumsikan sudah = tanggal jatuh tempo angsuran pertama.
+        // Maka angsuran ke-$index = tanggal + ($index - 1) bulan.
+        $penambahan = ($sa_pokok == 12) ? '+'.(($index - 1) * 7).' days' : '+'.($index - 1).' month';
+        $base = strtotime($tanggal);
+        $target_ts = strtotime($penambahan, $base);
+        $day = (int) date('d', $base);
+        $max_d = (int) date('t', $target_ts);
 
-        return $target.'-'.$day;
+        return date('Y-m', $target_ts) . '-' . sprintf('%02d', min($day, $max_d));
     }
 }
