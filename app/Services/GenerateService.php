@@ -164,6 +164,7 @@ class GenerateService
         $data_rencana = [];
         $detail = $this->detail_pinjaman($pinkel, $pinkel->kelompok->d, $kec->batas_angsuran);
         $tgl_cair = $detail['tgl_cair'];
+        $tgl_cair_asli = $detail['tgl_cair_asli'];
         $alokasi = $detail['alokasi'];
         $jangka = $pinkel->jangka;
 
@@ -175,8 +176,9 @@ class GenerateService
         // ALWAYS calculate based on total alokasi to ensure correct group-level rounding
         $ra_data = $this->rencana_angsuran($pinkel, $ang_p, $ang_j, $alokasi, $kec->pembulatan);
 
-        $data_rencana[strtotime($tgl_cair)] = $this->fmtRencana($pinkel->id, 0, $tgl_cair, 0, 0, 0, 0);
-        $rencana[] = $data_rencana[strtotime($tgl_cair)];
+        // Row 0 = tanggal cair ASLI (marker, bukan angsuran pertama)
+        $data_rencana[strtotime($tgl_cair_asli)] = $this->fmtRencana($pinkel->id, 0, $tgl_cair_asli, 0, 0, 0, 0);
+        $rencana[] = $data_rencana[strtotime($tgl_cair_asli)];
 
         $target_p = 0;
         $target_j = 0;
@@ -253,6 +255,7 @@ class GenerateService
         $data_id_real = [];
         $detail = $this->detail_pinjaman($pinkel, $pinkel->kelompok->d, $kec->batas_angsuran);
         $tgl_cair = $detail['tgl_cair'];
+        $tgl_cair_asli = $detail['tgl_cair_asli'];
         $jangka = $pinkel->jangka;
         $sis_p = $this->sistem($pinkel->sistem_angsuran, $jangka, $pinkel->sis_pokok->sistem ?? '1');
         $sis_j = $this->sistem($pinkel->sa_jasa, $jangka, $pinkel->sis_jasa->sistem ?? '1');
@@ -288,8 +291,9 @@ class GenerateService
             $data_id_real[] = $trx_h->idtp;
         }
 
-        $data_rencana[strtotime($tgl_cair)] = $this->fmtRencana($pinkel->id, 0, $tgl_cair, 0, 0, 0, 0);
-        $rencana[] = $data_rencana[strtotime($tgl_cair)];
+        // Row 0 = tanggal cair ASLI (marker, bukan angsuran pertama)
+        $data_rencana[strtotime($tgl_cair_asli)] = $this->fmtRencana($pinkel->id, 0, $tgl_cair_asli, 0, 0, 0, 0);
+        $rencana[] = $data_rencana[strtotime($tgl_cair_asli)];
 
         $target_p = 0;
         $target_j = 0;
@@ -505,9 +509,12 @@ class GenerateService
 
         $tgl_baru = mktime(0, 0, 0, $m, 1, $y);
         $max_d = (int) date('t', $tgl_baru);
-        $tgl_cair = date('Y-m', $tgl_baru) . '-' . sprintf('%02d', min($d, $max_d));
+        $tgl_baru_str = date('Y-m', $tgl_baru) . '-' . sprintf('%02d', min($d, $max_d));
 
-        return ['alokasi' => $alokasi, 'tgl_cair' => $tgl_cair];
+        // tgl_cair_asli = tanggal cair mentah (sebelum penyesuaian jadwal desa)
+        $tgl_cair_asli = date('Y-m-d', $time);
+
+        return ['alokasi' => $alokasi, 'tgl_cair' => $tgl_baru_str, 'tgl_cair_asli' => $tgl_cair_asli];
     }
 
     protected function rencana_angsuran($pinkel, $ang_pokok, $ang_jasa, $alokasi, $pembulatan = '500')
