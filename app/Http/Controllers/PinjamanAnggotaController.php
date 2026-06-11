@@ -628,11 +628,30 @@ class PinjamanAnggotaController extends Controller
         }
 
         if ($pinkel->kelompok->d) {
+            $batas = $pinkel->kelompok->d->kec->batas_angsuran ?? 0;
             $angsuran_desa = $pinkel->kelompok->d->jadwal_angsuran_desa;
+            $d_asli = (int) date('d', strtotime($tgl));
+            $d_jadwal = $d_asli;
             if ($angsuran_desa > 0) {
-                $tgl_pinjaman = date('Y-m', strtotime($tgl));
-                $tgl = $tgl_pinjaman . '-' . $angsuran_desa;
+                $d_jadwal = (int) $angsuran_desa;
             }
+
+            // Step 1: tgl cair >= batas → angs pertama = bulan.cair + 1, di tgl.cair.
+            // Step 2: tgl jadwal desa < batas → bulan maju 1x lagi (jadi bulan.cair + 2).
+            $m = (int) date('m', strtotime($tgl));
+            $y = (int) date('Y', strtotime($tgl));
+            if ($batas > 0) {
+                if ($d_asli >= $batas) {
+                    $m++;
+                }
+                if ($d_jadwal < $batas) {
+                    $m++;
+                }
+            }
+
+            $tgl_pinjaman = date('Y-m', mktime(0, 0, 0, $m, 1, $y));
+            $max_d = (int) date('t', strtotime($tgl_pinjaman . '-01'));
+            $tgl = $tgl_pinjaman . '-' . sprintf('%02d', min($d_jadwal, $max_d));
         }
 
         $sistem_pokok = $pinkel->sis_pokok->sistem;

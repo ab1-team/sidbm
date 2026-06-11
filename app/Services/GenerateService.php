@@ -485,12 +485,22 @@ class GenerateService
         $m = (int) date('m', $time);
         $d = (int) date('d', $time);
 
+        $d_asli = $d;
+        $d_jadwal = $d;
         if ($desa->jadwal_angsuran_desa > 0) {
-            $d = (int) $desa->jadwal_angsuran_desa;
+            $d_jadwal = (int) $desa->jadwal_angsuran_desa;
         }
 
-        if ($batas_angsuran > 0 && $d >= $batas_angsuran) {
-            $m++;
+        // Step 1: tgl cair >= batas → angs pertama = bulan.cair + 1, di tgl.cair.
+        // Step 2: tgl jadwal desa < batas → bulan maju 1x lagi (jadi bulan.cair + 2).
+        if ($batas_angsuran > 0) {
+            if ($d_asli >= $batas_angsuran) {
+                $m++;
+            }
+            if ($d_jadwal < $batas_angsuran) {
+                $m++;
+            }
+            $d = $d_jadwal;
         }
 
         $tgl_baru = mktime(0, 0, 0, $m, 1, $y);
