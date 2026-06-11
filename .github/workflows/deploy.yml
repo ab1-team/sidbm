@@ -19,15 +19,3 @@ jobs:
             cd /var/www/sidbm.net
             git pull origin master
             composer install
-
-      - name: Deploy via SSH ke server SIUPK
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST_2 }}
-          username: ${{ secrets.SSH_USER_2 }}
-          key: ${{ secrets.SSH_KEY_2 }}
-          port: 22
-          script: |
-            cd /home/siupk/public_html/sidbm
-            git pull origin master
-            composer install
