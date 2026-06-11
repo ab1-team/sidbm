@@ -496,8 +496,8 @@ class GenerateService
         }
 
         // Tentukan bulan angsuran pertama:
-        //   - Default: bulan.cair + 1
-        //   - Kalau tgl.cair > batas: bulan.cair + 2 (lewat 1 bulan extra)
+        //   - Default: bulan.cair + 1, hari = tgl jadwal desa
+        //   - Kalau tgl.cair > batas (atau tgl.cair > tgl jadwal): +1 bulan lagi
         // Hari angsuran pertama = tgl jadwal desa.
         if ($batas_angsuran > 0) {
             $m++;
