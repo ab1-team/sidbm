@@ -495,13 +495,13 @@ class GenerateService
             $d_jadwal = (int) $desa->jadwal_angsuran_desa;
         }
 
-        // Step 1: tgl cair >= batas → angs pertama = bulan.cair + 1, di tgl.cair.
-        // Step 2: tgl jadwal desa < batas → bulan maju 1x lagi (jadi bulan.cair + 2).
+        // Tentukan bulan angsuran pertama:
+        //   - Default: bulan.cair + 1
+        //   - Kalau tgl.cair > batas: bulan.cair + 2 (lewat 1 bulan extra)
+        // Hari angsuran pertama = tgl jadwal desa.
         if ($batas_angsuran > 0) {
-            if ($d_asli >= $batas_angsuran) {
-                $m++;
-            }
-            if ($d_jadwal < $batas_angsuran) {
+            $m++;
+            if ($d_asli > $batas_angsuran) {
                 $m++;
             }
             $d = $d_jadwal;
@@ -566,7 +566,9 @@ class GenerateService
     protected function jatuh_tempo($index, $sa_pokok, $tanggal)
     {
         // $tanggal diasumsikan sudah = tanggal jatuh tempo angsuran pertama.
-        // Maka angsuran ke-$index = tanggal + ($index - 1) bulan.
+        // Angsuran ke-$index = tanggal + ($index - 1) bulan.
+        // (Dahulu pakai +$index month, tapi $tanggal dulunya = tgl.cair asli,
+        // sekarang $tanggal = angs pertama → kurangi 1.)
         $penambahan = ($sa_pokok == 12) ? '+'.(($index - 1) * 7).' days' : '+'.($index - 1).' month';
         $base = strtotime($tanggal);
         $target_ts = strtotime($penambahan, $base);

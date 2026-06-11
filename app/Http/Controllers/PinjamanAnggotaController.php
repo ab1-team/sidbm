@@ -636,15 +636,15 @@ class PinjamanAnggotaController extends Controller
                 $d_jadwal = (int) $angsuran_desa;
             }
 
-            // Step 1: tgl cair >= batas → angs pertama = bulan.cair + 1, di tgl.cair.
-            // Step 2: tgl jadwal desa < batas → bulan maju 1x lagi (jadi bulan.cair + 2).
+            // Tentukan bulan angsuran pertama:
+            //   - Default: bulan.cair + 1
+            //   - Kalau tgl.cair > batas: bulan.cair + 2
+            // Hari angsuran pertama = tgl jadwal desa.
             $m = (int) date('m', strtotime($tgl));
             $y = (int) date('Y', strtotime($tgl));
             if ($batas > 0) {
-                if ($d_asli >= $batas) {
-                    $m++;
-                }
-                if ($d_jadwal < $batas) {
+                $m++;
+                if ($d_asli > $batas) {
                     $m++;
                 }
             }
