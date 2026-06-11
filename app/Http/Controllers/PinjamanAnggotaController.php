@@ -637,16 +637,13 @@ class PinjamanAnggotaController extends Controller
             }
 
             // Tentukan bulan angsuran pertama:
-            //   - Default: bulan.cair + 1
-            //   - Kalau tgl.cair > batas: bulan.cair + 2
-            // Hari angsuran pertama = tgl jadwal desa.
+            //   - Selalu: bulan.cair + 1, hari = tgl jadwal desa
+            //   - Kalau ada batas dan tgl.cair > batas: bulan.cair + 2
             $m = (int) date('m', strtotime($tgl));
             $y = (int) date('Y', strtotime($tgl));
-            if ($batas > 0) {
+            $m++;
+            if ($batas > 0 && $d_asli > $batas) {
                 $m++;
-                if ($d_asli > $batas) {
-                    $m++;
-                }
             }
 
             $tgl_pinjaman = date('Y-m', mktime(0, 0, 0, $m, 1, $y));
