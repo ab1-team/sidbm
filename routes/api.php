@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AngsuranController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BasisDataController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\HoldingLaporanController;
 use App\Http\Controllers\Api\LaporanController;
 use App\Http\Controllers\Api\MobileActivationController;
 use App\Http\Controllers\Api\PengaturanController;
@@ -66,4 +67,22 @@ Route::group(['middleware' => ['tenant', 'auth:sanctum'], 'prefix' => 'v1'], fun
     Route::put('pengaturan/update-password', [PengaturanController::class, 'updatePassword']);
 
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Holding API (laporan keuangan)
+|--------------------------------------------------------------------------
+| Endpoint ini dipakai oleh sistem holding untuk menarik laporan keuangan
+| tenant (Bumdesma). Autentikasi via header:
+|   X-Holding-Token   : api_secret license
+|   X-Holding-Tenant  : slug tenant
+| Middleware holding.license memvalidasi token + tenant + is_active + expired_at.
+*/
+Route::group(['middleware' => 'holding.license', 'prefix' => 'v1/holding/laporan'], function () {
+    Route::get('neraca',             [HoldingLaporanController::class, 'neraca']);
+    Route::get('laba-rugi',          [HoldingLaporanController::class, 'labaRugi']);
+    Route::get('arus-kas',           [HoldingLaporanController::class, 'arusKas']);
+    Route::get('perubahan-ekuitas',  [HoldingLaporanController::class, 'perubahanEkuitas']);
+    Route::get('calk',               [HoldingLaporanController::class, 'calk']);
 });
