@@ -92,7 +92,7 @@ Route::group(['prefix' => 'master', 'as' => 'master.', 'middleware' => 'master']
 Route::get('/kab', [KabupatenAuthController::class, 'index'])->middleware(['tenant', 'guest']);
 Route::post('/kab/login', [KabupatenAuthController::class, 'login'])->middleware(['tenant', 'guest']);
 
-Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => 'kab'], function () {
+Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => ['tenant', 'kab']], function () {
     Route::get('/dashboard', [KabupatenController::class, 'index']);
     Route::get('/tanda_tangan', [KabupatenController::class, 'tandaTangan']);
     Route::post('/tanda_tangan/simpan', [KabupatenController::class, 'simpanTandaTangan']);

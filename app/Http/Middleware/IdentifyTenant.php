@@ -46,6 +46,23 @@ class IdentifyTenant
             return $next($request);
         }
 
+        // User login via 'kab' guard — pakai kd_kab dari session untuk suffix
+        if (auth()->guard('kab')->check()) {
+            $kabId = session('kd_kab');
+            if ($kabId) {
+                $kabRow = DB::connection('mysql_b')
+                    ->table('kabupaten')
+                    ->where('kd_kab', $kabId)
+                    ->first();
+                if ($kabRow) {
+                    config(['tenant.suffix' => "_{$kabRow->id}"]);
+                    config(['tenant.is_kab' => true]);
+                }
+            }
+
+            return $next($request);
+        }
+
         if ($tenantFromB) {
             $tenant = Kecamatan::on('mysql_b')->find($tenantFromB->id);
         } elseif ($kabFromB) {
