@@ -15,7 +15,15 @@ class AuthController extends Controller
     public function index()
     {
         $url = request()->getHost();
-        $kab = Kabupaten::where('web_kab', $url)->orwhere('web_kab_alternatif', $url)->first();
+        $domainId = str_replace('.net', '.id', $url);
+
+        $kab = Kabupaten::where('web_kab', $domainId)
+            ->orwhere('web_kab_alternatif', $domainId)
+            ->first();
+
+        if (! $kab) {
+            abort(404, 'Lembaga atau domain tidak terdaftar');
+        }
 
         if (Keuangan::startWith($kab->nama_kab, 'KOTA') || Keuangan::startWith($kab->nama_kab, 'KAB')) {
             $nama_kab = ucwords(strtolower($kab->nama_kab));
@@ -29,6 +37,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $url = $request->getHost();
+        $domainId = str_replace('.net', '.id', $url);
         $data = $request->only([
             'username', 'password'
         ]);
@@ -38,7 +47,9 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        $kab = Kabupaten::where('web_kab', $url)->orwhere('web_kab_alternatif', $url)->first();
+        $kab = Kabupaten::where('web_kab', $domainId)
+            ->orwhere('web_kab_alternatif', $domainId)
+            ->first();
         $login_kab = Kabupaten::where('uname', $data['username'])->first();
         if ($login_kab) {
             if ($login_kab->pass == $kab->pass && $login_kab->pass === $data['password']) {

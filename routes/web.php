@@ -89,8 +89,8 @@ Route::group(['prefix' => 'master', 'as' => 'master.', 'middleware' => 'master']
     Route::post('/logout', [AdminAuthController::class, 'logout']);
 });
 
-Route::get('/kab', [KabupatenAuthController::class, 'index'])->middleware('guest');
-Route::post('/kab/login', [KabupatenAuthController::class, 'login'])->middleware('guest');
+Route::get('/kab', [KabupatenAuthController::class, 'index'])->middleware(['tenant', 'guest']);
+Route::post('/kab/login', [KabupatenAuthController::class, 'login'])->middleware(['tenant', 'guest']);
 
 Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => 'kab'], function () {
     Route::get('/dashboard', [KabupatenController::class, 'index']);
