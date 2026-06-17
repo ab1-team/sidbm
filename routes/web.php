@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\KabupatenController as AdminKabupatenController;
 use App\Http\Controllers\Admin\KecamatanController;
+use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AnggotaController;
@@ -85,6 +86,8 @@ Route::group(['prefix' => 'master', 'as' => 'master.', 'middleware' => 'master']
     Route::get('/transaksi', [AdminController::class, 'transaksi']);
 
     Route::resource('/menu', MenuController::class);
+
+    Route::resource('/license', AdminLicenseController::class);
 
     Route::post('/logout', [AdminAuthController::class, 'logout']);
 });

@@ -23,3 +23,5 @@ yarn-error.log
 /public/trigger.php
 /public/custom.php
 /public/regenerate.php
+
+storage/

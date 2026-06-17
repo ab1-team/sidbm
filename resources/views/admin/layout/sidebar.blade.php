@@ -168,6 +168,14 @@
                     <span class="nav-link-text ms-1">Upload Aplikasi</span>
                 </a>
             </li>
+            <li class="nav-item nav-item-link {{ active('license') }}">
+                <a class="nav-link text-white {{ active('license') }}" href="/master/license">
+                    <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+                        <i class="material-icons opacity-10">vpn_key</i>
+                    </div>
+                    <span class="nav-link-text ms-1">License</span>
+                </a>
+            </li>
         </ul>
     </div>
 </aside>
