@@ -15,6 +15,8 @@
     <meta name="keywords" content="">
     <meta name="description" content="Sistem Informasi Dana Bergulir Masyarakat &mdash; Siap Audit Kapanpun Siapapun">
 
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     {{-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@9.0.1/public/assets/styles/choices.min.css" /> --}}
 
 

@@ -7,18 +7,28 @@
 
     <div class="row">
         <div class="col-md-12">
-            <div class="input-group input-group-static my-3">
-                <label for="kecamatan_id">Kecamatan</label>
-                <select name="kecamatan_id" id="kecamatan_id" class="form-control" {{ $mode === 'edit' ? 'disabled' : '' }} required>
-                    <option value="">-- Pilih Kecamatan --</option>
-                    @foreach ($kecamatan as $k)
-                        <option value="{{ $k->id }}" {{ ($license->kecamatan_id ?? '') == $k->id ? 'selected' : '' }}>
-                            {{ $k->label }}
-                        </option>
-                    @endforeach
-                </select>
-                <small class="text-danger" id="msg_kecamatan_id"></small>
-            </div>
+            @if ($mode === 'edit')
+                {{-- Kecamatan terikat ke license; tidak diubah saat edit. Tampilkan sebagai info. --}}
+                <input type="hidden" name="kecamatan_id" value="{{ $license->kecamatan_id }}">
+                <div class="input-group input-group-static my-3">
+                    <label>Kecamatan</label>
+                    <input type="text" class="form-control" value="{{ optional($license->kecamatan)->label ?? $license->kecamatan_id }}" readonly>
+                    <small class="text-muted">Kecamatan tidak dapat diubah. Hapus license & buat baru untuk pindah kecamatan.</small>
+                </div>
+            @else
+                <div class="input-group input-group-static my-3">
+                    <label for="kecamatan_id">Kecamatan</label>
+                    <select name="kecamatan_id" id="kecamatan_id" class="form-control" required>
+                        <option value="">-- Pilih Kecamatan --</option>
+                        @foreach ($kecamatan as $k)
+                            <option value="{{ $k->id }}" {{ ($license->kecamatan_id ?? '') == $k->id ? 'selected' : '' }}>
+                                {{ $k->label }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <small class="text-danger" id="msg_kecamatan_id"></small>
+                </div>
+            @endif
         </div>
 
         <div class="col-md-12">
