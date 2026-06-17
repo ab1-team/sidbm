@@ -99,7 +99,7 @@ class LicenseController extends Controller
         $validate = Validator::make($request->all(), [
             'kecamatan_id' => 'required|integer|unique:licenses,kecamatan_id',
             'api_secret' => 'required|string|max:255',
-            'is_active' => 'required|boolean',
+            'is_active' => 'nullable|boolean',
             'expired_at' => 'nullable|date',
         ]);
 
@@ -147,7 +147,7 @@ class LicenseController extends Controller
         $validate = Validator::make($request->all(), [
             'kecamatan_id' => 'required|integer|unique:licenses,kecamatan_id,' . $license->id,
             'api_secret' => 'required|string|max:255',
-            'is_active' => 'required|boolean',
+            'is_active' => 'nullable|boolean',
             'expired_at' => 'nullable|date',
         ]);
 

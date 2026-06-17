@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class License extends Model
 {
     protected $table = 'licenses';
+    public $timestamps = false;
 
     protected $fillable = [
         'kecamatan_id',
