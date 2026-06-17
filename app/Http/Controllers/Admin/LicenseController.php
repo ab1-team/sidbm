@@ -100,7 +100,7 @@ class LicenseController extends Controller
             'kecamatan_id' => 'required|integer|unique:licenses,kecamatan_id',
             'api_secret' => 'required|string|max:255',
             'is_active' => 'required|boolean',
-            'expired_at' => 'required|date',
+            'expired_at' => 'nullable|date',
         ]);
 
         if ($validate->fails()) {
@@ -148,7 +148,7 @@ class LicenseController extends Controller
             'kecamatan_id' => 'required|integer|unique:licenses,kecamatan_id,' . $license->id,
             'api_secret' => 'required|string|max:255',
             'is_active' => 'required|boolean',
-            'expired_at' => 'required|date',
+            'expired_at' => 'nullable|date',
         ]);
 
         if ($validate->fails()) {

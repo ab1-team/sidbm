@@ -50,7 +50,8 @@
                 <label for="expired_at">Tanggal Berakhir</label>
                 <input autocomplete="off" type="text" name="expired_at" id="expired_at"
                     class="form-control date"
-                    value="{{ $license->expired_at ? $license->expired_at->format('Y-m-d H:i') : '' }}" required>
+                    value="{{ $license->expired_at ? $license->expired_at->format('Y-m-d H:i') : '' }}">
+                <small class="text-muted">Kosongkan jika tidak ada batas waktu.</small>
                 <small class="text-danger" id="msg_expired_at"></small>
             </div>
         </div>
