@@ -86,6 +86,14 @@
                             <small class="text-danger" id="msg_penanggung_jawab"></small>
                         </div>
                     </div>
+                    <div class="col-md-4">
+                        <div class="input-group input-group-static my-3">
+                            <label for="nomor_identitas_lembaga">Nomor Identitas Lembaga</label>
+                            <input autocomplete="off" type="text" name="nomor_identitas_lembaga"
+                                id="nomor_identitas_lembaga" class="form-control">
+                            <small class="text-danger" id="msg_nomor_identitas_lembaga"></small>
+                        </div>
+                    </div>
                 </div>
             </form>
 

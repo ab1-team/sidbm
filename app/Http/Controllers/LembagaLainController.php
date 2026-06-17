@@ -115,7 +115,8 @@ class LembagaLainController extends Controller
             "telpon",
             "kategori_pinjaman",
             "pimpinan",
-            "penanggung_jawab"
+            "penanggung_jawab",
+            "nomor_identitas_lembaga"
         ]);
 
         $validate = Validator::make($data, [
@@ -126,7 +127,8 @@ class LembagaLainController extends Controller
             'telpon' => 'required',
             'kategori_pinjaman' => 'required',
             'pimpinan' => 'required',
-            'penanggung_jawab' => 'required'
+            'penanggung_jawab' => 'required',
+            'nomor_identitas_lembaga' => 'nullable|string|max:100'
         ]);
 
         if ($validate->fails()) {
@@ -150,7 +152,7 @@ class LembagaLainController extends Controller
             'sekretaris' => $request->penanggung_jawab,
             'bendahara' => '',
             'uname' => 0,
-            'pass' => 0,
+            'pass' => $request->nomor_identitas_lembaga ?? 0,
             'online' => 'T',
             'nilai' => '0',
             'kunjungan' => '0',
@@ -195,7 +197,8 @@ class LembagaLainController extends Controller
             'telpon',
             'kategori_pinjaman',
             'pimpinan',
-            'penanggung_jawab'
+            'penanggung_jawab',
+            'nomor_identitas_lembaga'
         ]);
 
         $rules = [
@@ -206,7 +209,8 @@ class LembagaLainController extends Controller
             'telpon' => 'required',
             'kategori_pinjaman' => 'required',
             'pimpinan' => 'required',
-            'penanggung_jawab' => 'required'
+            'penanggung_jawab' => 'required',
+            'nomor_identitas_lembaga' => 'nullable|string|max:100'
         ];
 
         if ($request->kode_lembaga != $lembaga_lain->kd_kelompok) {
@@ -228,7 +232,8 @@ class LembagaLainController extends Controller
             'telpon' => $request->telpon,
             'fungsi_kelompok' => $request->kategori_pinjaman,
             'ketua' => $request->pimpinan,
-            'sekretaris' => $request->penanggung_jawab
+            'sekretaris' => $request->penanggung_jawab,
+            'pass' => $request->nomor_identitas_lembaga ?? $lembaga_lain->pass
         ];
 
         $lembaga = Kelompok::where('id', $lembaga_lain->id)->update($update);
