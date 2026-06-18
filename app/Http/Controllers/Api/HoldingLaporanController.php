@@ -98,20 +98,15 @@ class HoldingLaporanController extends Controller
             $akun2 = $a1->akun2->map(function ($a2) use ($keuangan, $data, &$sumAkun1) {
                 $akun3 = $a2->akun3->map(function ($a3) use ($keuangan, $data, &$sumAkun1) {
                     $sumSaldo = 0.0;
-                    $rekening = $a3->rek->map(function ($r) use ($keuangan, $data, &$sumSaldo) {
-                        $saldo = $this->saldoRekening($r, $keuangan, $data['tgl_kondisi']);
-                        $sumSaldo += $saldo;
-                        return [
-                            'kode_akun' => $r->kode_akun,
-                            'nama_akun' => $r->nama_akun,
-                            'saldo'     => $saldo,
-                        ];
-                    })->values();
+                    // Hitung per-rekening untuk kalkulasi internal (special case 3.2.02.01),
+                    // tapi tidak expose 'rekening' di output — view neraca tidak menampilkannya.
+                    $a3->rek->each(function ($r) use ($keuangan, $data, &$sumSaldo) {
+                        $sumSaldo += $this->saldoRekening($r, $keuangan, $data['tgl_kondisi']);
+                    });
                     return [
                         'kode_akun' => $a3->kode_akun,
                         'nama_akun' => $a3->nama_akun,
                         'saldo'     => $sumSaldo,
-                        'rekening'  => $rekening,
                     ];
                 })->values();
                 $sumAkun3 = $akun3->sum('saldo');
@@ -132,12 +127,22 @@ class HoldingLaporanController extends Controller
             ];
         })->values();
 
+        // Ringkasan untuk render baris "Jumlah Aset" / "Jumlah Liabilitas + Ekuitas"
+        // (sama dengan view tenant: lev1 == '1' → debit, else → kredit)
+        $totalAset = (float) $payload->where('lev1', '1')->sum('saldo');
+        $totalLiabEkuitas = (float) $payload->where('lev1', '!=', '1')->sum('saldo');
+
         return response()->json([
             'success'      => true,
             'laporan'      => 'Neraca',
             'kecamatan'    => $kec->nama_kec,
             'tgl_kondisi'  => $data['tgl_kondisi'],
             'sub_judul'    => 'Per '.$data['hari'].' '.Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']),
+            'ringkasan'    => [
+                'total_aset'              => $totalAset,
+                'total_liabilitas_ekuitas'=> $totalLiabEkuitas,
+                'selisih'                 => $totalAset - $totalLiabEkuitas,
+            ],
             'data'         => $payload,
         ]);
     }
@@ -162,29 +167,36 @@ class HoldingLaporanController extends Controller
         $flatten = function (array $bagian) {
             $rows = [];
             $total = 0.0;
+            $totalLalu = 0.0;
             foreach ($bagian as $group) {
                 $groupTotal = 0.0;
+                $groupTotalLalu = 0.0;
                 $rekening = [];
                 foreach ($group['rek'] ?? [] as $kode => $r) {
                     $saldo = (float) ($r['saldo'] ?? 0);
                     $saldoLalu = (float) ($r['saldo_bln_lalu'] ?? 0);
                     $groupTotal += $saldo;
+                    $groupTotalLalu += $saldoLalu;
                     $rekening[] = [
-                        'kode_akun'      => $r['kode_akun'] ?? $kode,
-                        'nama_akun'      => $r['nama_akun'] ?? '',
-                        'saldo'          => $saldo,
-                        'saldo_bln_lalu' => $saldoLalu,
+                        'kode_akun'        => $r['kode_akun'] ?? $kode,
+                        'nama_akun'        => $r['nama_akun'] ?? '',
+                        'saldo_bln_lalu'   => $saldoLalu,
+                        'saldo_periode_ini'=> $saldo - $saldoLalu,
+                        'saldo'            => $saldo,
                     ];
                 }
                 $total += $groupTotal;
+                $totalLalu += $groupTotalLalu;
                 $rows[] = [
-                    'kode_akun' => $group['kode_akun'] ?? '',
-                    'nama_akun' => $group['nama_akun'] ?? '',
-                    'saldo'     => $groupTotal,
-                    'rekening'  => $rekening,
+                    'kode_akun'         => $group['kode_akun'] ?? '',
+                    'nama_akun'         => $group['nama_akun'] ?? '',
+                    'saldo_bln_lalu'    => $groupTotalLalu,
+                    'saldo_periode_ini' => $groupTotal - $groupTotalLalu,
+                    'saldo'             => $groupTotal,
+                    'rekening'          => $rekening,
                 ];
             }
-            return ['rows' => $rows, 'total' => $total];
+            return ['rows' => $rows, 'total' => $total, 'total_lalu' => $totalLalu];
         };
 
         $pendapatan     = $flatten($lr['pendapatan']      ?? []);
@@ -192,11 +204,30 @@ class HoldingLaporanController extends Controller
         $pendapatanNOP  = $flatten($lr['pendapatan_non_ops'] ?? []);
         $bebanNOP       = $flatten($lr['beban_non_ops']   ?? []);
 
-        $labaKotor = $pendapatan['total'] - $beban['total'];
-        $labaBersih = $labaKotor
-            + $pendapatanNOP['total']
-            - $bebanNOP['total']
-            - (float) ($pph['bulan_ini'] ?? 0);
+        // A. Laba Rugi Operasional (4.1 - 5.1 - 5.2) = Pendapatan - Beban
+        $lrOperasional_sdLalu     = $pendapatan['total_lalu'] - $beban['total_lalu'];
+        $lrOperasional_periodeIni = ($pendapatan['total'] - $pendapatan['total_lalu']) - ($beban['total'] - $beban['total_lalu']);
+        $lrOperasional_total      = $pendapatan['total']      - $beban['total'];
+
+        // B. Laba Rugi Non Operasional (4.2/4.3 - 5.3) = PendapatanNOP - BebanNOP
+        $lrNonOp_sdLalu     = $pendapatanNOP['total_lalu'] - $bebanNOP['total_lalu'];
+        $lrNonOp_periodeIni = ($pendapatanNOP['total'] - $pendapatanNOP['total_lalu']) - ($bebanNOP['total'] - $bebanNOP['total_lalu']);
+        $lrNonOp_total      = $pendapatanNOP['total']      - $bebanNOP['total'];
+
+        // C. Sebelum Pajak
+        $sebelumPajak_sdLalu     = $lrOperasional_sdLalu     + $lrNonOp_sdLalu;
+        $sebelumPajak_periodeIni = $lrOperasional_periodeIni + $lrNonOp_periodeIni;
+        $sebelumPajak_total      = $lrOperasional_total      + $lrNonOp_total;
+
+        // PPh
+        $pph_bulan_lalu       = (float) ($pph['bulan_lalu'] ?? 0);
+        $pph_sekarang         = (float) ($pph['bulan_ini'] ?? 0);
+        $pph_periode_ini      = $pph_sekarang - $pph_bulan_lalu;
+
+        // C. Setelah Pajak
+        $setelahPajak_sdLalu     = $sebelumPajak_sdLalu     - $pph_bulan_lalu;
+        $setelahPajak_periodeIni = $sebelumPajak_periodeIni - $pph_periode_ini;
+        $setelahPajak_total      = $sebelumPajak_total      - $pph_sekarang;
 
         return response()->json([
             'success'   => true,
@@ -209,18 +240,42 @@ class HoldingLaporanController extends Controller
                     ? 'Periode '.Tanggal::tglLatin($data['tahun'].'-01-01').' S.D '.Tanggal::tglLatin($data['tgl_kondisi'])
                     : 'Tahun '.Tanggal::tahun($data['tgl_kondisi']),
             ],
+            'ringkasan' => [
+                'pendapatan'         => $pendapatan['total'],
+                'beban'              => $beban['total'],
+                'pendapatan_non_ops' => $pendapatanNOP['total'],
+                'beban_non_ops'      => $bebanNOP['total'],
+                'lr_operasional'     => [
+                    's_d_bulan_lalu'   => $lrOperasional_sdLalu,
+                    'periode_ini'      => $lrOperasional_periodeIni,
+                    's_d_sekarang'     => $lrOperasional_total,
+                ],
+                'lr_non_operasional' => [
+                    's_d_bulan_lalu'   => $lrNonOp_sdLalu,
+                    'periode_ini'      => $lrNonOp_periodeIni,
+                    's_d_sekarang'     => $lrNonOp_total,
+                ],
+                'sebelum_pajak'      => [
+                    's_d_bulan_lalu'   => $sebelumPajak_sdLalu,
+                    'periode_ini'      => $sebelumPajak_periodeIni,
+                    's_d_sekarang'     => $sebelumPajak_total,
+                ],
+                'pph'                => [
+                    's_d_bulan_lalu'   => $pph_bulan_lalu,
+                    'periode_ini'      => $pph_periode_ini,
+                    's_d_sekarang'     => $pph_sekarang,
+                ],
+                'setelah_pajak'      => [
+                    's_d_bulan_lalu'   => $setelahPajak_sdLalu,
+                    'periode_ini'      => $setelahPajak_periodeIni,
+                    's_d_sekarang'     => $setelahPajak_total,
+                ],
+            ],
             'data' => [
                 'pendapatan'           => $pendapatan['rows'],
                 'beban'                => $beban['rows'],
-                'total_pendapatan'     => $pendapatan['total'],
-                'total_beban'          => $beban['total'],
-                'laba_kotor'           => $labaKotor,
                 'pendapatan_non_ops'   => $pendapatanNOP['rows'],
                 'beban_non_ops'        => $bebanNOP['rows'],
-                'total_pendapatan_nop' => $pendapatanNOP['total'],
-                'total_beban_nop'      => $bebanNOP['total'],
-                'pph'                  => (float) ($pph['bulan_ini'] ?? 0),
-                'laba_bersih'          => $labaBersih,
             ],
         ]);
     }
@@ -270,38 +325,90 @@ class HoldingLaporanController extends Controller
         $arusKas = ArusKas::where('sub', '0')->with('child')->orderBy('id', 'ASC')->get();
         $saldoBulanLalu = (float) $keuangan->saldoKas($tgl_lalu);
 
-        // Helper untuk tentukan parent (masuk/keluar) — fallback string 'masuk' untuk id=1 (Saldo Awal)
-        $items = $arusKas->map(function ($ak) use ($keuangan, $data, $jenis) {
-            $saldo = 0.0;
-            foreach ($ak->child as $child) {
-                // Sumber kebenaran: Keuangan::arus_kas (string 'debit~kredit#debit~kredit')
-                $saldo += (float) $keuangan->arus_kas($child->rekening, $data['tgl_kondisi'], $jenis);
-            }
+        $saldoAwalLabel = 'Saldo Awal ' . ($awal === 'BULAN' ? 'Bulan' : 'Tahun');
+
+        // Build struktur: parent (Operasi/Investasi/Pendanaan) → group → child rows.
+        // Samakan dengan view tenant yang hitung `array_saldo[]` per group utama
+        // (group_index 0..6) untuk "Jumlah Aktivitas Operasi/Investasi/Pendanaan".
+        $rows = [];
+        $groupTotals = []; // urut penemuan group utama (id 22/52/66 = akhir Operasi/Investasi/Pendanaan)
+        $groupIdx = 0;
+        $currentGroupTotal = 0.0;
+        $currentGroupName = null;
+
+        foreach ($arusKas as $ak) {
             $parent = $ak->parent ?: ($ak->id == 1 ? 'saldo_awal' : null);
-            return [
-                'id'      => (int) $ak->id,
-                'parent'  => $parent,
-                'kategori'=> $ak->kategori ?? null,
-                'nama'    => $ak->nama,
-                'sub'     => (int) $ak->sub,
-                'saldo'   => $saldo,
-            ];
-        });
+            $isSaldoAwal = (int) $ak->id === 1;
 
-        // Saldo awal (id=1) dimasukkan sebagai item 'masuk' semu supaya total_masuk benar
-        $saldoAwalItem = ['id' => 1, 'parent' => 'saldo_awal', 'nama' => 'Saldo Awal ' . ($awal === 'BULAN' ? 'Bulan' : 'Tahun'), 'sub' => 0, 'saldo' => $saldoBulanLalu];
-        $items = $items->map(function ($i) use ($saldoAwalItem) {
-            // Replace id=1 placeholder dengan item saldo awal
-            if ($i['id'] === 1) {
-                return $saldoAwalItem;
+            // Hitung child rows
+            $childRows = [];
+            $akTotal = 0.0;
+            foreach ($ak->child as $child) {
+                $saldo = (float) $keuangan->arus_kas($child->rekening, $data['tgl_kondisi'], $jenis);
+                $akTotal += $saldo;
+                $childRows[] = [
+                    'id'       => (int) $child->id,
+                    'kode_akun'=> $child->kode_akun ?? null,
+                    'nama_akun'=> $child->nama_akun ?? $child->nama,
+                    'saldo'    => $saldo,
+                ];
             }
-            return $i;
-        })->values();
+            // Item saldo awal langsung di parent (id=1), tidak punya child
+            if ($isSaldoAwal) {
+                $akTotal = $saldoBulanLalu;
+            }
 
-        $totalMasuk  = (float) $items->where('parent', 'masuk')->sum('saldo');
-        $totalKeluar = (float) $items->where('parent', 'keluar')->sum('saldo');
-        // Untuk saldo akhir: totalMasuk sudah termasuk saldo awal, totalKeluar dikurangi.
-        $saldoAkhir = $totalMasuk - $totalKeluar;
+            // Akumulasi total group: view tenant simpan $j_saldo per group utama,
+            // lalu di-reset setelah lewat id 1, 16, 46, 61.
+            if (in_array((int) $ak->id, [1, 16, 46, 61], true)) {
+                // Simpan group sebelumnya
+                if ($currentGroupName !== null) {
+                    $groupTotals[] = [
+                        'nama'  => $currentGroupName,
+                        'saldo' => $currentGroupTotal,
+                    ];
+                }
+                $currentGroupTotal = 0.0;
+                $currentGroupName = $ak->nama_akun;
+            } else {
+                $currentGroupTotal += $akTotal;
+            }
+
+            $rows[] = [
+                'id'       => (int) $ak->id,
+                'parent'   => $parent,
+                'kategori' => $ak->kategori ?? null,
+                'nama'     => $isSaldoAwal ? $saldoAwalLabel : $ak->nama_akun,
+                'sub'      => (int) $ak->sub,
+                'saldo'    => $akTotal,
+                'detail'   => $childRows,
+            ];
+        }
+        // Simpan group terakhir
+        if ($currentGroupName !== null) {
+            $groupTotals[] = [
+                'nama'  => $currentGroupName,
+                'saldo' => $currentGroupTotal,
+            ];
+        }
+
+        // Hitung total masuk/keluar (exclude saldo awal, sesuai view tenant)
+        $totalMasuk  = (float) collect($rows)->where('parent', 'masuk')->sum('saldo');
+        $totalKeluar = (float) collect($rows)->where('parent', 'keluar')->sum('saldo');
+
+        // Hitung Kas Bersih per aktivitas (mengikuti id penanda 22/52/66 di view tenant)
+        // Index groupTotals berurut: 0=Operasi, 1=Investasi, 2=Pendanaan
+        $kasOperasi    = isset($groupTotals[0]) && isset($groupTotals[1]) && isset($groupTotals[2])
+            ? $groupTotals[0]['saldo'] - ($groupTotals[1]['saldo'] + $groupTotals[2]['saldo'])
+            : 0.0;
+        $kasInvestasi  = isset($groupTotals[3]) && isset($groupTotals[4])
+            ? $groupTotals[3]['saldo'] - $groupTotals[4]['saldo']
+            : 0.0;
+        $kasPendanaan  = isset($groupTotals[5]) && isset($groupTotals[6])
+            ? $groupTotals[5]['saldo'] - $groupTotals[6]['saldo']
+            : 0.0;
+        $kenaikan      = $kasOperasi + $kasInvestasi + $kasPendanaan;
+        $saldoAkhir    = $kenaikan + $saldoBulanLalu;
 
         return response()->json([
             'success'   => true,
@@ -312,14 +419,18 @@ class HoldingLaporanController extends Controller
                 'tgl_kondisi'  => $data['tgl_kondisi'],
                 'sub_judul'    => $data['sub_judul'],
             ],
-            'data' => [
-                'saldo_awal'        => $saldoBulanLalu,
-                'arus_kas'          => $items,
-                'total_masuk'       => $totalMasuk,
-                'total_keluar'      => $totalKeluar,
-                'kenaikan_penurunan'=> $totalMasuk - $totalKeluar,
-                'saldo_akhir'       => $saldoAkhir,
+            'ringkasan' => [
+                'saldo_awal'         => $saldoBulanLalu,
+                'total_masuk'        => $totalMasuk,
+                'total_keluar'       => $totalKeluar,
+                'kas_operasi'        => $kasOperasi,
+                'kas_investasi'      => $kasInvestasi,
+                'kas_pendanaan'      => $kasPendanaan,
+                'kenaikan_penurunan' => $kenaikan,
+                'saldo_akhir'        => $saldoAkhir,
+                'group'              => $groupTotals,
             ],
+            'data' => $rows,
         ]);
     }
 
@@ -375,16 +486,16 @@ class HoldingLaporanController extends Controller
                     ? 'Bulan '.Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi'])
                     : 'Tahun '.Tanggal::tahun($data['tgl_kondisi']),
             ],
-            'data' => [
+            'ringkasan' => [
                 'ekuitas_awal'   => $ekuitasAwal,
-                'laba_rugi'      => $labaRugiBersih,
                 'setoran'        => (float) $rows->where('kode_akun', '3.2.01.01')->sum('mutasi'),
                 'penarikan'      => (float) $rows->where('kode_akun', '3.2.01.02')->sum('mutasi'),
                 'dividen'        => (float) $rows->where('kode_akun', '3.2.01.03')->sum('mutasi'),
                 'koreksi'        => (float) $rows->where('kode_akun', '3.2.02.01')->sum('mutasi'),
-                'komponen_ekuitas' => $rows->values(),
+                'laba_rugi'      => $labaRugiBersih,
                 'ekuitas_akhir'  => $ekuitasAkhir,
             ],
+            'data' => $rows->values(),
         ]);
     }
 
@@ -469,6 +580,10 @@ class HoldingLaporanController extends Controller
             ];
         })->values();
 
+        // Ringkasan bagian C (sama dengan "Jumlah Aset" / "Jumlah Liabilitas + Ekuitas" di view)
+        $totalAset = (float) $bagianC->where('lev1', '1')->sum('saldo');
+        $totalLiabEkuitas = (float) $bagianC->where('lev1', '!=', '1')->sum('saldo');
+
         $penandatangan = [
             'sekretaris' => User::where(['level' => '1', 'jabatan' => '2', 'lokasi' => $kec->id])->first(),
             'bendahara'  => User::where(['level' => '1', 'jabatan' => '3', 'lokasi' => $kec->id])->first(),
@@ -489,6 +604,12 @@ class HoldingLaporanController extends Controller
                     ? 'Bulan '.Tanggal::namaBulan($data['tgl_kondisi']).' Tahun '.$data['tahun']
                     : 'Tahun '.$data['tahun'],
                 'tgl_mad'     => $tglMad,
+            ],
+            'ringkasan' => [
+                'point_a'                 => $pointA,
+                'total_aset'              => $totalAset,
+                'total_liabilitas_ekuitas'=> $totalLiabEkuitas,
+                'selisih'                 => $totalAset - $totalLiabEkuitas,
             ],
             'data' => [
                 'point_a'         => $pointA,
