@@ -57,6 +57,19 @@ class HoldingLaporanController extends Controller
     }
 
     /**
+     * Hitung saldo satu rekening dengan special case 3.2.02.01 = laba_rugi.
+     * Sumber kebenaran: Keuangan::komSaldo (dipakai semua view tenant).
+     */
+    private function saldoRekening($rek, Keuangan $keuangan, string $tglKondisi): float
+    {
+        $saldo = $keuangan->komSaldo($rek);
+        if ($rek->kode_akun === '3.2.02.01') {
+            $saldo = $keuangan->laba_rugi($tglKondisi);
+        }
+        return (float) $saldo;
+    }
+
+    /**
      * GET /api/v1/holding/laporan/neraca
      * Query: tahun, bulan?, hari?, file_type?=1
      */
@@ -67,7 +80,8 @@ class HoldingLaporanController extends Controller
         $kec = $this->kecamatan($request);
         $data['kec'] = $kec;
 
-        $data['akun1'] = AkunLevel1::where('lev1', '<=', '3')->with([
+        $keuangan = new Keuangan;
+        $akun1 = AkunLevel1::where('lev1', '<=', '3')->with([
             'akun2',
             'akun2.akun3',
             'akun2.akun3.rek',
@@ -79,7 +93,44 @@ class HoldingLaporanController extends Controller
             },
         ])->orderBy('kode_akun', 'ASC')->get();
 
-        $payload = $this->serializeNeraca($data);
+        $payload = $akun1->map(function ($a1) use ($keuangan, $data) {
+            $sumAkun1 = 0.0;
+            $akun2 = $a1->akun2->map(function ($a2) use ($keuangan, $data, &$sumAkun1) {
+                $akun3 = $a2->akun3->map(function ($a3) use ($keuangan, $data, &$sumAkun1) {
+                    $sumSaldo = 0.0;
+                    $rekening = $a3->rek->map(function ($r) use ($keuangan, $data, &$sumSaldo) {
+                        $saldo = $this->saldoRekening($r, $keuangan, $data['tgl_kondisi']);
+                        $sumSaldo += $saldo;
+                        return [
+                            'kode_akun' => $r->kode_akun,
+                            'nama_akun' => $r->nama_akun,
+                            'saldo'     => $saldo,
+                        ];
+                    })->values();
+                    return [
+                        'kode_akun' => $a3->kode_akun,
+                        'nama_akun' => $a3->nama_akun,
+                        'saldo'     => $sumSaldo,
+                        'rekening'  => $rekening,
+                    ];
+                })->values();
+                $sumAkun3 = $akun3->sum('saldo');
+                $sumAkun1 += $sumAkun3;
+                return [
+                    'kode_akun' => $a2->kode_akun,
+                    'nama_akun' => $a2->nama_akun,
+                    'saldo'     => $sumAkun3,
+                    'akun3'     => $akun3,
+                ];
+            })->values();
+            return [
+                'kode_akun' => $a1->kode_akun,
+                'nama_akun' => $a1->nama_akun,
+                'lev1'      => $a1->lev1,
+                'saldo'     => $sumAkun1,
+                'akun2'     => $akun2,
+            ];
+        })->values();
 
         return response()->json([
             'success'      => true,
@@ -107,20 +158,45 @@ class HoldingLaporanController extends Controller
         $pph = $keuangan->pph($data['tgl_kondisi'], $jenis);
         $lr  = $keuangan->laporan_laba_rugi($data['tgl_kondisi'], $jenis);
 
-        $pendapatan  = $lr['pendapatan']      ?? [];
-        $beban       = $lr['beban']           ?? [];
-        $pendapatanNOP = $lr['pendapatan_non_ops'] ?? [];
-        $bebanNOP    = $lr['beban_non_ops']   ?? [];
+        // Helper: flatten sum + keep struktur per-rekening
+        $flatten = function (array $bagian) {
+            $rows = [];
+            $total = 0.0;
+            foreach ($bagian as $group) {
+                $groupTotal = 0.0;
+                $rekening = [];
+                foreach ($group['rek'] ?? [] as $kode => $r) {
+                    $saldo = (float) ($r['saldo'] ?? 0);
+                    $saldoLalu = (float) ($r['saldo_bln_lalu'] ?? 0);
+                    $groupTotal += $saldo;
+                    $rekening[] = [
+                        'kode_akun'      => $r['kode_akun'] ?? $kode,
+                        'nama_akun'      => $r['nama_akun'] ?? '',
+                        'saldo'          => $saldo,
+                        'saldo_bln_lalu' => $saldoLalu,
+                    ];
+                }
+                $total += $groupTotal;
+                $rows[] = [
+                    'kode_akun' => $group['kode_akun'] ?? '',
+                    'nama_akun' => $group['nama_akun'] ?? '',
+                    'saldo'     => $groupTotal,
+                    'rekening'  => $rekening,
+                ];
+            }
+            return ['rows' => $rows, 'total' => $total];
+        };
 
-        $totalPendapatan = collect($pendapatan)->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0));
-        $totalBeban      = collect($beban)->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0));
-        $labaKotor       = $totalPendapatan - $totalBeban;
+        $pendapatan     = $flatten($lr['pendapatan']      ?? []);
+        $beban          = $flatten($lr['beban']           ?? []);
+        $pendapatanNOP  = $flatten($lr['pendapatan_non_ops'] ?? []);
+        $bebanNOP       = $flatten($lr['beban_non_ops']   ?? []);
 
-        $totalPendapatanNOP = collect($pendapatanNOP)->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0));
-        $totalBebanNOP      = collect($bebanNOP)->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0));
-
-        $pajak = (float) ($pph['bulan_ini'] ?? 0);
-        $labaBersih = $labaKotor + $totalPendapatanNOP - $totalBebanNOP - $pajak;
+        $labaKotor = $pendapatan['total'] - $beban['total'];
+        $labaBersih = $labaKotor
+            + $pendapatanNOP['total']
+            - $bebanNOP['total']
+            - (float) ($pph['bulan_ini'] ?? 0);
 
         return response()->json([
             'success'   => true,
@@ -134,16 +210,16 @@ class HoldingLaporanController extends Controller
                     : 'Tahun '.Tanggal::tahun($data['tgl_kondisi']),
             ],
             'data' => [
-                'pendapatan'           => $pendapatan,
-                'beban'                => $beban,
-                'total_pendapatan'     => $totalPendapatan,
-                'total_beban'          => $totalBeban,
+                'pendapatan'           => $pendapatan['rows'],
+                'beban'                => $beban['rows'],
+                'total_pendapatan'     => $pendapatan['total'],
+                'total_beban'          => $beban['total'],
                 'laba_kotor'           => $labaKotor,
-                'pendapatan_non_ops'   => $pendapatanNOP,
-                'beban_non_ops'        => $bebanNOP,
-                'total_pendapatan_nop' => $totalPendapatanNOP,
-                'total_beban_nop'      => $totalBebanNOP,
-                'pph'                  => $pajak,
+                'pendapatan_non_ops'   => $pendapatanNOP['rows'],
+                'beban_non_ops'        => $bebanNOP['rows'],
+                'total_pendapatan_nop' => $pendapatanNOP['total'],
+                'total_beban_nop'      => $bebanNOP['total'],
+                'pph'                  => (float) ($pph['bulan_ini'] ?? 0),
                 'laba_bersih'          => $labaBersih,
             ],
         ]);
@@ -192,27 +268,40 @@ class HoldingLaporanController extends Controller
         }
 
         $arusKas = ArusKas::where('sub', '0')->with('child')->orderBy('id', 'ASC')->get();
-        $saldoBulanLalu = $keuangan->saldoKas($tgl_lalu);
+        $saldoBulanLalu = (float) $keuangan->saldoKas($tgl_lalu);
 
-        $items = $arusKas->map(function ($ak) use ($keuangan, $data) {
+        // Helper untuk tentukan parent (masuk/keluar) — fallback string 'masuk' untuk id=1 (Saldo Awal)
+        $items = $arusKas->map(function ($ak) use ($keuangan, $data, $jenis) {
             $saldo = 0.0;
             foreach ($ak->child as $child) {
-                // Asumsikan tiap child memiliki field saldo_total di tabel arus_kas_detail
-                $saldo += (float) ($child->saldo_total ?? 0);
+                // Sumber kebenaran: Keuangan::arus_kas (string 'debit~kredit#debit~kredit')
+                $saldo += (float) $keuangan->arus_kas($child->rekening, $data['tgl_kondisi'], $jenis);
             }
+            $parent = $ak->parent ?: ($ak->id == 1 ? 'saldo_awal' : null);
             return [
-                'id'      => $ak->id,
-                'parent'  => $ak->parent,
-                'kategori'=> $ak->kategori ?? $ak->nama,
+                'id'      => (int) $ak->id,
+                'parent'  => $parent,
+                'kategori'=> $ak->kategori ?? null,
                 'nama'    => $ak->nama,
                 'sub'     => (int) $ak->sub,
                 'saldo'   => $saldo,
             ];
         });
 
-        $totalMasuk  = $items->where('parent', 'masuk')->sum('saldo');
-        $totalKeluar = $items->where('parent', 'keluar')->sum('saldo');
-        $netto       = $totalMasuk - $totalKeluar;
+        // Saldo awal (id=1) dimasukkan sebagai item 'masuk' semu supaya total_masuk benar
+        $saldoAwalItem = ['id' => 1, 'parent' => 'saldo_awal', 'nama' => 'Saldo Awal ' . ($awal === 'BULAN' ? 'Bulan' : 'Tahun'), 'sub' => 0, 'saldo' => $saldoBulanLalu];
+        $items = $items->map(function ($i) use ($saldoAwalItem) {
+            // Replace id=1 placeholder dengan item saldo awal
+            if ($i['id'] === 1) {
+                return $saldoAwalItem;
+            }
+            return $i;
+        })->values();
+
+        $totalMasuk  = (float) $items->where('parent', 'masuk')->sum('saldo');
+        $totalKeluar = (float) $items->where('parent', 'keluar')->sum('saldo');
+        // Untuk saldo akhir: totalMasuk sudah termasuk saldo awal, totalKeluar dikurangi.
+        $saldoAkhir = $totalMasuk - $totalKeluar;
 
         return response()->json([
             'success'   => true,
@@ -224,12 +313,12 @@ class HoldingLaporanController extends Controller
                 'sub_judul'    => $data['sub_judul'],
             ],
             'data' => [
-                'saldo_awal'      => (float) $saldoBulanLalu,
-                'arus_kas'        => $items->values(),
-                'total_masuk'     => $totalMasuk,
-                'total_keluar'    => $totalKeluar,
-                'kenaikan_penurunan' => $netto,
-                'saldo_akhir'     => (float) $saldoBulanLalu + $netto,
+                'saldo_awal'        => $saldoBulanLalu,
+                'arus_kas'          => $items,
+                'total_masuk'       => $totalMasuk,
+                'total_keluar'      => $totalKeluar,
+                'kenaikan_penurunan'=> $totalMasuk - $totalKeluar,
+                'saldo_akhir'       => $saldoAkhir,
             ],
         ]);
     }
@@ -258,22 +347,9 @@ class HoldingLaporanController extends Controller
             }])
             ->get();
 
-        $rows = $rekening->map(function ($r) {
-            $debit = 0.0; $kredit = 0.0;
-            $debit0 = 0.0; $kredit0 = 0.0;
-            foreach ($r->kom_saldo as $ks) {
-                if ((int) $ks->bulan === 0) {
-                    $debit0  = (float) $ks->debit;
-                    $kredit0 = (float) $ks->kredit;
-                } else {
-                    $debit  = (float) $ks->debit;
-                    $kredit = (float) $ks->kredit;
-                }
-            }
-            $saldoAwal = $kredit0 - $debit0;
-            $saldo     = $saldoAwal + ($kredit - $debit);
-            if ($r->kode_akun === '3.2.02.01') $saldo = 0;
-
+        $rows = $rekening->map(function ($r) use ($keuangan, $data) {
+            $saldo = $this->saldoRekening($r, $keuangan, $data['tgl_kondisi']);
+            $saldoAwal = (float) $keuangan->komSaldoAwal($r);
             return [
                 'kode_akun'  => $r->kode_akun,
                 'nama_akun'  => $r->nama_akun,
@@ -283,11 +359,11 @@ class HoldingLaporanController extends Controller
             ];
         });
 
-        $ekuitasAwal   = $rows->sum('saldo_awal');
-        $ekuitasAkhir  = $rows->sum('saldo_akhir');
-        $labaRugi = (new Keuangan)->laporan_laba_rugi($data['tgl_kondisi'], $data['bulanan'] ? 'Bulanan' : 'Tahunan');
-        $surplus  = collect($labaRugi['pendapatan'] ?? [])->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0))
-                 - collect($labaRugi['beban']      ?? [])->sum(fn($i) => (float) ($i['saldo_sekarang'] ?? 0));
+        $ekuitasAwal  = (float) $rows->sum('saldo_awal');
+        $ekuitasAkhir = (float) $rows->sum('saldo_akhir');
+
+        // Laba rugi = selisih akhir - awal - mutasi
+        $labaRugiBersih = $ekuitasAkhir - $ekuitasAwal - (float) $rows->sum('mutasi');
 
         return response()->json([
             'success'   => true,
@@ -301,13 +377,13 @@ class HoldingLaporanController extends Controller
             ],
             'data' => [
                 'ekuitas_awal'   => $ekuitasAwal,
-                'laba_rugi'      => $surplus,
-                'setoran'        => $rows->where('kode_akun', '3.2.01.01')->sum('mutasi'),
-                'penarikan'      => $rows->where('kode_akun', '3.2.01.02')->sum('mutasi'),
-                'dividen'        => $rows->where('kode_akun', '3.2.01.03')->sum('mutasi'),
-                'koreksi'        => $rows->where('kode_akun', '3.2.02.01')->sum('mutasi'),
+                'laba_rugi'      => $labaRugiBersih,
+                'setoran'        => (float) $rows->where('kode_akun', '3.2.01.01')->sum('mutasi'),
+                'penarikan'      => (float) $rows->where('kode_akun', '3.2.01.02')->sum('mutasi'),
+                'dividen'        => (float) $rows->where('kode_akun', '3.2.01.03')->sum('mutasi'),
+                'koreksi'        => (float) $rows->where('kode_akun', '3.2.02.01')->sum('mutasi'),
                 'komponen_ekuitas' => $rows->values(),
-                'ekuitas_akhir'  => $ekuitasAkhir + $surplus,
+                'ekuitas_akhir'  => $ekuitasAkhir,
             ],
         ]);
     }
@@ -315,12 +391,18 @@ class HoldingLaporanController extends Controller
     /**
      * GET /api/v1/holding/laporan/calk
      * Query: tahun, bulan?, hari?
+     *
+     * Bagian C: struktur akun1 (lev1..akun2..akun3..rekening) lengkap seperti
+     * neraca, dengan special case 3.2.02.01 = laba_rugi. Sama dengan view tenant
+     * `pelaporan.view.calk` (line 230-306).
      */
     public function calk(Request $request): JsonResponse
     {
         $data = $this->validatePeriode($request);
         $kec = $this->kecamatan($request);
         $data['kec'] = $kec;
+
+        $keuangan = new Keuangan;
 
         $trx = Transaksi::where('keterangan_transaksi', 'LIKE', '%tahun '.((int) $data['tahun'] - 1))
             ->where('rekening_debit', '3.2.01.01')->first();
@@ -344,8 +426,48 @@ class HoldingLaporanController extends Controller
             ->where('tanggal', 'LIKE', $data['tahun'].'-'.str_pad($data['bulan'], 2, '0', STR_PAD_LEFT).'%')
             ->first();
 
-        $calk = json_decode($kec->calk, true);
-        $pointA = $calk['calk']['A'] ?? '';
+        $calkJson = json_decode($kec->calk, true);
+        $pointA = $calkJson['calk']['A'] ?? '';
+
+        // Bagian C: struktur akun1..akun2..akun3..rekening (sama persis view tenant line 230-306)
+        $bagianC = $akun1->map(function ($a1) use ($keuangan, $data) {
+            $sumAkun1 = 0.0;
+            $akun2 = $a1->akun2->map(function ($a2) use ($keuangan, $data, &$sumAkun1) {
+                $akun3 = $a2->akun3->map(function ($a3) use ($keuangan, $data, &$sumAkun1) {
+                    $sumSaldo = 0.0;
+                    $rekening = $a3->rek->map(function ($r) use ($keuangan, $data, &$sumSaldo) {
+                        $saldo = $this->saldoRekening($r, $keuangan, $data['tgl_kondisi']);
+                        $sumSaldo += $saldo;
+                        return [
+                            'kode_akun' => $r->kode_akun,
+                            'nama_akun' => $r->nama_akun,
+                            'saldo'     => $saldo,
+                        ];
+                    })->values();
+                    return [
+                        'kode_akun' => $a3->kode_akun,
+                        'nama_akun' => $a3->nama_akun,
+                        'saldo'     => $sumSaldo,
+                        'rekening'  => $rekening,
+                    ];
+                })->values();
+                $sumAkun3 = $akun3->sum('saldo');
+                $sumAkun1 += $sumAkun3;
+                return [
+                    'kode_akun' => $a2->kode_akun,
+                    'nama_akun' => $a2->nama_akun,
+                    'saldo'     => $sumAkun3,
+                    'akun3'     => $akun3,
+                ];
+            })->values();
+            return [
+                'kode_akun' => $a1->kode_akun,
+                'nama_akun' => $a1->nama_akun,
+                'lev1'      => $a1->lev1,
+                'saldo'     => $sumAkun1,
+                'akun2'     => $akun2,
+            ];
+        })->values();
 
         $penandatangan = [
             'sekretaris' => User::where(['level' => '1', 'jabatan' => '2', 'lokasi' => $kec->id])->first(),
@@ -371,60 +493,10 @@ class HoldingLaporanController extends Controller
             'data' => [
                 'point_a'         => $pointA,
                 'catatan'         => $keterangan->catatan ?? null,
-                'rincian_akun'    => $akun1,
+                'rincian_akun'    => $bagianC,
                 'saldo_calk'      => $saldoCalk,
                 'penandatangan'   => $penandatangan,
             ],
         ]);
-    }
-
-    /**
-     * Ringkas AkunLevel1 + child ke JSON: kode_akun, nama_akun, lev1, akun2[]
-     * (Helper untuk endpoint neraca; serializer minimal.)
-     */
-    private function serializeNeraca(array $data): array
-    {
-        return $data['akun1']->map(function ($a1) {
-            return [
-                'kode_akun' => $a1->kode_akun,
-                'nama_akun' => $a1->nama_akun,
-                'lev1'      => $a1->lev1,
-                'akun2'     => $a1->akun2->map(function ($a2) {
-                    return [
-                        'kode_akun' => $a2->kode_akun,
-                        'nama_akun' => $a2->nama_akun,
-                        'akun3'     => $a2->akun3->map(function ($a3) {
-                            return [
-                                'kode_akun' => $a3->kode_akun,
-                                'nama_akun' => $a3->nama_akun,
-                                'rekening'  => $a3->rek->map(function ($r) {
-                                    $debit = 0.0; $kredit = 0.0;
-                                    $d0 = 0.0; $k0 = 0.0;
-                                    foreach ($r->kom_saldo as $ks) {
-                                        if ((int) $ks->bulan === 0) {
-                                            $d0 = (float) $ks->debit;
-                                            $k0 = (float) $ks->kredit;
-                                        } else {
-                                            $debit  = (float) $ks->debit;
-                                            $kredit = (float) $ks->kredit;
-                                        }
-                                    }
-                                    if (in_array($r->lev1, ['1', '5'], true)) {
-                                        $saldo = ($d0 - $k0) + ($debit - $kredit);
-                                    } else {
-                                        $saldo = ($k0 - $d0) + ($kredit - $debit);
-                                    }
-                                    return [
-                                        'kode_akun' => $r->kode_akun,
-                                        'nama_akun' => $r->nama_akun,
-                                        'saldo'     => $saldo,
-                                    ];
-                                })->values(),
-                            ];
-                        })->values(),
-                    ];
-                })->values(),
-            ];
-        })->values()->all();
     }
 }
