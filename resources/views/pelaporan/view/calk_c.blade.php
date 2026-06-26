@@ -1,23 +1,5 @@
 @php
-    use App\Utils\Keuangan;
-    $keuangan = new Keuangan();
-
-    $saldo_aset = 0;
-
-    $i = 0;
-    foreach ($saldo_calk as $_saldo) {
-        $calk["$i"]['th_lalu'] = floatval($_saldo->debit);
-        if ($tgl_kondisi >= $tgl_mad) {
-            $calk["$i"]['th_ini'] = floatval($_saldo->kredit);
-        }
-
-        $i++;
-    }
-@endphp
-
-@php
-    use App\Utils\Keuangan;
-    $keuangan = new Keuangan();
+    $keuangan = new \App\Utils\Keuangan();
 
     $saldo_aset = 0;
 @endphp
