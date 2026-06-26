@@ -750,6 +750,63 @@ class PelaporanController extends Controller
         }
     }
 
+    private function calk_c(array $data)
+    {
+        $keuangan = new Keuangan;
+
+        $thn = $data['tahun'];
+        $bln = $data['bulan'];
+        $hari = $data['hari'];
+
+        $trx = Transaksi::where([
+            ['keterangan_transaksi', 'LIKE', '%tahun '.$data['tahun'] - 1],
+            ['rekening_debit', '3.2.01.01'],
+        ])->first();
+
+        $data['tgl_mad'] = $data['tgl_kondisi'];
+        if ($trx) {
+            $data['tgl_mad'] = $trx->tgl_transaksi;
+        }
+
+        $tgl = $thn.'-'.$bln.'-'.$hari;
+        $data['tgl'] = Tanggal::tahun($tgl);
+        $data['nama_tgl'] = 'Tahun '.$thn;
+        $data['sub_judul'] = 'Tahun '.$thn;
+        if ($data['bulanan']) {
+            $data['tgl'] = Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
+            $data['nama_tgl'] = 'Bulan '.Tanggal::namaBulan($tgl).' Tahun '.$thn;
+            $data['sub_judul'] = 'Bulan '.Tanggal::namaBulan($tgl).' Tahun '.$thn;
+        }
+
+        $data['debit'] = 0;
+        $data['kredit'] = 0;
+
+        $data['akun1'] = AkunLevel1::where('lev1', '<=', '3')->with([
+            'akun2',
+            'akun2.akun3',
+            'akun2.akun3.rek' => function ($query) use ($data) {
+                $query->whereNull('tgl_nonaktif')->orwhere('tgl_nonaktif', '>', $data['tgl_kondisi']);
+            },
+            'akun2.akun3.rek.kom_saldo' => function ($query) use ($data) {
+                $query->where('tahun', $data['tahun'])->where(function ($query) use ($data) {
+                    $query->where('bulan', '0')->orwhere('bulan', $data['bulan']);
+                });
+            },
+        ])->orderBy('kode_akun', 'ASC')->get();
+
+        $view = view('pelaporan.view.calk_c', $data)->render();
+
+        if ($data['type'] == 'pdf') {
+            $paperSize = session::get('lokasi') == 109 ? [0, 0, 595.28, 935.43] : 'A4';
+
+            $pdf = PDF::loadHTML($view)->setPaper($paperSize, 'portrait');
+
+            return $pdf->stream();
+        } else {
+            return $view;
+        }
+    }
+
     private function jurnal_transaksi(array $data)
     {
         $thn = $data['tahun'];
