@@ -10,6 +10,25 @@
 
 @section('content')
     <table border="0" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+            <td colspan="3" align="center">
+                <div style="font-size: 18px;">
+                    <b>CATATAN ATAS LAPORAN KEUANGAN</b>
+                </div>
+                <div style="font-size: 18px; text-transform: uppercase;">
+                    <b>{{ $kec->nama_lembaga_sort }}</b>
+                </div>
+                <div style="font-size: 16px;">
+                    <b>{{ strtoupper($sub_judul) }}</b>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" height="5"></td>
+        </tr>
+    </table>
+
+    <table border="0" width="100%" cellspacing="0" cellpadding="0">
         @foreach ($akun1 as $lev1)
             @php
                 $sum_akun1 = 0;
