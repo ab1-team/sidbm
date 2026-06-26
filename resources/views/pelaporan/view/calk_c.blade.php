@@ -15,6 +15,13 @@
     }
 @endphp
 
+@php
+    use App\Utils\Keuangan;
+    $keuangan = new Keuangan();
+
+    $saldo_aset = 0;
+@endphp
+
 @extends('pelaporan.layout.base')
 
 @section('content')
