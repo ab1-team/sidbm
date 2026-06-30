@@ -297,17 +297,7 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        if ($anggota) {
-            // Total jasa = sum alokasi_pa × pros_jasa_pa / 100.
-            // Pakai pros_jasa per-anggota karena bisa sudah disesuaikan
-            // (mis. lokasi 522) — lihat PinjamanAnggotaController::store.
-            $total_jasa = 0;
-            foreach ($anggota as $pa) {
-                $total_jasa += $this->getAlokasi($pa) * ($pa->pros_jasa / 100);
-            }
-        } else {
-            $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
-        }
+        $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
 
         $rencana_anggota = [];
         if ($anggota) {
