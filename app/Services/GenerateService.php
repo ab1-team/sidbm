@@ -297,12 +297,32 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
+        if ($anggota) {
+            // Total jasa = sum alokasi_pa × pros_jasa_pa / 100.
+            // Pakai pros_jasa per-anggota karena bisa sudah disesuaikan
+            // (mis. lokasi 522) — lihat PinjamanAnggotaController::store.
+            $total_jasa = 0;
+            foreach ($anggota as $pa) {
+                $total_jasa += $this->getAlokasi($pa) * ($pa->pros_jasa / 100);
+            }
+        } else {
+            $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
+        }
 
         $rencana_anggota = [];
         if ($anggota) {
             foreach ($anggota as $pa) {
-                $sch_pa = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $this->getAlokasi($pa), $kec->pembulatan);
+                // Pakai $pa->pros_jasa (yg bisa sudah disesuaikan di level
+                // anggota — mis. lokasi 522) supaya total jasa anggota
+                // match dengan nilai pros_jasa yg ditampilkan di view.
+                $sch_pa = $this->rencana_angsuran(
+                    $pinkel,
+                    $sis_p,
+                    $sis_j,
+                    $this->getAlokasi($pa),
+                    $kec->pembulatan,
+                    $pa->pros_jasa
+                );
                 $target_pa_p = array_sum($sch_pa['pokok']);
                 $target_pa_j = array_sum($sch_pa['jasa']);
 
@@ -564,11 +584,16 @@ class GenerateService
         return ['alokasi' => $alokasi, 'tgl_cair' => $tgl_baru_str, 'tgl_cair_asli' => $tgl_cair_asli];
     }
 
-    protected function rencana_angsuran($pinkel, $ang_pokok, $ang_jasa, $alokasi, $pembulatan = '500')
+    protected function rencana_angsuran($pinkel, $ang_pokok, $ang_jasa, $alokasi, $pembulatan = '500', $pros_jasa_override = null)
     {
         $rencana = ['pokok' => [], 'jasa' => []];
         $alokasi_pokok = $alokasi;
         $temp_alokasi = $alokasi;
+
+        // Override pros_jasa untuk caller tertentu (mis. jadwal per-anggota
+        // di lokasi 522, di mana pinjaman_anggota.pros_jasa sudah disesuaikan
+        // dengan rumus kelompok). Default pakai $pinkel->pros_jasa.
+        $pros_jasa = $pros_jasa_override ?? $pinkel->pros_jasa;
 
         $pokok_dibulatkan = Keuangan::pembulatan($alokasi_pokok / $ang_pokok['tempo'], $pembulatan);
 
@@ -587,7 +612,7 @@ class GenerateService
             $jasa = 0;
             if ($j % $ang_jasa['sistem'] == 0) {
                 $ke = $j / $ang_jasa['sistem'];
-                $alokasi_jasa = $temp_alokasi * ($pinkel->pros_jasa / 100);
+                $alokasi_jasa = $temp_alokasi * ($pros_jasa / 100);
                 $jasa_dibulatkan = Keuangan::pembulatan($alokasi_jasa / $ang_jasa['tempo'], $pembulatan);
 
                 if ($pinkel->jenis_jasa == '2') {
