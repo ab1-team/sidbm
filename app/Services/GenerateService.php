@@ -319,6 +319,7 @@ class GenerateService
             $cur_p = $rec_p[$i] ?? 0;
             $cur_j = $rec_j[$i] ?? 0;
 
+            $h_ditangani = false;
             foreach ($penghapusan as $k => $h) {
                 if (strtotime($tempo) >= strtotime($h['tgl']) && $h['alloc_p'] == 0) {
                     $data_rencana[strtotime($h['tgl'])] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
@@ -327,7 +328,16 @@ class GenerateService
                     $target_j += $h['j'];
                     $penghapusan[$k]['alloc_p'] = $alokasi_total - $target_p;
                     $penghapusan[$k]['alloc_j'] = $total_jasa - $target_j;
+                    $h_ditangani = true;
+                    break;
                 }
+            }
+
+            // baris hapus sudah menutup angs_ke-$i — skip baris reguler
+            // di iterasi yang sama agar target_p/target_j tidak double-count
+            // dan total tidak melebihi alokasi_total.
+            if ($h_ditangani) {
+                continue;
             }
 
             $target_p += $cur_p;

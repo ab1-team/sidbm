@@ -752,6 +752,11 @@ class PinjamanAnggotaController extends Controller
 
                     $target_pokok += Session::get('hapus_pokok');
                     $target_jasa += Session::get('hapus_jasa');
+
+                    // baris hapus sudah dicatat di iterasi ini —
+                    // skip insert reguler agar target_pokok/target_jasa
+                    // tidak melebihi alokasi cair ($alokasi).
+                    continue;
                 }
 
                 $wajib_pokok = Keuangan::bulatkan($_alokasi_pokok / $_tempo_pokok);
