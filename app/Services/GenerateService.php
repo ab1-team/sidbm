@@ -272,8 +272,21 @@ class GenerateService
             $alokasi_total = $detail['alokasi'];
         }
 
-        // Generate schedule ONCE for the total sum to ensure correct group rounding
-        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan);
+        // Generate schedule ONCE for the total sum to ensure correct group rounding.
+        // Pakai pros_jasa agregat (terboboti alokasi) kalau ada anggota,
+        // karena tiap anggota bisa punya pros_jasa sendiri (mis. lokasi 522:
+        // pros_jasa_anggota = pros_jasa_kelompok/jangka + 0.2).
+        $pros_jasa_agregat = null;
+        if ($anggota) {
+            $weighted_sum = 0;
+            foreach ($anggota as $pa) {
+                $weighted_sum += $this->getAlokasi($pa) * $pa->pros_jasa;
+            }
+            if ($alokasi_total > 0) {
+                $pros_jasa_agregat = $weighted_sum / $alokasi_total;
+            }
+        }
+        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan, $pros_jasa_agregat);
         $rec_p = $sch['pokok'];
         $rec_j = $sch['jasa'];
 
