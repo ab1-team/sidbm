@@ -275,7 +275,7 @@ class GenerateService
         // Generate schedule ONCE for the total sum to ensure correct group rounding.
         // Pakai pros_jasa agregat (terboboti alokasi) kalau ada anggota,
         // karena tiap anggota bisa punya pros_jasa sendiri (mis. lokasi 522:
-        // pros_jasa_anggota = pros_jasa_kelompok/jangka + 0.2).
+        // pros_jasa_anggota = pros_jasa + 0.2 * jangka).
         $pros_jasa_agregat = null;
         if ($anggota) {
             $weighted_sum = 0;
