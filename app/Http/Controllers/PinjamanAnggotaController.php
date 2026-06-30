@@ -767,7 +767,11 @@ class PinjamanAnggotaController extends Controller
             if ($sisa_pokok == 0 and $ke_pokok != $tempo_pokok) {
                 $angsuran_pokok = $wajib_pokok;
             } elseif ($sisa_pokok == 0 and $ke_pokok == $tempo_pokok) {
-                $angsuran_pokok = $alokasi - $target_pokok;
+                // amortisasi terakhir: pakai sisa alokasi yg valid,
+                // yaitu $_alokasi_pokok kalau sudah diproses hapus,
+                // kalau belum pakai $alokasi penuh.
+                $ref_alokasi_p = ($_alokasi_pokok > 0) ? $_alokasi_pokok : $alokasi;
+                $angsuran_pokok = max(0, $ref_alokasi_p - $target_pokok);
             } else {
                 $angsuran_pokok = 0;
             }
@@ -775,7 +779,8 @@ class PinjamanAnggotaController extends Controller
             if ($sisa_jasa == 0 and $ke_jasa != $tempo_jasa) {
                 $angsuran_jasa = $wajib_jasa;
             } elseif ($sisa_jasa == 0 and $ke_jasa == $tempo_jasa) {
-                $angsuran_jasa = $alokasi_jasa - $target_jasa;
+                $ref_alokasi_j = ($_alokasi_jasa > 0) ? $_alokasi_jasa : $alokasi_jasa;
+                $angsuran_jasa = max(0, $ref_alokasi_j - $target_jasa);
             } else {
                 $angsuran_jasa = 0;
             }

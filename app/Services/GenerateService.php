@@ -314,10 +314,25 @@ class GenerateService
             }
         }
 
+        // Sisa alokasi & sisa tempo setelah insert baris hapus.
+        // Akan di-set saat proses trx_penghapusan, lalu dipakai untuk
+        // recompute cur_p / cur_j di bulan-bulan setelah hapus.
+        $sisa_alokasi_p = $alokasi_total;
+        $sisa_alokasi_j = $total_jasa;
+        $sisa_tempo_p = 0;
+        $sisa_tempo_j = 0;
+        $bulan_dipakai_rec = true;
+        $sisa_dibulatkan_p = 0;
+        $sisa_dibulatkan_j = 0;
+
         for ($i = 1; $i <= $jangka; $i++) {
             $tempo = $this->jatuh_tempo($i, $pinkel->sistem_angsuran, $tgl_cair);
-            $cur_p = $rec_p[$i] ?? 0;
-            $cur_j = $rec_j[$i] ?? 0;
+            $cur_p = 0;
+            $cur_j = 0;
+            if ($bulan_dipakai_rec) {
+                $cur_p = $rec_p[$i] ?? 0;
+                $cur_j = $rec_j[$i] ?? 0;
+            }
 
             $h_ditangani = false;
             foreach ($penghapusan as $k => $h) {
@@ -326,8 +341,18 @@ class GenerateService
                     $rencana[] = $data_rencana[strtotime($h['tgl'])];
                     $target_p += $h['p'];
                     $target_j += $h['j'];
-                    $penghapusan[$k]['alloc_p'] = $alokasi_total - $target_p;
-                    $penghapusan[$k]['alloc_j'] = $total_jasa - $target_j;
+
+                    // Sisa alokasi & tempo untuk bulan-bulan setelah hapus.
+                    $sisa_alokasi_p = max(0, $alokasi_total - $target_p);
+                    $sisa_alokasi_j = max(0, $total_jasa - $target_j);
+                    $sisa_tempo_p = max(1, $jangka - ($i - 1));
+                    $sisa_tempo_j = max(1, $jangka - ($i - 1));
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo_p, $kec->pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo_j, $kec->pembulatan);
+                    $bulan_dipakai_rec = false;
+
+                    $penghapusan[$k]['alloc_p'] = $sisa_alokasi_p;
+                    $penghapusan[$k]['alloc_j'] = $sisa_alokasi_j;
                     $h_ditangani = true;
                     break;
                 }
@@ -338,6 +363,21 @@ class GenerateService
             // dan total tidak melebihi alokasi_total.
             if ($h_ditangani) {
                 continue;
+            }
+
+            // Setelah hapus: pakai angsuran bulatkan dari sisa alokasi / sisa tempo,
+            // bukan dari rec_p/rec_j (yg masih schedule penuh).
+            if (! $bulan_dipakai_rec) {
+                $cur_p = $sisa_dibulatkan_p;
+                $cur_j = $sisa_dibulatkan_j;
+                $sisa_tempo_p--;
+                $sisa_tempo_j--;
+                if ($sisa_tempo_p <= 1) {
+                    $cur_p = $sisa_alokasi_p;
+                }
+                if ($sisa_tempo_j <= 1) {
+                    $cur_j = $sisa_alokasi_j;
+                }
             }
 
             $target_p += $cur_p;
