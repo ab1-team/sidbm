@@ -286,10 +286,7 @@ class GenerateService
                 $pros_jasa_agregat = $weighted_sum / $alokasi_total;
             }
         }
-        // pros_jasa_efektif = agregat terboboti kalau ada anggota,
-        // fallback ke pros_jasa kelompok kalau tidak ada anggota.
-        $pros_jasa_efektif = $pros_jasa_agregat ?? $pinkel->pros_jasa;
-        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan, $pros_jasa_efektif);
+        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan, $pros_jasa_agregat);
         $rec_p = $sch['pokok'];
         $rec_j = $sch['jasa'];
 
@@ -313,11 +310,7 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        // total_jasa harus pakai pros_jasa yg sama dengan jadwal agregat,
-        // agar target_jasa di tabel rencana_angsuran_xxx konsisten dengan
-        // nilai yg dipakai rec_j / view. Kalau anggota punya pros_jasa
-        // sendiri (mis. lokasi 522), pakai pros_jasa terboboti alokasi.
-        $total_jasa = $alokasi_total * ($pros_jasa_efektif / 100);
+        $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
 
         $rencana_anggota = [];
         if ($anggota) {
