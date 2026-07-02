@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Controller;
 use App\Models\Kecamatan;
-use App\Models\License;
 use App\Models\User;
 use App\Services\SsoTokenVerifier;
 use Illuminate\Http\Request;
@@ -21,14 +20,13 @@ class SsoController extends Controller
     /**
      * Consume SSO token dari Holding App.
      *
-     * Flow:
-     * 1. Verify HMAC signature + expiry (SsoTokenVerifier)
-     * 2. Resolve license lokal by payload['lid']
-     * 3. Resolve user Direktur tenant (level=1, jabatan=1) by kecamatan_id
-     * 4. Auth::loginUsingId + session regenerate + setup session vars SIDBM
-     * 5. Redirect ke /dashboard
+     * Flow (sesuai .guide/sso-subsidiary-guide.md):
+     * 1. Verify signature + expiry
+     * 2. Resolve user lokal via resolveLocalUser()
+     * 3. Login + session regenerate
+     * 4. Redirect ke intended() atau route('dashboard')
      */
-    public function consume(Request $request, AuthController $auth)
+    public function consume(Request $request)
     {
         $token = (string) $request->query('token', '');
         if ($token === '') {
@@ -45,42 +43,22 @@ class SsoController extends Controller
             abort(401, 'Token SSO tidak valid atau sudah kedaluwarsa.');
         }
 
-        // 2. Resolve license lokal SIDBM
-        $license = License::find($payload['lid']);
-        if (! $license || ! $license->is_active || $license->isExpired()) {
-            abort(403, 'Lisensi tidak aktif atau sudah kedaluwarsa.');
+        // 2. Resolve user lokal SIDBM
+        $user = $this->resolveLocalUser($payload);
+        if (! $user || $user->status !== '1') {
+            abort(403, 'User tidak ditemukan atau akun dinonaktifkan.');
         }
 
-        // 3. Resolve user Direktur (level=1, jabatan=1) untuk kecamatan tenant
-        $kecamatanId = $license->kecamatan_id;
-        $user = User::where('lokasi', $kecamatanId)
-            ->where('level', 1)
-            ->where('jabatan', 1)
-            ->first();
-
-        if (! $user) {
-            Log::warning('SSO user direktur not found', [
-                'kecamatan_id' => $kecamatanId,
-                'payload_uid' => $payload['uid'],
-            ]);
-            abort(403, 'User Direktur tidak ditemukan di subsidiary ini.');
-        }
-
-        if ($user->status !== '1') {
-            abort(403, 'Akun Direktur telah dinonaktifkan.');
-        }
-
-        $kec = Kecamatan::find($kecamatanId);
+        // 3. Setup session SIDBM (menu, akses, dll) — sama dengan login normal.
+        //    Di-copy dari AuthController::login inline agar SsoController tetap
+        //    independen dari AuthController (sesuai separation panduan).
+        $kec = Kecamatan::find($user->lokasi);
         if (! $kec) {
             abort(404, 'Lembaga tidak ditemukan.');
         }
 
-        // 4. Login
-        Auth::loginUsingId($user->id, remember: false);
-        $request->session()->regenerate();
-
-        // 5. Build session vars pakai helper yang sama dengan login normal
         $url = $request->getHost();
+        $auth = app(AuthController::class);
         $sessionData = $auth->buildSessionData($user, $url, $kec);
 
         $tokenKec = $kec->token;
@@ -89,6 +67,10 @@ class SsoController extends Controller
         }
 
         $icon = $kec->logo ? '/storage/logo/'.$kec->logo : '/assets/img/icon/favicon.png';
+
+        // 4. Login
+        Auth::login($user, remember: false);
+        $request->session()->regenerate();
 
         session([
             'nama_lembaga' => str_replace('DBM ', '', $kec->nama_lembaga_sort),
@@ -105,15 +87,43 @@ class SsoController extends Controller
             'token' => $tokenKec,
         ]);
 
-        // 6. Audit log
+        // 5. Audit log
         Log::info('SSO auto-login success', [
             'user_id' => $user->id,
-            'kecamatan_id' => $kecamatanId,
-            'license_id' => $license->id,
+            'kecamatan_id' => $user->lokasi,
             'payload_uid' => $payload['uid'],
-            'payload_email' => $payload['email'],
         ]);
 
-        return redirect('/dashboard')->with('pesan', 'Selamat Datang '.$user->namadepan.' '.$user->namabelakang);
+        return redirect()->intended(route('dashboard', absolute: false) ?: '/dashboard');
+    }
+
+    /**
+     * Resolve user lokal SIDBM dari payload SSO.
+     *
+     * Catatan panduan: payload hanya berisi KONTEKS (uid, tid, lid, slug,
+     * email, role) — bukan instruksi. Cara resolve TERSERAH schema subsidiary.
+     *
+     * SIDBM tidak punya kolom `email` di tb_users → pakai field `lid` dari
+     * payload sebagai identifier eksternal (`api_secret` license), resolve ke
+     * kecamatan_id, lalu ambil User Direktur (level=1, jabatan=1) tenant tsb.
+     *
+     * @param  array<string,mixed>  $payload
+     */
+    private function resolveLocalUser(array $payload): ?User
+    {
+        // Mapping: payload['lid'] = api_secret license SIDBM (identifier
+        // eksternal yang sudah ada di tabel licenses, konsisten dengan
+        // kontrak API laporan di HOLDING-API.md).
+        $license = \App\Models\License::where('api_secret', $payload['lid'])->first();
+
+        if (! $license) {
+            return null;
+        }
+
+        // User default tenant adalah Direktur (level=1, jabatan=1).
+        return User::where('lokasi', $license->kecamatan_id)
+            ->where('level', 1)
+            ->where('jabatan', 1)
+            ->first();
     }
 }
