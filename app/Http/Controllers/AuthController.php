@@ -124,52 +124,13 @@ class AuthController extends Controller
         if ($user) {
             if ($password === $user->pass) {
                 if (Auth::loginUsingId($user->id)) {
-                    // Remove dashboard (ID 1) from restricted list so it is always accessible
-                    $hak_akses = explode(',', $user->akses_menu);
-                    $hak_akses = array_diff($hak_akses, ['1']);
-
-                    $menu = Menu::where(function ($query) use ($hak_akses) {
-                        $query->where('parent_id', '0')->whereNotIn('id', $hak_akses);
-                    });
-
-                    if ($url != 'sidbm_baru.test') {
-                        $menu = $menu->where('aktif', 'Y');
-                    }
-
-                    $menu = $menu->with([
-                        'child' => function ($query) use ($hak_akses, $url) {
-                            $query->whereNotIn('id', $hak_akses);
-                            if ($url != 'sidbm_baru.test') {
-                                $query->where('aktif', 'Y');
-                            }
-                        },
-                        'child.child' => function ($query) use ($hak_akses, $url) {
-                            $query->whereNotIn('id', $hak_akses);
-                            if ($url != 'sidbm_baru.test') {
-                                $query->where('aktif', 'Y');
-                            }
-                        },
-                    ])->orderBy('sort', 'ASC')->orderBy('id', 'ASC')->get();
-
-                    $AksesMenu = explode(',', $user->akses_menu);
-                    $Menu = Menu::whereNotIn('id', $AksesMenu)->pluck('akses')->toArray();
-
-                    $AksesTombol = explode(',', $user->akses_tombol);
-                    $MenuTombol = MenuTombol::whereNotIn('id', $AksesTombol)->pluck('akses')->toArray();
+                    $sessionData = $this->buildSessionData($user, $url, $kec);
+                    $menu = $sessionData['menu'];
+                    $Menu = $sessionData['Menu'];
+                    $MenuTombol = $sessionData['MenuTombol'];
+                    $config = json_decode($sessionData['config'], true);
 
                     $inv = $this->generateInvoice($kec);
-
-                    if (Cookie::has('config')) {
-                        $config = json_decode(request()->cookie('config'), true);
-                    } else {
-                        $config = [
-                            'sidebarColor' => 'success',
-                            'sidebarType' => 'bg-gradient-dark',
-                            'navbarFixed' => 'position-sticky blur shadow-blur mt-4 left-auto top-1 z-index-sticky',
-                            'sidebarMini' => '',
-                            'darkMode' => '',
-                        ];
-                    }
 
                     $request->session()->regenerate();
 
@@ -185,7 +146,7 @@ class AuthController extends Controller
                         'tombol' => $MenuTombol,
                         'akses_menu' => $Menu,
                         'icon' => $icon,
-                        'config' => json_encode($config),
+                        'config' => $sessionData['config'],
                         'token' => $token,
                     ]);
 
@@ -211,6 +172,67 @@ class AuthController extends Controller
         }
 
         return redirect()->back()->with('warning', 'Username atau Password Salah')->withInput($request->only('username'));
+    }
+
+    /**
+     * Build session data (menu tree, akses, config) untuk user yang baru login.
+     * Digunakan oleh flow login biasa (POST /login) dan SSO callback (GET /auth/sso).
+     *
+     * @return array<string,mixed>
+     */
+    public function buildSessionData(User $user, string $url, Kecamatan $kec): array
+    {
+        // Remove dashboard (ID 1) from restricted list so it is always accessible
+        $hak_akses = explode(',', $user->akses_menu);
+        $hak_akses = array_diff($hak_akses, ['1']);
+
+        $menu = Menu::where(function ($query) use ($hak_akses) {
+            $query->where('parent_id', '0')->whereNotIn('id', $hak_akses);
+        });
+
+        if ($url != 'sidbm_baru.test') {
+            $menu = $menu->where('aktif', 'Y');
+        }
+
+        $menu = $menu->with([
+            'child' => function ($query) use ($hak_akses, $url) {
+                $query->whereNotIn('id', $hak_akses);
+                if ($url != 'sidbm_baru.test') {
+                    $query->where('aktif', 'Y');
+                }
+            },
+            'child.child' => function ($query) use ($hak_akses, $url) {
+                $query->whereNotIn('id', $hak_akses);
+                if ($url != 'sidbm_baru.test') {
+                    $query->where('aktif', 'Y');
+                }
+            },
+        ])->orderBy('sort', 'ASC')->orderBy('id', 'ASC')->get();
+
+        $AksesMenu = explode(',', $user->akses_menu);
+        $Menu = Menu::whereNotIn('id', $AksesMenu)->pluck('akses')->toArray();
+
+        $AksesTombol = explode(',', $user->akses_tombol);
+        $MenuTombol = MenuTombol::whereNotIn('id', $AksesTombol)->pluck('akses')->toArray();
+
+        if (Cookie::has('config')) {
+            $config = json_decode(request()->cookie('config'), true);
+        } else {
+            $config = [
+                'sidebarColor' => 'success',
+                'sidebarType' => 'bg-gradient-dark',
+                'navbarFixed' => 'position-sticky blur shadow-blur mt-4 left-auto top-1 z-index-sticky',
+                'sidebarMini' => '',
+                'darkMode' => '',
+            ];
+        }
+
+        return [
+            'menu' => $menu,
+            'Menu' => $Menu,
+            'MenuTombol' => $MenuTombol,
+            'config' => json_encode($config),
+        ];
     }
 
     public function force($uname)

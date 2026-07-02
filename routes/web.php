@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AnggotaController;
+use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DesaController;
@@ -44,6 +45,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/master', [AdminAuthController::class, 'index'])->middleware('guest');
 Route::post('/master/login', [AdminAuthController::class, 'login'])->middleware('guest');
+
+// SSO auto-login callback dari Holding App
+// Token TTL 5 menit, HMAC-SHA256 signed dengan SSO_SECRET (shared dengan Holding).
+// Lihat .guide/sso-subsidiary-guide.md untuk protokol lengkap.
+Route::get('/auth/sso', [SsoController::class, 'consume'])->middleware('guest')->name('auth.sso');
 
 Route::group(['prefix' => 'master', 'as' => 'master.', 'middleware' => 'master'], function () {
     Route::get('/dashboard', [AdminController::class, 'index']);
