@@ -41,9 +41,7 @@
     if (isset($generate) && !empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0) {
         $sum_jasa_total = 0;
         foreach ($generate->rencana_angsuran_anggota as $rap) {
-            // $rap->jasa bisa array (dari preview) atau stdClass (dari JSON).
-            // Cast ke array supaya array_sum() kompatibel keduanya.
-            $sum_jasa_total += array_sum((array) ($rap->jasa ?? []));
+            $sum_jasa_total += array_sum($rap->jasa ?? []);
         }
         if ($sum_jasa_total > 0) {
             $saldo_jasa = $sum_jasa_total;
