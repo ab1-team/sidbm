@@ -277,21 +277,40 @@ class GenerateService
         // karena tiap anggota bisa punya pros_jasa sendiri (mis. lokasi 522:
         // pros_jasa_anggota = pros_jasa + 0.2 * jangka).
         $pros_jasa_agregat = null;
-        if ($anggota) {
-            $weighted_sum = 0;
-            foreach ($anggota as $pa) {
-                $weighted_sum += $this->getAlokasi($pa) * $pa->pros_jasa;
-            }
-            if ($alokasi_total > 0) {
-                $pros_jasa_agregat = $weighted_sum / $alokasi_total;
-            }
-        }
         // pros_jasa_efektif = agregat terboboti kalau ada anggota,
         // fallback ke pros_jasa kelompok kalau tidak ada anggota.
-        $pros_jasa_efektif = $pros_jasa_agregat ?? $pinkel->pros_jasa;
+        $pros_jasa_efektif = $this->prosJasaEfektif($pinkel);
         $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan, $pros_jasa_efektif);
         $rec_p = $sch['pokok'];
-        $rec_j = $sch['jasa'];
+        // Jika ada anggota, rec_j per-bulan = Σ jadwal-jasa per-anggota
+        // (pembulatan independen per alokasi-anggota). Ini supaya jumlah
+        // wajib_jasa kelompok = Σ wajib_jasa per-anggota persis (konsisten
+        // dgn Cetak Kartu/Rencana Angsuran ANGGOTA). Tanpa anggota, pakai
+        // jadwal agregat polos.
+        if ($anggota) {
+            $rec_j = array_fill(1, $pinkel->jangka, 0);
+            $sch_jasa_per_anggota = [];
+            foreach ($anggota as $pa) {
+                $sch_pa_j = $this->rencana_angsuran(
+                    $pinkel,
+                    $sis_p,
+                    $sis_j,
+                    $this->getAlokasi($pa),
+                    $kec->pembulatan,
+                    $pa->pros_jasa
+                );
+                $sch_jasa_per_anggota[] = $sch_pa_j['jasa'];
+            }
+            for ($i = 1; $i <= $pinkel->jangka; $i++) {
+                $sum_i = 0;
+                foreach ($sch_jasa_per_anggota as $sj) {
+                    $sum_i += $sj[$i] ?? 0;
+                }
+                $rec_j[$i] = $sum_i;
+            }
+        } else {
+            $rec_j = $sch['jasa'];
+        }
 
         $penghapusan = [];
         $idx = 1;
@@ -313,11 +332,16 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        // total_jasa harus pakai pros_jasa yg sama dengan jadwal agregat,
-        // agar target_jasa di tabel rencana_angsuran_xxx konsisten dengan
-        // nilai yg dipakai rec_j / view. Kalau anggota punya pros_jasa
-        // sendiri (mis. lokasi 522), pakai pros_jasa terboboti alokasi.
-        $total_jasa = $alokasi_total * ($pros_jasa_efektif / 100);
+        // total_jasa = Σ target_jasa per-anggota (pakai pembulatan
+        // independen per alokasi-anggota) kalau ada anggota, supaya Σ
+        // wajib_jasa di rec_j = Σ wajib_jasa per-anggota (konsisten dgn
+        // Cetak Kartu/Rencana Angsuran ANGGOTA). Tanpa anggota, pakai
+        // alokasi_total * pros_jasa/100.
+        if ($anggota) {
+            $total_jasa = array_sum($rec_j);
+        } else {
+            $total_jasa = $alokasi_total * ($pros_jasa_efektif / 100);
+        }
 
         $rencana_anggota = [];
         if ($anggota) {
@@ -431,7 +455,11 @@ class GenerateService
         $sum_j = 0;
         $data_idtp = [];
         $alokasi_p = $this->getAlokasi($pinkel);
-        $alokasi_j = $alokasi_p * ($pinkel->pros_jasa / 100);
+        // alokasi_j = Σ wajib_jasa per-bulan di tabel rencana_angsuran (sesuai
+        // yg dipakai di view), bukan alokasi * pros_jasa (agregat polos).
+        // Agar konsisten dengan jadwal kelompok yg mengikuti Σ per-anggota
+        // (mis. lokasi 522).
+        $alokasi_j = collect($data_rencana)->max('target_jasa') ?? 0;
 
         ksort($data_rencana);
         foreach ($pinkel->trx as $trx) {
@@ -442,7 +470,7 @@ class GenerateService
             $sum_p += $am['p'];
             $sum_j += $am['j'];
             $saldo_p = $alokasi_p - $sum_p;
-            $saldo_j = ($pinkel->jenis_jasa == '2') ? ($saldo_p * ($pinkel->pros_jasa / 100) - $am['j']) : ($alokasi_j - $sum_j);
+            $saldo_j = ($pinkel->jenis_jasa == '2') ? ($saldo_p * ($this->prosJasaEfektif($pinkel) / 100) - $am['j']) : ($alokasi_j - $sum_j);
 
             $target = ['p' => 0, 'j' => 0];
             foreach ($data_rencana as $k => $v) {
@@ -507,6 +535,28 @@ class GenerateService
         }
 
         return $pinjaman->alokasi;
+    }
+
+    /**
+     * pros_jasa efektif kelompok:
+     * - agregat terboboti alokasi kalau ada anggota (lokasi 522),
+     * - fallback ke pros_jasa polos kalau tidak ada anggota.
+     */
+    protected function prosJasaEfektif($pinkel)
+    {
+        if ($pinkel->pinjaman_anggota && count($pinkel->pinjaman_anggota) > 0) {
+            $sum_aloc = 0;
+            $weighted = 0;
+            foreach ($pinkel->pinjaman_anggota as $pa) {
+                $sum_aloc += $this->getAlokasi($pa);
+                $weighted += $this->getAlokasi($pa) * $pa->pros_jasa;
+            }
+            if ($sum_aloc > 0) {
+                return $weighted / $sum_aloc;
+            }
+        }
+
+        return $pinkel->pros_jasa;
     }
 
     protected function where($kondisi)
