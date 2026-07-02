@@ -34,7 +34,19 @@
 
     $saldo_pokok = $alokasi;
     $alokasi_pinjaman = $alokasi;
+    // saldo_jasa awal = Σ wajib_jasa per-anggota (kalau ada anggota dg
+    // pros_jasa sendiri), bukan alokasi × pinkel->pros_jasa polos — supaya
+    // Σ saldo_jasa_awal == Σ wajib_jasa & saldo akhir == 0.
     $saldo_jasa = $saldo_pokok * ($pros_jasa / 100);
+    if (isset($generate) && !empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0) {
+        $sum_jasa_total = 0;
+        foreach ($generate->rencana_angsuran_anggota as $rap) {
+            $sum_jasa_total += array_sum($rap->jasa ?? []);
+        }
+        if ($sum_jasa_total > 0) {
+            $saldo_jasa = $sum_jasa_total;
+        }
+    }
 
     $sum_pokok = 0;
     $sum_jasa = 0;
@@ -171,7 +183,18 @@
                 $saldo_jasa -= $ra_wajib_jasa;
 
                 if ($pinkel->jenis_jasa == '2') {
-                    $saldo_jasa = ($saldo_pokok * $pros_jasa) / 100;
+                    // jasa efektif: Σ per-bulan / Σ alokasi (proxy pros_jasa agregat
+                    // terboboti) — supaya saldo_jasa konsisten dengan Σ wajib_jasa
+                    // per-anggota yg ditampilkan di kolom Jasa.
+                    $efektif_jasa_pct = $pros_jasa;
+                    if ($override_pa && isset($sum_pa_j[$ra->angsuran_ke])) {
+                        $total_pa_p = array_sum($sum_pa_p);
+                        $total_pa_j = array_sum($sum_pa_j);
+                        if ($total_pa_p > 0) {
+                            $efektif_jasa_pct = ($total_pa_j / $total_pa_p) * 100;
+                        }
+                    }
+                    $saldo_jasa = ($saldo_pokok * $efektif_jasa_pct) / 100;
                 }
 
                 $sum_pokok += $ra_wajib_pokok;
