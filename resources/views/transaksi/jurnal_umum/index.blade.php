@@ -448,7 +448,7 @@
             // jadi saldo ditampilkan di UI = -saldo_normal agar cek valid.
             var kreditNormal = ['1.2.02.01', '1.2.02.02', '1.2.02.03',
                                 '1.1.04.01', '1.1.04.02', '1.1.04.03']
-            if (kreditNormal.includes(sumber_dana)) {
+            if (kreditNormal.includes(sumber_dana) || sumber_dana.startsWith('1.2.04.')) {
                 saldo_rek *= -1;
             }
 
