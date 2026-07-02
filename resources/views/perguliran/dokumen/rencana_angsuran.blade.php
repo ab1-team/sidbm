@@ -27,6 +27,22 @@
     }
 
     $pros_jasa = $pinkel->pros_jasa;
+    // Kalau ada anggota (mis. lokasi 522, anggota >=3), tiap anggota punya
+    // pros_jasa sendiri-sendiri. Total jasa kelompok dihitung dari agregat
+    // terboboti alokasi, bukan dari pros_jasa kelompok polos.
+    if ($pinkel->pinjaman_anggota && count($pinkel->pinjaman_anggota) > 0) {
+        $sum_alokasi_anggota = 0;
+        $weighted_pros = 0;
+        foreach ($pinkel->pinjaman_anggota as $pa) {
+            $aloc = $pa->status == 'P' ? $pa->proposal : ($pa->status == 'V' ? $pa->verifikasi : $pa->alokasi);
+            $sum_alokasi_anggota += $aloc;
+            $weighted_pros += $aloc * $pa->pros_jasa;
+        }
+        if ($sum_alokasi_anggota > 0) {
+            $pros_jasa_agregat = $weighted_pros / $sum_alokasi_anggota;
+        }
+    }
+    $pros_jasa_efektif = $pros_jasa_agregat ?? $pros_jasa;
     // if (count($pinkel->pinjaman_anggota) >= 3 && Session::get('lokasi') == '522') {
     //     $pros_jasa_kelompok = $pinkel->pros_jasa / $pinkel->jangka + 0.2;
     //     $pros_jasa = $pros_jasa_kelompok * $pinkel->jangka;
@@ -34,7 +50,7 @@
 
     $saldo_pokok = $alokasi;
     $alokasi_pinjaman = $alokasi;
-    $saldo_jasa = $saldo_pokok * ($pros_jasa / 100);
+    $saldo_jasa = $saldo_pokok * ($pros_jasa_efektif / 100);
 
     $sum_pokok = 0;
     $sum_jasa = 0;
@@ -139,43 +155,22 @@
             <th class="l t b" width="13%" align="center">Saldo Pokok</th>
             <th class="l t b r" width="13%" align="center">Saldo Jasa</th>
         </tr>
-        @php
-            // Override Σ per-anggota: kalau pinkel punya anggota dengan
-            // pros_jasa sendiri (mis. lokasi 522), pakai Σ wajib_pokok/jasa
-            // per-bulan dari rencana_angsuran_anggota, bukan agregat polos
-            // dari $ra (DB / generate jadwal polos).
-            $override_pa = (!empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0);
-            $sum_pa_p = [];
-            $sum_pa_j = [];
-            if ($override_pa) {
-                foreach ($generate->rencana_angsuran_anggota as $rap) {
-                    foreach ($rap->pokok as $k => $v) {
-                        $sum_pa_p[$k] = ($sum_pa_p[$k] ?? 0) + $v;
-                    }
-                    foreach ($rap->jasa as $k => $v) {
-                        $sum_pa_j[$k] = ($sum_pa_j[$k] ?? 0) + $v;
-                    }
-                }
-            }
-        @endphp
         @foreach ($rencana as $ra)
             @php
                 if ($ra->angsuran_ke == 0) {
                     continue;
                 }
-                $ra_wajib_pokok = $override_pa ? ($sum_pa_p[$ra->angsuran_ke] ?? 0) : $ra->wajib_pokok;
-                $ra_wajib_jasa = $override_pa ? ($sum_pa_j[$ra->angsuran_ke] ?? 0) : $ra->wajib_jasa;
-                $wajib_angsur = $ra_wajib_pokok + $ra_wajib_jasa;
+                $wajib_angsur = $ra->wajib_pokok + $ra->wajib_jasa;
                 $jumlah_angsuran += $wajib_angsur;
-                $saldo_pokok -= $ra_wajib_pokok;
-                $saldo_jasa -= $ra_wajib_jasa;
+                $saldo_pokok -= $ra->wajib_pokok;
+                $saldo_jasa -= $ra->wajib_jasa;
 
                 if ($pinkel->jenis_jasa == '2') {
-                    $saldo_jasa = ($saldo_pokok * $pros_jasa) / 100;
+                    $saldo_jasa = ($saldo_pokok * $pros_jasa_efektif) / 100;
                 }
 
-                $sum_pokok += $ra_wajib_pokok;
-                $sum_jasa += $ra_wajib_jasa;
+                $sum_pokok += $ra->wajib_pokok;
+                $sum_jasa += $ra->wajib_jasa;
 
                 $sa_pokok = $pinkel->sistem_angsuran;
                 $sa_jasa = $pinkel->sa_jasa;
@@ -190,8 +185,8 @@
             <tr>
                 <td class="l {{ $b }}" align="center">{{ $ra->angsuran_ke }}</td>
                 <td class="l {{ $b }}" align="center">{{ Tanggal::tglIndo($ra->jatuh_tempo) }}</td>
-                <td class="l {{ $b }}" align="right">{{ number_format($ra_wajib_pokok) }}</td>
-                <td class="l {{ $b }}" align="right">{{ number_format($ra_wajib_jasa) }}</td>
+                <td class="l {{ $b }}" align="right">{{ number_format($ra->wajib_pokok) }}</td>
+                <td class="l {{ $b }}" align="right">{{ number_format($ra->wajib_jasa) }}</td>
                 <td class="l {{ $b }}" align="right">{{ number_format($wajib_angsur) }}</td>
                 <td class="l {{ $b }}" align="right">{{ number_format($jumlah_angsuran) }}</td>
                 <td class="l {{ $b }}" align="right">{{ number_format($saldo_pokok) }}</td>
