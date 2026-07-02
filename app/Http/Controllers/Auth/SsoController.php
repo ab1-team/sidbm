@@ -21,10 +21,12 @@ class SsoController extends Controller
      * Consume SSO token dari Holding App.
      *
      * Flow (sesuai .guide/sso-subsidiary-guide.md):
-     * 1. Verify signature + expiry
-     * 2. Resolve user lokal via resolveLocalUser()
+     * 1. Verify HMAC signature + expiry via SsoTokenVerifier — INI SATU-SATUNYA
+     *    yang wajib (pakai shared SSO_SECRET).
+     * 2. Resolve user lokal — cara TERSERAH. SIDBM pakai: domain request →
+     *    Kecamatan → User Direktur (level=1, jabatan=1).
      * 3. Login + session regenerate
-     * 4. Redirect ke intended() atau route('dashboard')
+     * 4. Redirect ke intended() atau '/dashboard'
      */
     public function consume(Request $request)
     {
@@ -44,14 +46,12 @@ class SsoController extends Controller
         }
 
         // 2. Resolve user lokal SIDBM
-        $user = $this->resolveLocalUser($payload);
+        $user = $this->resolveLocalUser($request, $payload);
         if (! $user || $user->status !== '1') {
             abort(403, 'User tidak ditemukan atau akun dinonaktifkan.');
         }
 
         // 3. Setup session SIDBM (menu, akses, dll) — sama dengan login normal.
-        //    Di-copy dari AuthController::login inline agar SsoController tetap
-        //    independen dari AuthController (sesuai separation panduan).
         $kec = Kecamatan::find($user->lokasi);
         if (! $kec) {
             abort(404, 'Lembaga tidak ditemukan.');
@@ -92,36 +92,39 @@ class SsoController extends Controller
             'user_id' => $user->id,
             'kecamatan_id' => $user->lokasi,
             'payload_uid' => $payload['uid'],
+            'payload_lid' => $payload['lid'],
         ]);
 
         return redirect()->intended(route('dashboard', absolute: false) ?: '/dashboard');
     }
 
     /**
-     * Resolve user lokal SIDBM dari payload SSO.
+     * Resolve user lokal SIDBM.
      *
-     * Catatan panduan: payload hanya berisi KONTEKS (uid, tid, lid, slug,
-     * email, role) — bukan instruksi. Cara resolve TERSERAH schema subsidiary.
-     *
-     * SIDBM tidak punya kolom `email` di tb_users → pakai field `lid` dari
-     * payload sebagai identifier eksternal (`api_secret` license), resolve ke
-     * kecamatan_id, lalu ambil User Direktur (level=1, jabatan=1) tenant tsb.
+     * Setelah SSO_SECRET verified → cara lookup TERSERAH. SIDBM pakai domain
+     * request: cocokkan host dengan `web_kec` atau `web_alternatif` di tabel
+     * kecamatan → ambil kecamatan_id → ambil User Direktur (level=1, jabatan=1).
      *
      * @param  array<string,mixed>  $payload
      */
-    private function resolveLocalUser(array $payload): ?User
+    private function resolveLocalUser(Request $request, array $payload): ?User
     {
-        // Mapping: payload['lid'] = api_secret license SIDBM (identifier
-        // eksternal yang sudah ada di tabel licenses, konsisten dengan
-        // kontrak API laporan di HOLDING-API.md).
-        $license = \App\Models\License::where('api_secret', $payload['lid'])->first();
+        $host = $request->getHost();
 
-        if (! $license) {
+        $kec = Kecamatan::where('web_kec', $host)
+            ->orWhere('web_alternatif', $host)
+            ->first();
+
+        if (! $kec) {
+            Log::warning('SSO kecamatan not found for host', [
+                'host' => $host,
+                'payload_lid' => $payload['lid'],
+            ]);
+
             return null;
         }
 
-        // User default tenant adalah Direktur (level=1, jabatan=1).
-        return User::where('lokasi', $license->kecamatan_id)
+        return User::where('lokasi', $kec->id)
             ->where('level', 1)
             ->where('jabatan', 1)
             ->first();
