@@ -27,6 +27,22 @@
     }
 
     $pros_jasa = $pinkel->pros_jasa;
+    // Kalau ada anggota (mis. lokasi 522, anggota >=3), tiap anggota punya
+    // pros_jasa sendiri-sendiri. Total jasa kelompok dihitung dari agregat
+    // terboboti alokasi, bukan dari pros_jasa kelompok polos.
+    if ($pinkel->pinjaman_anggota && count($pinkel->pinjaman_anggota) > 0) {
+        $sum_alokasi_anggota = 0;
+        $weighted_pros = 0;
+        foreach ($pinkel->pinjaman_anggota as $pa) {
+            $aloc = $pa->status == 'P' ? $pa->proposal : ($pa->status == 'V' ? $pa->verifikasi : $pa->alokasi);
+            $sum_alokasi_anggota += $aloc;
+            $weighted_pros += $aloc * $pa->pros_jasa;
+        }
+        if ($sum_alokasi_anggota > 0) {
+            $pros_jasa_agregat = $weighted_pros / $sum_alokasi_anggota;
+        }
+    }
+    $pros_jasa_efektif = $pros_jasa_agregat ?? $pros_jasa;
     // if (count($pinkel->pinjaman_anggota) >= 3 && Session::get('lokasi') == '522') {
     //     $pros_jasa_kelompok = $pinkel->pros_jasa / $pinkel->jangka + 0.2;
     //     $pros_jasa = $pros_jasa_kelompok * $pinkel->jangka;
@@ -34,7 +50,7 @@
 
     $saldo_pokok = $alokasi;
     $alokasi_pinjaman = $alokasi;
-    $saldo_jasa = $saldo_pokok * ($pros_jasa / 100);
+    $saldo_jasa = $saldo_pokok * ($pros_jasa_efektif / 100);
 
     $sum_pokok = 0;
     $sum_jasa = 0;
@@ -150,7 +166,7 @@
                 $saldo_jasa -= $ra->wajib_jasa;
 
                 if ($pinkel->jenis_jasa == '2') {
-                    $saldo_jasa = ($saldo_pokok * $pinkel->pros_jasa) / 100;
+                    $saldo_jasa = ($saldo_pokok * $pros_jasa_efektif) / 100;
                 }
 
                 $sum_pokok += $ra->wajib_pokok;
