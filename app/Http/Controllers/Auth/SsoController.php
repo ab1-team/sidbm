@@ -95,7 +95,7 @@ class SsoController extends Controller
             'payload_lid' => $payload['lid'],
         ]);
 
-        return redirect()->intended(route('dashboard', absolute: false) ?: '/dashboard');
+        return redirect('/dashboard')->with('pesan', 'Selamat Datang '.$user->namadepan.' '.$user->namabelakang);
     }
 
     /**
