@@ -133,25 +133,7 @@
             <td>Prosentase Jasa</td>
             <td align="center">:</td>
             <td>
-                @php
-                    // Kalau ada anggota dg pros_jasa sendiri (lokasi 522),
-                    // tampilkan prosentase agregat terboboti (Σ per-anggota),
-                    // bukan pinkel->pros_jasa polos — supaya konsisten dgn
-                    // kolom Jasa di tabel kewajiban.
-                    $pct_tampil = $pinkel->pros_jasa;
-                    if (isset($generate) && !empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0) {
-                        $tot_pa_p = 0;
-                        $tot_pa_j = 0;
-                        foreach ($generate->rencana_angsuran_anggota as $rap) {
-                            $tot_pa_p += array_sum((array) ($rap->pokok ?? []));
-                            $tot_pa_j += array_sum((array) ($rap->jasa ?? []));
-                        }
-                        if ($tot_pa_p > 0) {
-                            $pct_tampil = ($tot_pa_j / $tot_pa_p) * 100;
-                        }
-                    }
-                @endphp
-                <b>{{ round($pct_tampil / $pinkel->jangka, 2) }}% per bulan</b>
+                <b>{{ round($pinkel->pros_jasa / $pinkel->jangka, 2) }}% per bulan</b>
             </td>
         </tr>
         <tr>
