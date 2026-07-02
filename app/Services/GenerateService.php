@@ -272,24 +272,11 @@ class GenerateService
             $alokasi_total = $detail['alokasi'];
         }
 
-        // Generate schedule ONCE for the total sum to ensure correct group rounding.
-        // Pakai pros_jasa agregat (terboboti alokasi) kalau ada anggota,
-        // karena tiap anggota bisa punya pros_jasa sendiri (mis. lokasi 522:
-        // pros_jasa_anggota = pros_jasa + 0.2 * jangka).
-        $pros_jasa_agregat = null;
-        if ($anggota) {
-            $weighted_sum = 0;
-            foreach ($anggota as $pa) {
-                $weighted_sum += $this->getAlokasi($pa) * $pa->pros_jasa;
-            }
-            if ($alokasi_total > 0) {
-                $pros_jasa_agregat = $weighted_sum / $alokasi_total;
-            }
-        }
-        // pros_jasa_efektif = agregat terboboti kalau ada anggota,
-        // fallback ke pros_jasa kelompok kalau tidak ada anggota.
-        $pros_jasa_efektif = $pros_jasa_agregat ?? $pinkel->pros_jasa;
-        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan, $pros_jasa_efektif);
+        // Generate jadwal polos pakai pros_jasa kelompok (bukan agregat).
+        // Tabel rencana_angsuran_xxx dipakai lintas client — koreksi Σ
+        // per-anggota dilakukan di view cetak (kartu_angsuran /
+        // rencana_angsuran) supaya client lain tidak terimbas.
+        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan);
         $rec_p = $sch['pokok'];
         $rec_j = $sch['jasa'];
 
@@ -313,11 +300,11 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        // total_jasa harus pakai pros_jasa yg sama dengan jadwal agregat,
-        // agar target_jasa di tabel rencana_angsuran_xxx konsisten dengan
-        // nilai yg dipakai rec_j / view. Kalau anggota punya pros_jasa
-        // sendiri (mis. lokasi 522), pakai pros_jasa terboboti alokasi.
-        $total_jasa = $alokasi_total * ($pros_jasa_efektif / 100);
+        // total_jasa tetap pakai pinkel->pros_jasa polos (sesuai jadwal rec_j
+        // agregat di bawah), sehingga GenerateService konsisten untuk semua
+        // client. Koreksi tampilan Σ-per-anggota dilakukan di view cetak
+        // (lihat kartu_angsuran / rencana_angsuran).
+        $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
 
         $rencana_anggota = [];
         if ($anggota) {

@@ -159,6 +159,20 @@
                             }
                         }
                     }
+                    // Override Σ per-anggota: kalau pinkel punya anggota dengan
+                    // pros_jasa sendiri (mis. lokasi 522), pakai Σ wajib_jasa
+                    // ke-1 dari rencana_angsuran_anggota, bukan agregat polos.
+                    if (!empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0) {
+                        $sum_pa_p = 0;
+                        $sum_pa_j = 0;
+                        foreach ($generate->rencana_angsuran_anggota as $ra) {
+                            $sum_pa_p += $ra->pokok[1] ?? 0;
+                            $sum_pa_j += $ra->jasa[1] ?? 0;
+                        }
+                        if ($sum_pa_p + $sum_pa_j > 0) {
+                            $jumlah_angsuran = $sum_pa_p + $sum_pa_j;
+                        }
+                    }
                 @endphp
 
                 <td>{{ number_format($jumlah_angsuran) }} /
@@ -176,6 +190,22 @@
 
         @php
             $baris_angsuran = ceil($pinkel->rencana_count / 2);
+            // Override Σ per-anggota untuk tabel kewajiban: kalau pinkel punya
+            // anggota dengan pros_jasa sendiri (mis. lokasi 522), pakai Σ dari
+            // rencana_angsuran_anggota per-bulan, bukan agregat polos dari DB.
+            $override_pa = (!empty($generate->rencana_angsuran_anggota) && count($pinkel->pinjaman_anggota) > 0);
+            $sum_pa_p = [];
+            $sum_pa_j = [];
+            if ($override_pa) {
+                foreach ($generate->rencana_angsuran_anggota as $ra) {
+                    foreach ($ra->pokok as $k => $v) {
+                        $sum_pa_p[$k] = ($sum_pa_p[$k] ?? 0) + $v;
+                    }
+                    foreach ($ra->jasa as $k => $v) {
+                        $sum_pa_j[$k] = ($sum_pa_j[$k] ?? 0) + $v;
+                    }
+                }
+            }
         @endphp
 
         <table border="0" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">
@@ -203,35 +233,43 @@
             @for ($j = 1; $j <= $baris_angsuran; $j++)
                 @php
                     $i = $j - 1;
+                    $rec = $pinkel->rencana[$i] ?? null;
+                    $rec2 = $pinkel->rencana[$i + $baris_angsuran] ?? null;
+                    $ke1 = $rec ? $rec->angsuran_ke : 0;
+                    $ke2 = $rec2 ? $rec2->angsuran_ke : 0;
+                    $wajib_p1 = $override_pa ? ($sum_pa_p[$ke1] ?? 0) : ($rec->wajib_pokok ?? 0);
+                    $wajib_j1 = $override_pa ? ($sum_pa_j[$ke1] ?? 0) : ($rec->wajib_jasa ?? 0);
+                    $wajib_p2 = $override_pa ? ($sum_pa_p[$ke2] ?? 0) : ($rec2->wajib_pokok ?? 0);
+                    $wajib_j2 = $override_pa ? ($sum_pa_j[$ke2] ?? 0) : ($rec2->wajib_jasa ?? 0);
                 @endphp
                 <tr>
                     <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="center">
-                        {{ $pinkel->rencana[$i]->angsuran_ke }}
+                        {{ $ke1 }}
                     </td>
                     <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="center">
-                        {{ Tanggal::tglIndo($pinkel->rencana[$i]->jatuh_tempo) }}
+                        {{ $rec ? Tanggal::tglIndo($rec->jatuh_tempo) : '' }}
                     </td>
                     <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="right">
-                        {{ number_format($pinkel->rencana[$i]->wajib_pokok) }}
+                        {{ number_format($wajib_p1) }}
                     </td>
                     <td class="l {{ $j == $baris_angsuran ? 'b' : '' }} r" align="right">
-                        {{ number_format($pinkel->rencana[$i]->wajib_jasa) }}
+                        {{ number_format($wajib_j1) }}
                     </td>
 
                     <td>&nbsp;</td>
 
-                    @if (isset($pinkel->rencana[$i + $baris_angsuran]))
+                    @if ($rec2)
                         <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="center">
-                            {{ $pinkel->rencana[$i + $baris_angsuran]->angsuran_ke }}
+                            {{ $ke2 }}
                         </td>
                         <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="center">
-                            {{ Tanggal::tglIndo($pinkel->rencana[$i + $baris_angsuran]->jatuh_tempo) }}
+                            {{ Tanggal::tglIndo($rec2->jatuh_tempo) }}
                         </td>
                         <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="right">
-                            {{ number_format($pinkel->rencana[$i + $baris_angsuran]->wajib_pokok) }}
+                            {{ number_format($wajib_p2) }}
                         </td>
                         <td class="l {{ $j == $baris_angsuran ? 'b' : '' }} r" align="right">
-                            {{ number_format($pinkel->rencana[$i + $baris_angsuran]->wajib_jasa) }}
+                            {{ number_format($wajib_j2) }}
                         </td>
                     @else
                         <td class="l {{ $j == $baris_angsuran ? 'b' : '' }}" align="center">

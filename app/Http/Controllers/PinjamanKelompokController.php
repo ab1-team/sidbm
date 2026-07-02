@@ -2051,9 +2051,13 @@ class PinjamanKelompokController extends Controller
                 ['loan_id', $id],
                 ['angsuran_ke', '!=', '0'],
             ])->orderBy('jatuh_tempo', 'ASC')->get();
+            // Untuk status A juga hitung preview Σ per-anggota (TIDAK tulis DB).
+            $pinkel = PinjamanKelompok::where('id', $id)->with(['pinjaman_anggota', 'sis_pokok', 'sis_jasa', 'kelompok', 'kelompok.d'])->first();
+            $data['generate'] = (new \App\Services\GenerateService())->preview($pinkel);
         } else {
             $generate = $this->generate($id)->getData();
             $data['rencana'] = $generate->rencana ?? $generate->rencana_angsuran ?? [];
+            $data['generate'] = $generate;
         }
 
         $data['pinkel'] = PinjamanKelompok::where('id', $id)->with([
@@ -2415,6 +2419,7 @@ class PinjamanKelompokController extends Controller
             'sis_pokok',
             'real',
             'real.transaksi',
+            'pinjaman_anggota',
             'rencana' => function ($query) {
                 $query->where('angsuran_ke', '!=', '0');
             },
@@ -2426,6 +2431,12 @@ class PinjamanKelompokController extends Controller
                 $query->where('angsuran_ke', '!=', '0');
             },
         ])->withCount('real')->first();
+
+        // Generate preview jadwal per-anggota (untuk Σ wajib_jasa di view,
+        // bila pinkel punya anggota dengan pros_jasa sendiri — mis. lok 522).
+        // TIDAK menyentuh DB (preview only).
+        $generateService = new \App\Services\GenerateService();
+        $data['generate'] = $generateService->preview($data['pinkel']);
         $data['barcode'] = DNS1D::getBarcodePNG($id, 'C128');
         $data['qrCode'] = \SimpleSoftwareIO\QrCode\Facades\QrCode::size(48)->generate($id);
 
@@ -2825,6 +2836,7 @@ class PinjamanKelompokController extends Controller
             'jpp',
             'sis_pokok',
             'real',
+            'pinjaman_anggota',
             'rencana' => function ($query) {
                 $query->where('angsuran_ke', '!=', '0');
             },
@@ -2833,6 +2845,11 @@ class PinjamanKelompokController extends Controller
             },
         ])->withCount('pinjaman_anggota')->withCount('rencana')->first();
         $data['barcode'] = DNS1D::getBarcodePNG($data['pinkel']->kelompok->kd_kelompok, 'C128');
+
+        // Preview jadwal per-anggota (TIDAK menyentuh DB) untuk override
+        // Σ wajib_jasa di view bila pinkel punya anggota dg pros_jasa sendiri.
+        $generateService = new \App\Services\GenerateService();
+        $data['generate'] = $generateService->preview($data['pinkel']);
 
         $data['idtp'] = $idtp;
         $data['dir'] = User::where([
