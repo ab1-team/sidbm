@@ -424,7 +424,6 @@
             $('#notifikasi').html('')
 
             var nominal = $('#nominal').val()
-            var saldo_rek = parseFloat($('#saldo_trx').val())
 
             if (!nominal) {
                 nominal = $('#harga_perolehan').val()
@@ -436,32 +435,23 @@
                 nominal = 0
             }
 
+            if (nominal <= 0) {
+                Swal.fire('Error', 'Nominal transaksi tidak boleh nol', 'error')
+                return false
+            }
+
             var sumber_dana = $('#sumber_dana').val()
-            if (sumber_dana == '1.2.02.01') {
+            var saldo_rek = parseFloat($('#saldo_trx').val()) || 0
+
+            // Akun debit-natural (aset/beban): saldo natural positif tapi
+            // saat jadi "sumber dana" di jurnal kas, sisi kas yg berkurang,
+            // jadi saldo ditampilkan di UI = -saldo_normal agar cek valid.
+            var kreditNormal = ['1.2.02.01', '1.2.02.02', '1.2.02.03',
+                                '1.1.04.01', '1.1.04.02', '1.1.04.03']
+            if (kreditNormal.includes(sumber_dana)) {
                 saldo_rek *= -1;
             }
 
-            if (sumber_dana == '1.2.02.02') {
-                saldo_rek *= -1;
-            }
-
-            if (sumber_dana == '1.2.02.03') {
-                saldo_rek *= -1;
-            }
-
-            if (sumber_dana == '1.1.04.01') {
-                saldo_rek *= -1;
-            }
-
-            if (sumber_dana == '1.1.04.02') {
-                saldo_rek *= -1;
-            }
-
-            if (sumber_dana == '1.1.04.03') {
-                saldo_rek *= -1;
-            }
-
-            var saldo_rek = 999999999999999
             if (saldo_rek >= nominal) {
                 var form = $('#FormTransaksi')
                 $.ajax({
