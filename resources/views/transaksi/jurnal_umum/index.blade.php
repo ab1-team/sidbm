@@ -458,7 +458,8 @@
             if (kreditNormal.includes(sumber_dana)
                 || sumber_dana.startsWith('1.2.04.')
                 || sumber_dana.startsWith('1.1.04.')
-                || sumber_dana.startsWith('2.1.03.')) {
+                || sumber_dana.startsWith('2.1.03.')
+                || sumber_dana.startsWith('4.1.02')) {
                 saldo_rek *= -1;
             }
 
