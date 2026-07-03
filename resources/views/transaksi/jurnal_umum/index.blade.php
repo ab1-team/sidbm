@@ -463,7 +463,12 @@
             // berkurang. Cek saldo_rek >= nominal tidak relevan karena transaksi
             // ini justru yang pertama mencatatkan saldo (pendapatan/piutang/
             // modal awal semuanya mulai dari 0). Skip cek saldo.
+            //
+            // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
+            // apapun — nilainya sudah signed dan server-side menerima nilai
+            // minus di kolom jumlah.
             var saldo_cukup = ($('#jenis_transaksi').val() == '1')
+                || (nominal < 0)
                 || (nominal >= 0
                     ? (saldo_rek >= nominal)
                     : (saldo_rek <= nominal));
