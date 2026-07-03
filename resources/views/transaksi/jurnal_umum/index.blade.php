@@ -435,7 +435,7 @@
                 nominal = 0
             }
 
-            if (nominal <= 0) {
+            if (nominal == 0) {
                 Swal.fire('Error', 'Nominal transaksi tidak boleh nol', 'error')
                 return false
             }
@@ -462,7 +462,13 @@
                 saldo_rek *= -1;
             }
 
-            if (saldo_rek >= nominal) {
+            // Nominal minus (koreksi/penyesuaian): cek saldo terbalik
+            // (sisa harus <= saldo_rek setelah penyesuaian negatif).
+            var saldo_cukup = (nominal >= 0)
+                ? (saldo_rek >= nominal)
+                : (saldo_rek <= nominal);
+
+            if (saldo_cukup) {
                 var form = $('#FormTransaksi')
                 $.ajax({
                     type: 'POST',
