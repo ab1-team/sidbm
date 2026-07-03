@@ -443,9 +443,6 @@
             var sumber_dana = $('#sumber_dana').val()
             var saldo_rek = parseFloat($('#saldo_trx').val()) || 0
 
-            // Akun debit-natural (aset/beban): saldo natural positif tapi
-            // saat jadi "sumber dana" di jurnal kas, sisi kas yg berkurang,
-            // jadi saldo ditampilkan di UI = -saldo_normal agar cek valid.
             // Akun debit-natural (aset/beban, lev1=1 atau 5): saldo natural positif
             // tapi saat jadi "sumber dana" (keluar kas dari sisi debit), saldo
             // efektif di sisi kas = -saldo_normal. Flip agar cek `saldo_rek >= nominal`
@@ -454,12 +451,16 @@
             // 2.1.03.* (utang pajak) kredit-normal, tapi saat dipakai sebagai
             // sumber dana saldo tersisa dimaknai sebagai "aset yang keluar" — flip
             // agar cek valid terhadap sisa utang yang boleh dipakai.
+            //
+            // 4.1.02.* (pendapatan jasa) kredit-normal, tapi saat dipakai sebagai
+            // sumber dana (mis. koreksi/penyesuaian yang membalik pendapatan) —
+            // flip agar cek saldo valid terhadap sisa yang boleh di-reverse.
             var kreditNormal = ['1.2.02.01', '1.2.02.02', '1.2.02.03']
             if (kreditNormal.includes(sumber_dana)
                 || sumber_dana.startsWith('1.2.04.')
                 || sumber_dana.startsWith('1.1.04.')
                 || sumber_dana.startsWith('2.1.03.')
-                || sumber_dana.startsWith('4.1.02')) {
+                || sumber_dana.startsWith('4.1.02.')) {
                 saldo_rek *= -1;
             }
 
