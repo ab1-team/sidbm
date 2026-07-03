@@ -466,9 +466,13 @@
 
             // Nominal minus (koreksi/penyesuaian): cek saldo terbalik
             // (sisa harus <= saldo_rek setelah penyesuaian negatif).
-            var saldo_cukup = (nominal >= 0)
+            // Pencegahan tolak-submit hanya berlaku kalau saldo_rek sudah
+            // ter-set (non-zero). Kalau 0 (setSaldo() belum sempat atau
+            // sumber_dana belum dipilih), biarkan lewat — andalkan validasi
+            // server.
+            var saldo_cukup = (saldo_rek == 0) || (nominal >= 0
                 ? (saldo_rek >= nominal)
-                : (saldo_rek <= nominal);
+                : (saldo_rek <= nominal));
 
             if (saldo_cukup) {
                 var form = $('#FormTransaksi')
