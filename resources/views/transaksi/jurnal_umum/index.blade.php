@@ -451,28 +451,22 @@
             // 2.1.03.* (utang pajak) kredit-normal, tapi saat dipakai sebagai
             // sumber dana saldo tersisa dimaknai sebagai "aset yang keluar" — flip
             // agar cek valid terhadap sisa utang yang boleh dipakai.
-            //
-            // 4.1.02.* (pendapatan jasa) kredit-normal, tapi saat dipakai sebagai
-            // sumber dana (mis. koreksi/penyesuaian yang membalik pendapatan) —
-            // flip agar cek saldo valid terhadap sisa yang boleh di-reverse.
             var kreditNormal = ['1.2.02.01', '1.2.02.02', '1.2.02.03']
             if (kreditNormal.includes(sumber_dana)
                 || sumber_dana.startsWith('1.2.04.')
                 || sumber_dana.startsWith('1.1.04.')
-                || sumber_dana.startsWith('2.1.03.')
-                || sumber_dana.startsWith('4.1.02.')) {
+                || sumber_dana.startsWith('2.1.03.')) {
                 saldo_rek *= -1;
             }
 
-            // Nominal minus (koreksi/penyesuaian): cek saldo terbalik
-            // (sisa harus <= saldo_rek setelah penyesuaian negatif).
-            // Pencegahan tolak-submit hanya berlaku kalau saldo_rek sudah
-            // ter-set (non-zero). Kalau 0 (setSaldo() belum sempat atau
-            // sumber_dana belum dipilih), biarkan lewat — andalkan validasi
-            // server.
-            var saldo_cukup = (saldo_rek == 0) || (nominal >= 0
-                ? (saldo_rek >= nominal)
-                : (saldo_rek <= nominal));
+            // Aset Masuk (jenis_transaksi=1): sumber dana bertambah, bukan
+            // berkurang. Cek saldo_rek >= nominal tidak relevan karena transaksi
+            // ini justru yang pertama mencatatkan saldo (pendapatan/piutang/
+            // modal awal semuanya mulai dari 0). Skip cek saldo.
+            var saldo_cukup = ($('#jenis_transaksi').val() == '1')
+                || (nominal >= 0
+                    ? (saldo_rek >= nominal)
+                    : (saldo_rek <= nominal));
 
             if (saldo_cukup) {
                 var form = $('#FormTransaksi')
