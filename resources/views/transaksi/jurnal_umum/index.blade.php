@@ -460,10 +460,15 @@
             // debit-natural-nya "terbalik" — saldo bertambah di sisi kredit,
             // bukan di sisi debit. Cek saldo natural selalu negatif/salah
             // untuk skenario ini (transaksi penyusutan pertama). Skip cek.
+            //
+            // Akun 1.1.04.* (cadangan kerugian piutang): lev1=1 debit-natural
+            // tapi nilainya selalu minus (contra-asset). Kalau plus, justru
+            // salah. Skip cek saldo.
             var lev1 = sumber_dana.split('.')[0]
             var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4' || lev1 == '5')
                 || sumber_dana.startsWith('1.2.02.')
                 || sumber_dana.startsWith('1.2.04.')
+                || sumber_dana.startsWith('1.1.04.')
 
             // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
             // apapun — nilainya sudah signed dan server-side menerima nilai
