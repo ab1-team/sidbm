@@ -452,10 +452,11 @@
             // (mis. utang pajak pertama: saldo 0, transaksi ini justru yang
             // menambah). Skip cek saldo untuk akun-akun ini.
             //
-            // Akun lev1=5 (beban): debit-natural, biasanya di sisi "disimpan_ke",
-            // bukan "sumber_dana" — jarang kena rule ini.
+            // Akun lev1=5 (beban/pendapatan-biaya): debit-natural, tapi
+            // akumulasi beban bukan "kas yang tersedia" — validasi sisa kas
+            // tidak relevan. Skip cek saldo juga.
             var lev1 = sumber_dana.split('.')[0]
-            var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4')
+            var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4' || lev1 == '5')
 
             // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
             // apapun — nilainya sudah signed dan server-side menerima nilai
