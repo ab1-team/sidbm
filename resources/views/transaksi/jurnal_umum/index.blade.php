@@ -443,31 +443,24 @@
             var sumber_dana = $('#sumber_dana').val()
             var saldo_rek = parseFloat($('#saldo_trx').val()) || 0
 
-            // Akun debit-natural (aset/beban, lev1=1 atau 5): saldo natural positif
-            // tapi saat jadi "sumber dana" (keluar kas dari sisi debit), saldo
-            // efektif di sisi kas = -saldo_normal. Flip agar cek `saldo_rek >= nominal`
-            // benar-benar mengukur sisa kas yang bisa dipakai.
+            // Akun lev1=1 (aset): debit-natural. Saldo natural = debit - kredit
+            // sudah benar merepresentasikan sisa aset. Tidak perlu flip.
             //
-            // 2.1.03.* (utang pajak) kredit-normal, tapi saat dipakai sebagai
-            // sumber dana saldo tersisa dimaknai sebagai "aset yang keluar" — flip
-            // agar cek valid terhadap sisa utang yang boleh dipakai.
-            var kreditNormal = ['1.2.02.01', '1.2.02.02', '1.2.02.03']
-            if (kreditNormal.includes(sumber_dana)
-                || sumber_dana.startsWith('1.2.04.')
-                || sumber_dana.startsWith('1.1.04.')
-                || sumber_dana.startsWith('2.1.03.')) {
-                saldo_rek *= -1;
-            }
+            // Akun lev1 ∈ {2, 3, 4} (kewajiban/ekuitas/pendapatan): kredit-normal.
+            // Saat jadi "sumber dana" di jurnal kas, sisi kredit bertambah —
+            // bukan berkurang. Cek `saldo_rek >= nominal` tidak relevan
+            // (mis. utang pajak pertama: saldo 0, transaksi ini justru yang
+            // menambah). Skip cek saldo untuk akun-akun ini.
+            //
+            // Akun lev1=5 (beban): debit-natural, biasanya di sisi "disimpan_ke",
+            // bukan "sumber_dana" — jarang kena rule ini.
+            var lev1 = sumber_dana.split('.')[0]
+            var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4')
 
-            // Aset Masuk (jenis_transaksi=1): sumber dana bertambah, bukan
-            // berkurang. Cek saldo_rek >= nominal tidak relevan karena transaksi
-            // ini justru yang pertama mencatatkan saldo (pendapatan/piutang/
-            // modal awal semuanya mulai dari 0). Skip cek saldo.
-            //
             // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
             // apapun — nilainya sudah signed dan server-side menerima nilai
             // minus di kolom jumlah.
-            var saldo_cukup = ($('#jenis_transaksi').val() == '1')
+            var saldo_cukup = skipCek
                 || (nominal < 0)
                 || (nominal >= 0
                     ? (saldo_rek >= nominal)
