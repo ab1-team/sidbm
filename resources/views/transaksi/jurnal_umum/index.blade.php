@@ -455,8 +455,15 @@
             // Akun lev1=5 (beban/pendapatan-biaya): debit-natural, tapi
             // akumulasi beban bukan "kas yang tersedia" — validasi sisa kas
             // tidak relevan. Skip cek saldo juga.
+            //
+            // Akun 1.2.02.* / 1.2.04.* (akumulasi penyusutan): lev1=1 tapi
+            // debit-natural-nya "terbalik" — saldo bertambah di sisi kredit,
+            // bukan di sisi debit. Cek saldo natural selalu negatif/salah
+            // untuk skenario ini (transaksi penyusutan pertama). Skip cek.
             var lev1 = sumber_dana.split('.')[0]
             var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4' || lev1 == '5')
+                || sumber_dana.startsWith('1.2.02.')
+                || sumber_dana.startsWith('1.2.04.')
 
             // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
             // apapun — nilainya sudah signed dan server-side menerima nilai
