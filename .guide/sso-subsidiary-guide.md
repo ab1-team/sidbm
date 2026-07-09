@@ -126,26 +126,32 @@ class SsoController extends Controller
             abort(401, 'Token SSO tidak valid atau sudah kedaluwarsa.');
         }
 
-        // 2. Resolve license yang dipakai
-        //    Payload 'lid' = TenantApplication.id di Holding (mapping ke license Anda)
-        $license = License::find($payload['lid']);
-        if (! $license || ! $license->is_active || $license->isExpired()) {
-            abort(403, 'Lisensi tidak aktif atau sudah kedaluwarsa.');
+        // 2. Resolve user lokal + license lokal.
+        //    Payload berisi konteks (uid, tid, lid, slug, email, role) yang
+        //    BISA dipakai untuk lookup, tapi cara persisnya TERSERAH Anda —
+        //    tiap subsidiary beda schema. Contoh-contoh di bawah, pilih yang
+        //    cocok:
+
+        // Contoh A: subsidiary pakai email sebagai identifier user.
+        //   (Asumsi: tabel users Anda punya kolom `email`, license diikat
+        //    ke user via `user_id` atau `tenant_id`.)
+        // $user = User::where('email', $payload['email'])->first();
+
+        // Contoh B: subsidiary pakai NIK / username / employee_id.
+        //   Anda perlu mapping table `sso_user_mappings` (holding_email → local_user_id)
+        //   yang Anda kelola sendiri. Atau pakai field lain dari payload
+        //   (slug, uid) untuk lookup kalau schema Anda kebetulan cocok.
+
+        // Contoh C: subsidiary tidak butuh license check saat SSO (mis.
+        //   semua user lokal sudah punya akses default).
+
+        $user = $this->resolveLocalUser($payload); // ← implement sesuai schema Anda
+
+        if (! $user || ! $user->is_active) {
+            abort(403, 'User tidak ditemukan atau akun dinonaktifkan.');
         }
 
-        // 3. Resolve user lokal subsidiary
-        //    Opsi A: Map by email — cari user dengan email yang sama.
-        //    Opsi B: Buat user on-demand dari payload (lihat catatan di bawah).
-        $user = User::where('email', $payload['email'])->first();
-        if (! $user) {
-            abort(403, 'User tidak ditemukan di subsidiary ini.');
-        }
-
-        if (! $user->is_active) {
-            abort(403, 'Akun Anda telah dinonaktifkan.');
-        }
-
-        // 4. Login + redirect ke dashboard
+        // 3. Login + redirect ke dashboard
         Auth::login($user, remember: false); // SSO = single-use, no remember
         $request->session()->regenerate();
 
@@ -163,9 +169,11 @@ class SsoController extends Controller
 
 **Catatan penting:**
 - **Tidak pakai `Auth::loginUsingId($payload['uid'])`** — itu pakai user_id dari
-  Holding. Anda harus **resolve user lokal sendiri** (biasanya by email).
+  Holding. Anda harus **resolve user lokal sendiri** sesuai schema Anda.
 - `remember: false` — SSO token sudah single-use, tidak perlu long-lived cookie.
 - Selalu `session->regenerate()` untuk mitigate session fixation.
+- Anda yang paling paham schema Anda — payload SSO hanya berisi **konteks**,
+  bukan **instruksi**. Lihat catatan `lid` & `email` di struktur payload.
 
 ---
 
@@ -261,20 +269,62 @@ Payload (setelah decode JSON):
 
 | Field   | Tipe     | Keterangan                                                  |
 |---------|----------|-------------------------------------------------------------|
-| `uid`   | int      | `User.id` di Holding (untuk audit only — jangan pakai utk login) |
-| `tid`   | int      | `Tenant.id` di Holding (untuk audit only)                   |
-| `lid`   | int      | `TenantApplication.id` di Holding — mapping ke `License` Anda |
+| `uid`   | int      | `User.id` di Holding |
+| `tid`   | int      | `Tenant.id` di Holding |
+| `lid`   | int      | `TenantApplication.id` di **Holding**. Identifier opaque untuk subsidiary Anda — cara lookup terserah Anda (lihat catatan di bawah). |
 | `slug`  | string   | `Tenant.slug` di Holding                                    |
-| `email` | string   | Email user — gunakan untuk resolve user lokal Anda           |
-| `role`  | string   | `tenant_owner` atau `tenant_staff` (untuk audit only)       |
+| `email` | string   | Email user — jika subsidiary Anda pakai email sebagai identifier user, ini bisa dipakai. Kalau subsidiary pakai identifier lain (NIK/username/employee_id), abaikan field ini. |
+| `role`  | string   | `tenant_owner` atau `tenant_staff` |
 | `iat`   | int      | Issued-at (Unix timestamp)                                  |
 | `exp`   | int      | Expiry (Unix timestamp) — TTL default 5 menit              |
 | `nonce` | string   | Random per-token untuk replay protection                    |
 
-**JANGAN percaya** nilai `uid`, `role`, atau `tid` dari payload untuk authorization
-— signature hanya menjamin payload tidak diubah di perjalanan. Anda harus
-**resolve user dari database lokal** berdasarkan `email` (atau mapping table
-lain yang Anda punya).
+**Field mana yang harus Anda pakai?** Terserah — itu semua data untuk membantu
+resolve user & license lokal Anda. Yang terpenting: signature-nya valid +
+token belum expired. Setelah itu, **resolve user & license dari database lokal
+Anda sendiri** pakai field apapun yang cocok dengan schema Anda.
+
+### Catatan tentang `lid`
+
+`lid` = PK record di **Holding** (tabel `tenant_applications`). Bisa dipakai
+sebagai opaque identifier kalau Anda mau tambah kolom mapping
+(`holding_tenant_application_id`) di tabel license Anda. Tapi itu cuma salah
+satu opsi — Anda bebas pakai pendekatan lain (by tenant slug, by application
+name, by api_secret yang dikirim via header terpisah, dll).
+
+Intinya: payload SSO berisi **konteks yang cukup** untuk Anda resolve
+user+license, tapi **tidak ada jaminan field apapun selain signature & exp
+yang cocok dengan schema Anda**. Anda yang paling paham schema Anda.
+
+### Bagaimana cara subsidiary tau token ini beneran dari Holding?
+
+Signature HMAC jawab ini. Cek 3 hal di `SsoTokenVerifier`:
+
+1. **Signature valid** — `hash_equals(hash_hmac('sha256', payload, SSO_SECRET), signature)`
+   pakai secret yang **hanya** dipegang Holding + subsidiary ini. Kalau valid,
+   token **pasti** ditandatangani oleh salah satu dari mereka.
+2. **Belum expired** — `time() <= exp`. Default TTL 5 menit — window sempit.
+3. **Shape payload benar** — ada field wajib (`uid`, `tid`, `lid`, `exp`).
+
+Kalau 3 iya → **token otentik dari Holding**.
+
+**Yang TIDAK perlu disamakan antara Holding dan subsidiary:**
+- User ID (Holding auto-increment, subsidiary bisa UUID/NIK/username — beda)
+- Skema tabel user
+- Field di payload (semua cuma "konteks", bukan kontrak)
+- Database engine / ORM
+
+Holding dan subsidiary boleh **separation of concerns** total — yang penting
+satu shared secret untuk HMAC. Sisanya fleksibel.
+
+**Defense-in-depth tambahan** (opsional, sepenuhnya kebijakan subsidiary):
+- **IP allowlist** — tolak SSO dari IP yang bukan IP server Holding
+- **Nonce tracking** — simpan `nonce` di cache (Redis) selama window TTL,
+  tolak kalau sudah pernah dipakai (anti replay dalam window TTL)
+- **Secret rotation** — ganti `SSO_SECRET` tiap 90 hari di Holding + semua
+  subsidiary secara bersamaan
+- **Audit log detail** — catat `(payload_uid, payload_email, payload_lid,
+  IP, UA, timestamp)` di setiap attempt (sukses & gagal)
 
 ---
 

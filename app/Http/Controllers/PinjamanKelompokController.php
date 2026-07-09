@@ -82,9 +82,6 @@ class PinjamanKelompokController extends Controller
 
                     return '<div>'.$nama_kelompok.' <small class="float-end badge badge-'.$status.'">Loan ID.'.$row->id.'</small></div>';
                 })
-                // ->editColumn('tgl_proposal', function ($row) {
-                //     return Tanggal::tglIndo($row->tgl_proposal);
-                // })
                 ->editColumn('proposal', function ($row) {
                     return number_format(intval($row->proposal));
                 })
