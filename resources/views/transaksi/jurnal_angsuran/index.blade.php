@@ -673,19 +673,20 @@
         })
 
         function sendMsg(number, nama, msg, repeat = 0) {
-            const DEVICE_ID = '{{ $wa_device_id }}'
-            const DEVICE_KEY = '{{ $wa_device_key }}'
+            const INSTANCE = '{{ $wa_instance_name }}'
+            const randomDelay = 1500 + Math.floor(Math.random() * 2000)
             $.ajax({
                 type: 'POST',
-                url: '{{ $api }}/api/send/text',
+                url: '{{ $api }}/message/sendText/' + INSTANCE,
                 headers: {
-                    'x-api-key': DEVICE_KEY
+                    'apikey': '{{ $api_key }}'
                 },
-                data: {
-                    device_id: DEVICE_ID,
-                    to: number,
-                    message: msg
-                },
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    number: number,
+                    text: msg,
+                    delay: randomDelay
+                }),
                 success: function(result) {
                     if (result.success) {
                         MultiToast('success', 'Pesan untuk kelompok ' + nama + ' berhasil dikirim')
@@ -693,7 +694,7 @@
                         if (repeat < 1) {
                             setTimeout(function() {
                                 sendMsg(number, nama, msg, repeat + 1)
-                            }, 1000)
+                            }, 2000)
                         } else {
                             MultiToast('error', 'Pesan untuk kelompok ' + nama + ' gagal dikirim')
                         }
@@ -703,7 +704,7 @@
                     if (repeat < 1) {
                         setTimeout(function() {
                             sendMsg(number, nama, msg, repeat + 1)
-                        }, 1000)
+                        }, 2000)
                     } else {
                         MultiToast('error', 'Pesan untuk kelompok ' + nama + ' gagal dikirim')
                     }

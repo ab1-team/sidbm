@@ -16,9 +16,7 @@ class Whatsapp extends Model
     protected $fillable = [
         'lokasi',
         'nama',
-        'token',
-        'device_id',
-        'device_key',
+        'instance_name',
         'status',
         'deletedAt',
     ];

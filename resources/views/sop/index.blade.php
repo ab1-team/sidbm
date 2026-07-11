@@ -250,140 +250,137 @@
 @endsection
 
 @section('script')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-
     <script>
         let ListContainer = $('#ListConnection')
         const API = '{{ $api }}'
         const MASTER_KEY = '{{ $api_key }}'
-        const SAVED_ID = '{{ $device_id }}'
-        const SAVED_KEY = '{{ $device_key }}'
-
-        const CURRENT_ID = SAVED_ID || '{{ $token }}'
-        const CURRENT_KEY = SAVED_KEY || MASTER_KEY
+        const SAVED_INSTANCE = '{{ $instance_name }}'
 
         const LOKASI_ID = '{{ $kec->id }}'
         const KODE_KEC = '{{ $kec->kd_kec }}'
+        const NAMA_KEC = `{{ $kec->nama_lembaga_sort ?? $kec->nama_kec ?? "kec" }}`
 
-        var socket;
-        var socketId = 0;
+        let pollInterval = null
+        let qrPollInterval = null
 
-        function saveLocalSession(id, key) {
-            $.ajax({
-                type: 'POST',
-                url: '/pengaturan/whatsapp/save_device',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    device_id: id,
-                    device_key: key
-                },
-                success: function(res) {
-                    console.log('Session saved successfully to DB:', res);
-                },
-                error: function(xhr) {
-                    console.error('AJAX error saving to DB:', xhr.status, xhr.responseText);
-                }
-            })
+        function setIdleState() {
+            $('#HapusWa, #ScanWA, #PairWA, #InstanceInfo').hide()
+            $('#CreateInstance').show()
+            $('#InstanceName').text('')
         }
 
-        function initSocket(id, key) {
-            if (socket) {
-                socket.disconnect();
+        function setActiveState(instance) {
+            $('#CreateInstance, #ScanWA, #PairWA').hide()
+            $('#HapusWa').show()
+            $('#InstanceInfo').show()
+            $('#InstanceName').text(instance)
+        }
+
+        function setPendingState(instance) {
+            $('#CreateInstance, #PairWA').hide()
+            $('#HapusWa, #ScanWA, #InstanceInfo').show()
+            $('#InstanceName').text(instance)
+        }
+
+        function pollConnectionState(instance) {
+            pollInterval = setInterval(() => {
+                $.ajax({
+                    type: 'GET',
+                    url: '/pengaturan/whatsapp/connection_state',
+                    success: function(res) {
+                        console.log('Connection state:', res)
+                        if (res.state === 'open') {
+                            clearInterval(pollInterval)
+                            $('#ListConnection').html(
+                                '<li class="list-group-item list-group-item-success fw-bold">Whatsapp Aktif</li>'
+                            )
+                            $('#QrCode').attr('src', '/assets/img/no_image.png')
+                            setActiveState(instance)
+                            Toastr('success', 'WhatsApp berhasil terhubung')
+
+                            setTimeout(() => {
+                                if ($('#ModalScanWA').hasClass('show')) {
+                                    $('#ModalScanWA').modal('hide')
+                                }
+                            }, 1000)
+                        } else if (res.state === 'close' || res.state === 'refused') {
+                            clearInterval(pollInterval)
+                            Toastr('error', 'Koneksi ditutup oleh gateway')
+                        }
+                    },
+                    error: function() {
+                        console.warn('Polling error')
+                    }
+                })
+            }, 3000)
+        }
+
+        function pollQr() {
+            if (qrPollInterval) {
+                clearInterval(qrPollInterval)
             }
 
-            socket = io(API, {
-                query: {
-                    device_id: id,
-                    api_key: key
-                },
-                transports: ['polling']
-            });
-
-            socket.on('connected', (res) => {
-                console.log('Connected to the server. Socket ID:', res.id);
-                socketId = res.id
-            });
-
-            socket.on('ready', (result) => {
-                $('#QrCode').attr('src', '/assets/img/no_image.png')
-                var List = $('<li class="list-group-item list-group-item-success fw-bold">Whatsapp Aktif (' +
-                    result.phone_number + ')</li>')
-                ListContainer.append(List)
-
-                $('#HapusWa').show()
-                $('#ScanWA').hide()
-
-                // Simpan otomatis ke DB jika belum ada
-                if (!SAVED_ID) {
-                    saveLocalSession(result.device_id, MASTER_KEY)
+            let attempts = 0
+            qrPollInterval = setInterval(() => {
+                attempts++
+                if (attempts > 30) {
+                    // stop after ~60s
+                    clearInterval(qrPollInterval)
+                    return
                 }
 
-                // Toastr hanya muncul jika modal scan sedang terbuka (lagi proses scan)
-                if ($('#ModalScanWA').hasClass('show')) {
-                    Toastr('success', 'Whatsapp Aktif (' + result.phone_number + ')')
-                    setTimeout(() => {
-                        $('#ModalScanWA').modal('hide')
-                    }, 1000)
-                }
-            })
-
-            socket.on('qr', (result) => {
-                console.log('QR Code Refreshed');
-                $('#QrCode').attr('src', result.qr_image)
-            })
-
-            socket.on('status', (result) => {
-                console.log('WA status:', result.status)
-            })
-
-            socket.on('disconnect', () => {
-                console.log('Socket disconnected');
-            })
+                $.ajax({
+                    type: 'GET',
+                    url: '/pengaturan/whatsapp/qr',
+                    success: function(res) {
+                        console.log('QR poll:', res)
+                        if (res.success && res.qr) {
+                            clearInterval(qrPollInterval)
+                            $('#QrCode').attr('src',
+                                res.qr.startsWith('data:') ? res.qr : 'data:image/png;base64,' + res.qr
+                            )
+                            $('#ListConnection').html(
+                                '<li class="list-group-item list-group-item-success fw-bold">Scan QR dari WhatsApp</li>'
+                            )
+                            Toastr('success', 'QR siap, silakan scan dari WhatsApp')
+                        }
+                    },
+                    error: function() {
+                        console.warn('QR poll error')
+                    }
+                })
+            }, 2000)
         }
-
-        initSocket(CURRENT_ID, CURRENT_KEY);
 
         $(document).ready(function() {
-            $.ajax({
-                type: 'GET',
-                url: API + '/api/devices/' + CURRENT_ID,
-                headers: {
-                    'x-api-key': MASTER_KEY
-                },
-                success: function(result) {
-                    console.log('Gateway Device Info:', result);
-                    if (result.success && result.device && (result.device.status === 'connected' || result.device.phone_number)) {
-                        $('#HapusWa').show()
-                        $('#ScanWA').hide()
-
-                        // Sync ke DB lokal jika gateway bilang aktif tapi DB lokal kosong
-                        if (!SAVED_ID) {
-                            saveLocalSession(result.device.id, MASTER_KEY)
+            if (SAVED_INSTANCE) {
+                // Ada instance tersimpan → cek status
+                $.ajax({
+                    type: 'GET',
+                    url: '/pengaturan/whatsapp/connection_state',
+                    success: function(res) {
+                        console.log('Initial state:', res)
+                        if (res.state === 'open') {
+                            setActiveState(SAVED_INSTANCE)
+                        } else {
+                            setPendingState(SAVED_INSTANCE)
                         }
-                    } else {
-                        $('#ScanWA').show()
-                        $('#HapusWa').hide()
+                    },
+                    error: function() {
+                        setPendingState(SAVED_INSTANCE)
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Failed to get gateway status:', status, error);
-                    $('#ScanWA').show()
-                    $('#HapusWa').hide()
-                }
-            })
+                })
+            } else {
+                setIdleState()
+            }
         })
 
-        $(document).on('click', '#ScanWA', function(e) {
+        $(document).on('click', '#CreateInstance', function(e) {
             e.preventDefault()
 
-            if (SAVED_ID) {
-                $('#ModalScanWA').modal('show')
-                return
-            }
-
             Swal.fire({
-                title: 'Aktivasi Whatsapp',
-                text: 'Scan Whatsapp aplikasi SIDBM.',
+                title: 'Aktivasi WhatsApp',
+                text: 'Buat instance WhatsApp baru untuk kecamatan ini.',
                 showCancelButton: true,
                 confirmButtonText: 'Lanjutkan',
                 cancelButtonText: 'Batal',
@@ -392,32 +389,71 @@
                 if (result.isConfirmed) {
                     $.ajax({
                         type: 'POST',
-                        url: API + '/api/devices',
-                        headers: {
-                            'x-api-key': MASTER_KEY
-                        },
+                        url: '/pengaturan/whatsapp/save_device',
                         data: {
-                            name: LOKASI_ID + '-' + KODE_KEC.replace(/\./g, '-')
+                            _token: '{{ csrf_token() }}'
                         },
-                        success: function(result) {
-                            if (result.success) {
-                                // Save to SIDBM
-                                $.post('/pengaturan/whatsapp/save_device', {
-                                    _token: '{{ csrf_token() }}',
-                                    device_id: result.device.id,
-                                    device_key: result.device.api_key
-                                }, function(res) {
-                                    if (res.success) {
-                                        initSocket(result.device.id, result.device
-                                            .api_key)
-                                        $('#ModalScanWA').modal('show')
-                                    }
-                                })
+                        success: function(res) {
+                            console.log('Create instance response:', res)
+                            if (res.success) {
+                                if (res.qr) {
+                                    $('#QrCode').attr('src', res.qr.startsWith('data:') ? res.qr : 'data:image/png;base64,' + res.qr)
+                                    $('#ListConnection').html(
+                                        '<li class="list-group-item list-group-item-success fw-bold">Scan QR dari WhatsApp</li>'
+                                    )
+                                } else {
+                                    $('#QrCode').attr('src', '/assets/img/no_image.png')
+                                    $('#ListConnection').html(
+                                        '<li class="list-group-item">Menunggu QR dari gateway...</li>'
+                                    )
+                                }
+
+                                setPendingState(res.instance)
+                                $('#ModalScanWA').modal('show')
+                                pollConnectionState(res.instance)
+                                if (! res.qr) {
+                                    pollQr()
+                                }
                             } else {
-                                Swal.fire('Error', "Gagal mendaftarkan device.", 'error')
+                                Swal.fire('Error', res.msg || 'Gagal membuat instance.', 'error')
                             }
+                        },
+                        error: function(xhr) {
+                            Swal.fire('Error', 'Gagal terhubung ke gateway Evolution.', 'error')
                         }
                     })
+                }
+            })
+        })
+
+        $(document).on('click', '#ScanWA', function(e) {
+            e.preventDefault()
+
+            if (!SAVED_INSTANCE) return
+
+            $('#ModalScanWA').modal('show')
+            $('#QrCode').attr('src', '/assets/img/no_image.png')
+            $('#ListConnection').html(
+                '<li class="list-group-item">Menunggu QR dari gateway...</li>'
+            )
+
+            // Try /qr endpoint first (for existing instance); fall back to save_device (which may restart)
+            $.ajax({
+                type: 'GET',
+                url: '/pengaturan/whatsapp/qr',
+                success: function(res) {
+                    if (res.qr) {
+                        $('#QrCode').attr('src', res.qr.startsWith('data:') ? res.qr : 'data:image/png;base64,' + res.qr)
+                        $('#ListConnection').html(
+                            '<li class="list-group-item list-group-item-success fw-bold">Scan QR dari WhatsApp</li>'
+                        )
+                    } else {
+                        $('#ListConnection').html(
+                            '<li class="list-group-item">Menunggu QR dari gateway...</li>'
+                        )
+                        pollQr()
+                    }
+                    pollConnectionState(SAVED_INSTANCE)
                 }
             })
         })
@@ -426,36 +462,22 @@
             e.preventDefault()
 
             Swal.fire({
-                title: 'Hapus Whatsapp',
-                text: 'Hapus koneksi whatsapp SIDBM.',
+                title: 'Hapus WhatsApp',
+                text: 'Hapus koneksi WhatsApp SIDBM.',
                 showCancelButton: true,
                 confirmButtonText: 'Hapus',
                 cancelButtonText: 'Batal',
                 icon: 'error'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    $.ajax({
-                        type: 'POST',
-                        url: API + '/api/devices/' + SAVED_ID + '/logout',
-                        headers: {
-                            'x-api-key': MASTER_KEY
-                        },
-                        success: function(result) {
-                            $.post('/pengaturan/whatsapp/delete_session', {
-                                _token: '{{ csrf_token() }}',
-                                lokasi: LOKASI_ID
-                            }, function(res) {
-                                window.location.reload()
-                            })
-                        },
-                        error: function() {
-                            $.post('/pengaturan/whatsapp/delete_session', {
-                                _token: '{{ csrf_token() }}',
-                                lokasi: LOKASI_ID
-                            }, function(res) {
-                                window.location.reload()
-                            })
-                        }
+                    if (pollInterval) clearInterval(pollInterval)
+                    $.post('/pengaturan/whatsapp/delete_session', {
+                        _token: '{{ csrf_token() }}',
+                        lokasi: LOKASI_ID
+                    }, function(res) {
+                        window.location.reload()
+                    }).fail(function() {
+                        window.location.reload()
                     })
                 }
             })
@@ -467,8 +489,6 @@
             var newPersonalia = $('#newPersonalia').html()
             $('#FormPersonalia .row').append(newPersonalia)
         })
-
-        var scanQr = 0;
     </script>
 
     <script>

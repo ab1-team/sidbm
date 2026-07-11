@@ -30,18 +30,17 @@ class SopController extends Controller
 {
     public function index()
     {
-        $api = env('APP_API', 'http://localhost:3000');
-        $api_key = env('APP_API_KEY');
+        $api = env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com');
+        $api_key = env('WA_GATEWAY_API_KEY');
 
         $kec = Kecamatan::where('id', Session::get('lokasi'))->with('ttd', 'personalia', 'wa_session')->first();
         $token = $kec->token;
 
-        $device_id = $kec->wa_session->device_id ?? null;
-        $device_key = $kec->wa_session->device_key ?? null;
+        $instance_name = $kec->wa_session->instance_name ?? null;
 
         $title = 'Personalisasi SOP';
 
-        return view('sop.index')->with(compact('title', 'kec', 'api', 'token', 'api_key', 'device_id', 'device_key'));
+        return view('sop.index')->with(compact('title', 'kec', 'api', 'token', 'api_key', 'instance_name'));
     }
 
     public function coa()
@@ -458,13 +457,10 @@ class SopController extends Controller
 
     public function whatsapp($token)
     {
-        User::where('lokasi', Session::get('lokasi'))->update([
-            'ip' => $token,
-        ]);
-
+        // Legacy route, kept for backward compatibility (no-op on Evolution migration).
         return response()->json([
             'success' => true,
-            'msg' => 'Sukses',
+            'msg' => 'Legacy endpoint disabled. Use Evolution API endpoints.',
         ]);
     }
 
@@ -894,37 +890,234 @@ class SopController extends Controller
 
     public function save_whatsapp_session(Request $request)
     {
-        $id = Session::get('lokasi');
-        $device_id = $request->device_id;
-        $device_key = $request->device_key;
-
-        \Log::info('Saving WA Session: ', [
-            'lokasi' => $id,
-            'device_id' => $device_id,
-            'device_key' => $device_key,
-        ]);
-
-        if (! $id) {
+        $lokasi = Session::get('lokasi');
+        if (! $lokasi) {
             return response()->json(['success' => false, 'msg' => 'Lokasi session tidak ditemukan']);
         }
 
+        $kec = Kecamatan::where('id', $lokasi)->first();
+        if (! $kec) {
+            return response()->json(['success' => false, 'msg' => 'Kecamatan tidak ditemukan']);
+        }
+
+        $apiKey = env('WA_GATEWAY_API_KEY');
+        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
+
+        if (! $apiKey) {
+            return response()->json(['success' => false, 'msg' => 'WA_GATEWAY_API_KEY belum di-set di .env']);
+        }
+
+        $instanceName = \Illuminate\Support\Str::slug($kec->nama_lembaga_sort ?? $kec->nama_kec ?? 'kec').'-'.$kec->id;
+
         try {
-            $kec = Kecamatan::where('id', $id)->first();
+            // 1) Create instance — use Guzzle explicit so we control headers fully.
+            //    NOTE: enpii Cloudflare WAF blocks User-Agent: GuzzleHttp/7 → use browser-like UA.
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 15,
+                'http_errors' => false,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                ],
+            ]);
+
+            $createRes = $client->post($base.'/instance/create', [
+                'headers' => [
+                    'apikey' => $apiKey,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+                'body' => json_encode([
+                    'instanceName' => $instanceName,
+                    'qrcode' => true,
+                    'integration' => 'WHATSAPP-BAILEYS',
+                    'token' => (string) \Illuminate\Support\Str::uuid(),
+                ]),
+            ]);
+
+            $createBodyRaw = (string) $createRes->getBody();
+            $createBody = json_decode($createBodyRaw, true);
+            \Log::info('Evolution create instance', [
+                'instance' => $instanceName,
+                'status' => $createRes->getStatusCode(),
+                'has_qr' => ! empty($createBody['qrcode']['base64'] ?? null),
+            ]);
+
+            $createStatus = $createRes->getStatusCode();
+            if ($createStatus !== 200 && $createStatus !== 201 && $createStatus !== 403 && $createStatus !== 409) {
+                $errMsg = $createBody['response']['message'] ?? $createBodyRaw;
+                if (is_array($errMsg)) {
+                    $errMsg = json_encode($errMsg);
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'msg' => 'Gagal membuat instance (HTTP '.$createStatus.'): '.$errMsg,
+                ]);
+            }
+
+            // 2) Per Evolution v2 schema: create response already contains qrcode.base64 at root.
+//    If 403 (instance exists) or qrcode.base64 missing, poll /connect/{name} (also returns qrcode.base64).
+            $qr = $createBody['qrcode']['base64'] ?? null;
+            $pairingCode = $createBody['qrcode']['pairingCode'] ?? ($createBody['qrcode']['code'] ?? null);
+
+            // If create returned no QR (instance already existed and was close), restart + poll connect
+            if (! $qr) {
+                try {
+                    $client->post($base.'/instance/restart/'.$instanceName, [
+                        'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Evolution restart error: '.$e->getMessage());
+                }
+
+                for ($i = 0; $i < 5; $i++) {
+                    sleep(2);
+                    $connectRes = $client->get($base.'/instance/connect/'.$instanceName, [
+                        'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
+                    ]);
+                    $connectBodyRaw = (string) $connectRes->getBody();
+                    $connectBody = json_decode($connectBodyRaw, true);
+                    \Log::info('Evolution connect', [
+                        'attempt' => $i + 1,
+                        'status' => $connectRes->getStatusCode(),
+                        'has_qr' => ! empty($connectBody['qrcode']['base64'] ?? null),
+                    ]);
+
+                    $qr = $connectBody['qrcode']['base64']
+                        ?? $connectBody['base64']
+                        ?? null;
+                    $pairingCode = $connectBody['qrcode']['pairingCode']
+                        ?? $connectBody['pairingCode']
+                        ?? $connectBody['qrcode']['code']
+                        ?? $connectBody['code']
+                        ?? null;
+
+                    if ($qr) {
+                        break;
+                    }
+                }
+            }
+
+            // 3) Persist
             Whatsapp::updateOrCreate(
-                ['lokasi' => $id],
+                ['lokasi' => $lokasi],
                 [
                     'nama' => $kec->nama_lembaga_sort ?? 'BUMDESMA',
-                    'token' => $kec->token ?? '',
-                    'device_id' => $device_id,
-                    'device_key' => $device_key,
-                    'status' => 'connected',
+                    'instance_name' => $instanceName,
+                    'status' => 'pending',
                 ]
             );
 
-            return response()->json(['success' => true]);
+            return response()->json([
+                'success' => true,
+                'instance' => $instanceName,
+                'qr' => $qr,
+                'pairingCode' => $pairingCode,
+                'state' => $connectBody['instance']['state'] ?? null,
+            ]);
         } catch (\Exception $e) {
-            \Log::error('DB Error saving WA session: '.$e->getMessage());
+            \Log::error('Evolution save_whatsapp_session error: '.$e->getMessage());
 
+            return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
+        }
+    }
+
+    public function evolution_connection_state(Request $request)
+    {
+        $lokasi = Session::get('lokasi');
+        if (! $lokasi) {
+            return response()->json(['success' => false, 'msg' => 'Lokasi session tidak ditemukan']);
+        }
+
+        $wa = Whatsapp::where('lokasi', $lokasi)->first();
+        if (! $wa || ! $wa->instance_name) {
+            return response()->json(['success' => false, 'state' => 'unknown']);
+        }
+
+        $apiKey = env('WA_GATEWAY_API_KEY');
+        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
+
+        try {
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 10,
+                'http_errors' => false,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                ],
+            ]);
+            $res = $client->get($base.'/instance/connectionState/'.$wa->instance_name, [
+                'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
+            ]);
+
+            $bodyRaw = (string) $res->getBody();
+            $body = json_decode($bodyRaw, true) ?? [];
+            $state = $body['instance']['state'] ?? ($body['state'] ?? 'unknown');
+
+            if ($state === 'open') {
+                Whatsapp::where('lokasi', $lokasi)->update(['status' => 'connected']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'state' => $state,
+                'raw' => $body,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Proxy QR / pairingCode for current user's instance.
+     * Frontend polls this every 2-3s after create until QR appears.
+     */
+    public function evolution_qr(Request $request)
+    {
+        $lokasi = Session::get('lokasi');
+        if (! $lokasi) {
+            return response()->json(['success' => false, 'msg' => 'Lokasi session tidak ditemukan']);
+        }
+
+        $wa = Whatsapp::where('lokasi', $lokasi)->first();
+        if (! $wa || ! $wa->instance_name) {
+            return response()->json(['success' => false, 'qr' => null, 'pairingCode' => null]);
+        }
+
+        $apiKey = env('WA_GATEWAY_API_KEY');
+        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
+
+        try {
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 10,
+                'http_errors' => false,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                ],
+            ]);
+
+            $res = $client->get($base.'/instance/connect/'.$wa->instance_name, [
+                'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
+            ]);
+
+            $raw = (string) $res->getBody();
+            $body = json_decode($raw, true) ?? [];
+
+            $qr = $body['qrcode']['base64']
+                ?? $body['base64']
+                ?? null;
+            $pairingCode = $body['qrcode']['pairingCode']
+                ?? $body['pairingCode']
+                ?? $body['qrcode']['code']
+                ?? $body['code']
+                ?? null;
+
+            return response()->json([
+                'success' => true,
+                'qr' => $qr,
+                'pairingCode' => $pairingCode,
+                'state' => $body['instance']['state'] ?? ($body['state'] ?? null),
+            ]);
+        } catch (\Exception $e) {
             return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
         }
     }
@@ -938,6 +1131,35 @@ class SopController extends Controller
                 'deleted' => 0,
                 'message' => 'Lokasi tidak ditemukan.',
             ], 422);
+        }
+
+        $wa = Whatsapp::where('lokasi', $lokasi)->first();
+        $apiKey = env('WA_GATEWAY_API_KEY');
+        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
+
+        if ($wa && $wa->instance_name && $apiKey) {
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 10,
+                'http_errors' => false,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                ],
+            ]);
+            try {
+                $client->delete($base.'/instance/logout/'.$wa->instance_name, [
+                    'headers' => ['apikey' => $apiKey],
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning('Evolution logout error: '.$e->getMessage());
+            }
+
+            try {
+                $client->delete($base.'/instance/delete/'.$wa->instance_name, [
+                    'headers' => ['apikey' => $apiKey],
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning('Evolution delete error: '.$e->getMessage());
+            }
         }
 
         $deleted = Whatsapp::where('lokasi', $lokasi)->delete();

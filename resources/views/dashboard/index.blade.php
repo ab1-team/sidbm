@@ -897,32 +897,49 @@
                 })
             });
 
-            const DEVICE_ID = '{{ $wa_device_id }}'
+            const INSTANCE = '{{ $wa_instance_name }}'
             console.log('Sending message via Gateway:', {
-                device_id: DEVICE_ID,
-                url: '{{ $api }}/api/send/personalized'
+                instance: INSTANCE,
+                url: '{{ $api }}/message/sendText/' + INSTANCE
             });
 
-            $.ajax({
-                type: 'POST',
-                url: '{{ $api }}/api/send/personalized',
-                headers: {
-                    'x-api-key': '{{ $api_key }}'
-                },
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    device_id: DEVICE_ID,
-                    messages: messages.map(m => ({
-                        to: m.number,
-                        message: m.message
-                    }))
-                }),
-                success: function(result) {
-                    if (result.success) {
-                        Swal.fire('Berhasil', 'Pesan Berhasil Masuk Antrean', 'success')
+            // Send sequentially with random delay 1500-3500ms to avoid WhatsApp spam detection
+            (async function sendSequential() {
+                let success = 0
+                let failed = 0
+                for (let i = 0; i < messages.length; i++) {
+                    const m = messages[i]
+                    const randomDelay = 1500 + Math.floor(Math.random() * 2000)
+
+                    try {
+                        await $.ajax({
+                            type: 'POST',
+                            url: '{{ $api }}/message/sendText/' + INSTANCE,
+                            headers: {
+                                'apikey': '{{ $api_key }}'
+                            },
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                number: m.number,
+                                text: m.message,
+                                delay: randomDelay
+                            })
+                        })
+                        success++
+                    } catch (err) {
+                        failed++
+                        console.error('Send failed for', m.number, err)
                     }
                 }
-            })
+
+                if (failed === 0) {
+                    Swal.fire('Berhasil', success + ' pesan berhasil dikirim', 'success')
+                } else if (success === 0) {
+                    Swal.fire('Error', 'Semua pesan gagal dikirim', 'error')
+                } else {
+                    Swal.fire('Sebagian Gagal', success + ' terkirim, ' + failed + ' gagal', 'warning')
+                }
+            })()
         })
 
         $(document).on('click', '#btnjatuhTempo', function(e) {
@@ -990,33 +1007,33 @@
     @if (Session::get('invoice'))
         <script>
             function msgInvoice(number, msg, repeat = 0) {
-                const DEVICE_ID = '{{ $wa_device_id }}'
-                const DEVICE_KEY = '{{ $wa_device_key }}'
+                const INSTANCE = '{{ $wa_instance_name }}'
+                const randomDelay = 1500 + Math.floor(Math.random() * 2000)
                 $.ajax({
                     type: 'POST',
-                    url: '{{ $api }}/api/send/text',
+                    url: '{{ $api }}/message/sendText/' + INSTANCE,
                     timeout: 0,
                     headers: {
                         "Content-Type": "application/json",
-                        "x-api-key": DEVICE_KEY
+                        "apikey": "{{ $api_key }}"
                     },
                     data: JSON.stringify({
-                        device_id: DEVICE_ID,
-                        to: number,
-                        message: msg
+                        number: number,
+                        text: msg,
+                        delay: randomDelay
                     }),
                     success: function(result) {
                         if (!result.success) {
                             setTimeout(function() {
                                 msgInvoice(number, msg, repeat + 1)
-                            }, 1000)
+                            }, 2000)
                         }
                     },
                     error: function(result) {
                         if (repeat < 1) {
                             setTimeout(function() {
                                 msgInvoice(number, msg, repeat + 1)
-                            }, 1000)
+                            }, 2000)
                         }
                     }
                 })
@@ -1025,7 +1042,7 @@
             msgInvoice("{{ Session::get('hp_dir') }}", $('#msgInvoice').val())
             setTimeout(() => {
                 msgInvoice('0882006644656', $('#msgInvoice').val())
-            }, 1000);
+            }, 2500);
         </script>
     @endif
 

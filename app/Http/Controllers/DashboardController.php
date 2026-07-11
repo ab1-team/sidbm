@@ -106,12 +106,11 @@ class DashboardController extends Controller
         $data['charts'] = json_encode($this->_saldo($tgl));
         $data['jumlah_saldo'] = Saldo::where('kode_akun', 'NOT LIKE', $kec->kd_kec.'%')->count();
 
-        $data['api'] = env('APP_API', 'http://localhost:3000');
-        $data['api_key'] = env('APP_API_KEY');
+        $data['api'] = env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com');
+        $data['api_key'] = env('WA_GATEWAY_API_KEY');
 
         $wa = \App\Models\Whatsapp::where('lokasi', Session::get('lokasi'))->first();
-        $data['wa_device_id'] = $wa->device_id ?? null;
-        $data['wa_device_key'] = $wa->device_key ?? null;
+        $data['wa_instance_name'] = $wa->instance_name ?? null;
 
         $data['title'] = 'Dashboard';
 

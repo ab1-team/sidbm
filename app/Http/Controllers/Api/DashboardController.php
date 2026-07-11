@@ -610,10 +610,17 @@ class DashboardController extends Controller
         $sortColumn = $allowedSorts[$sortBy] ?? 'pinkel.id';
         $pinjaman = $pinjaman->orderByRaw("$sortColumn $sortOrder")->get();
 
+        $waSession = \App\Models\Whatsapp::where('lokasi', $kec->id)->first();
+        $instanceName = $waSession->instance_name ?? null;
+        $waApiKey = env('WA_GATEWAY_API_KEY');
+        $waBase = rtrim(env('WA_GATEWAY_BASE', $apiEndpoint->whatsapp_api ?? 'https://wa-gateway.enpiistudio.com'), '/');
+
         return response()->json([
             'success' => true,
             'data' => [
-                'url' => $apiEndpoint->whatsapp_api,
+                'url' => $instanceName ? $waBase.'/message/sendText/'.$instanceName : $waBase,
+                'instance' => $instanceName,
+                'apikey' => $waApiKey,
                 'data' => $pinjaman,
                 'token' => $kec->token,
                 'pesan' => $pesan,

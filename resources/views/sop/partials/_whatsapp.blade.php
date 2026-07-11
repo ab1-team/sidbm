@@ -28,12 +28,22 @@
     </div>
 </form>
 
-<div class="d-flex justify-content-end">
+<div class="d-flex justify-content-end align-items-center">
+    <small id="InstanceInfo" class="text-muted me-3" style="display: none;">
+        Instance: <code id="InstanceName"></code>
+    </small>
+
     <button type="button" id="HapusWa" class="btn btn-sm btn-danger mb-0 me-2" style="display: none;">
         Hapus Whatsapp
     </button>
     <button type="button" id="ScanWA" class="btn btn-sm btn-info mb-0 me-2" style="display: none;">
         Scan Whatsapp
+    </button>
+    <button type="button" id="PairWA" class="btn btn-sm btn-warning mb-0 me-2" style="display: none;">
+        Pair via Nomor
+    </button>
+    <button type="button" id="CreateInstance" class="btn btn-sm btn-primary mb-0 me-2" style="display: none;">
+        Buat Instance
     </button>
 
     <button type="button" id="SimpanWhatsapp" data-target="#FormScanWhatsapp"

@@ -566,53 +566,7 @@
         </script>
     @endif
 
-    {{-- Secure WhatsApp Notification Listener (Per-Location) --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const gatewayUrl = "{{ env('APP_API') }}";
-            const deviceId = "{{ $wa_session->device_id ?? '' }}";
-            const deviceKey = "{{ $wa_session->device_key ?? '' }}";
-
-            if (!gatewayUrl || !deviceId || !deviceKey) return;
-
-            const waSocket = io(gatewayUrl, {
-                query: {
-                    device_id: deviceId,
-                    api_key: deviceKey
-                },
-                transports: ['polling']
-            });
-
-            waSocket.on('message_sent', (res) => {
-                if (res.device_id === deviceId) {
-                    if (window.location.pathname.indexOf('/pengaturan/sop') === -1 && window.location.pathname.indexOf('/pengaturan/whatsapp') === -1) {
-                        Toastr('success', `WA: Pesan terkirim ke ${res.recipient}`);
-                    }
-                }
-            });
-
-            waSocket.on('message_failed', (res) => {
-                if (res.device_id === deviceId) {
-                    Toastr('error', `WA: Gagal ke ${res.recipient}: ${res.error}`);
-                }
-            });
-
-            waSocket.on('ready', (res) => {
-                if (window.location.pathname.indexOf('/pengaturan/sop') !== -1 || window.location.pathname.indexOf('/pengaturan/whatsapp') !== -1) {
-                    MultiToast('success', `WhatsApp Aktif (${res.phone_number})`);
-                }
-            });
-
-            waSocket.on('status', (res) => {
-                if (res.status === 'disconnected' || res.status === 'close') {
-                    if (window.location.pathname.indexOf('/pengaturan/sop') !== -1 || window.location.pathname.indexOf('/pengaturan/whatsapp') !== -1) {
-                        MultiToast('warning', `WhatsApp Terputus!`);
-                    }
-                }
-            });
-        });
-    </script>
+    {{-- WhatsApp notification listener (Evolution API, no websocket) --}}
 </body>
 
 </html>

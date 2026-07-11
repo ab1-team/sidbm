@@ -169,7 +169,8 @@ Route::group(['middleware' => 'tenant'], function () {
 
     Route::post('/pengaturan/whatsapp/save_device', [SopController::class, 'save_whatsapp_session'])->middleware('auth');
     Route::post('/pengaturan/whatsapp/delete_session', [SopController::class, 'delete_whatsapp_session'])->middleware('auth');
-    Route::post('/pengaturan/whatsapp/{token}', [SopController::class, 'whatsapp'])->middleware('auth');
+    Route::get('/pengaturan/whatsapp/connection_state', [SopController::class, 'evolution_connection_state'])->middleware('auth');
+    Route::get('/pengaturan/whatsapp/qr', [SopController::class, 'evolution_qr'])->middleware('auth');
 
     Route::get('/pengaturan/invoice', [SopController::class, 'invoice'])->middleware('auth');
     Route::get('/pengaturan/{inv}/invoice', [SopController::class, 'detailInvoice'])->middleware('auth');
