@@ -392,6 +392,10 @@ class GenerateService
                 if ($sisa_tempo_j <= 1) {
                     $cur_j = $sisa_alokasi_j;
                 }
+                $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
+                $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
+                $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / max(1, $sisa_tempo_p), $kec->pembulatan);
+                $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / max(1, $sisa_tempo_j), $kec->pembulatan);
             }
 
             $target_p += $cur_p;
