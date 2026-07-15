@@ -429,6 +429,14 @@
                 nominal = $('#harga_perolehan').val()
             }
 
+            // Form hapus inventaris tidak punya #nominal/#harga_perolehan —
+            // gunakan #harga_jual (sisi kas dari penjualan) atau #nilai_buku
+            // (nilai buku yang dihapus/dijual) sebagai nominal.
+            var isInventaris = $('#nama_barang').length > 0
+            if (isInventaris && !nominal) {
+                nominal = $('#harga_jual').val() || $('#_nilai_buku').val()
+            }
+
             if (nominal) {
                 nominal = parseFloat(nominal.split(',').join(''))
             } else {
@@ -465,7 +473,8 @@
             // tapi nilainya selalu minus (contra-asset). Kalau plus, justru
             // salah. Skip cek saldo.
             var lev1 = sumber_dana.split('.')[0]
-            var skipCek = (lev1 == '2' || lev1 == '3' || lev1 == '4' || lev1 == '5')
+            var skipCek = isInventaris
+                || (lev1 == '2' || lev1 == '3' || lev1 == '4' || lev1 == '5')
                 || sumber_dana.startsWith('1.2.02.')
                 || sumber_dana.startsWith('1.2.04.')
                 || sumber_dana.startsWith('1.1.04.')
