@@ -438,7 +438,13 @@
             }
 
             if (nominal) {
-                nominal = parseFloat(nominal.split(',').join(''))
+                // Strip thousand separator + whitespace; maskMoney bisa
+                // format sebagai "-100.00" atau "-100,000.00" tergantung locale.
+                var cleaned = String(nominal).replace(/[\s,]/g, '')
+                nominal = parseFloat(cleaned)
+                if (isNaN(nominal)) {
+                    nominal = 0
+                }
             } else {
                 nominal = 0
             }
@@ -449,7 +455,10 @@
             }
 
             var sumber_dana = $('#sumber_dana').val()
-            var saldo_rek = parseFloat($('#saldo_trx').val()) || 0
+            var saldo_rek = parseFloat(String($('#saldo_trx').val() || '').replace(/[\s,]/g, ''))
+            if (isNaN(saldo_rek)) {
+                saldo_rek = 0
+            }
 
             // Akun lev1=1 (aset): debit-natural. Saldo natural = debit - kredit
             // sudah benar merepresentasikan sisa aset. Tidak perlu flip.
