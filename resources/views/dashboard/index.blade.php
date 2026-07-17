@@ -897,11 +897,13 @@
                 })
             });
 
-            const INSTANCE = '{{ $wa_instance_name }}'
-            console.log('Sending message via Gateway:', {
-                instance: INSTANCE,
-                url: '{{ $api }}/message/sendText/' + INSTANCE
-            });
+            const INSTANCE = @json($wa_instance_name ?? '')
+            if (!INSTANCE) {
+                return Swal.fire('Error', 'Instance WhatsApp belum disetel untuk lokasi ini', 'error')
+            }
+            const ENCODED_INSTANCE = encodeURIComponent(INSTANCE)
+            const GATEWAY_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + ENCODED_INSTANCE
+            console.log('Sending message via Gateway:', { instance: INSTANCE, url: GATEWAY_URL })
 
             // Send sequentially with random delay 1500-3500ms to avoid WhatsApp spam detection
             (async function sendSequential() {
@@ -914,7 +916,7 @@
                     try {
                         await $.ajax({
                             type: 'POST',
-                            url: '{{ $api }}/message/sendText/' + INSTANCE,
+                            url: GATEWAY_URL,
                             headers: {
                                 'apikey': '{{ $api_key }}'
                             },
@@ -1006,12 +1008,13 @@
 
     @if (Session::get('invoice'))
         <script>
+            const INVOICE_INSTANCE = encodeURIComponent(@json($wa_instance_name ?? ''))
+            const INVOICE_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + INVOICE_INSTANCE
             function msgInvoice(number, msg, repeat = 0) {
-                const INSTANCE = '{{ $wa_instance_name }}'
                 const randomDelay = 1500 + Math.floor(Math.random() * 2000)
                 $.ajax({
                     type: 'POST',
-                    url: '{{ $api }}/message/sendText/' + INSTANCE,
+                    url: INVOICE_URL,
                     timeout: 0,
                     headers: {
                         "Content-Type": "application/json",

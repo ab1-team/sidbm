@@ -672,12 +672,13 @@
             });
         })
 
+        const ANGSURAN_INSTANCE = encodeURIComponent(@json($wa_instance_name ?? ''))
+        const ANGSURAN_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + ANGSURAN_INSTANCE
         function sendMsg(number, nama, msg, repeat = 0) {
-            const INSTANCE = '{{ $wa_instance_name }}'
             const randomDelay = 1500 + Math.floor(Math.random() * 2000)
             $.ajax({
                 type: 'POST',
-                url: '{{ $api }}/message/sendText/' + INSTANCE,
+                url: ANGSURAN_URL,
                 headers: {
                     'apikey': '{{ $api_key }}'
                 },
