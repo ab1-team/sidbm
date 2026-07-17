@@ -80,34 +80,27 @@
 
                         <table border="0" width="100%" style="font-size: 11px;">
                             <tr>
-                                <td width="70%">&nbsp;</td>
-                                <td width="30%" align="center">
+                                <td colspan="2" align="center">
                                     {{ $kec->nama_kec }}, {{ Tanggal::tglLatin($tgl_cair) }}
                                 </td>
                             </tr>
                             <tr>
-                                <td align="center">
-                                    &nbsp;
-                                </td>
-                                <td align="center">
+                                <td width="50%">&nbsp;</td>
+                                <td width="50%" align="center">
                                     Diterima Oleh
                                 </td>
                             </tr>
                             <tr>
-                                <td align="center">
-                                    &nbsp;
-                                </td>
+                                <td>&nbsp;</td>
                                 <td align="center">
                                     Anggota Pemanfaat
                                 </td>
                             </tr>
                             <tr>
-                                <td colspan="9" height="30">&nbsp;</td>
+                                <td colspan="2" height="30">&nbsp;</td>
                             </tr>
                             <tr>
-                                <td align="center">
-                                    <b>&nbsp;</b>
-                                </td>
+                                <td>&nbsp;</td>
                                 <td align="center">
                                     <b>{{ $pinj->namadepan }}</b>
                                 </td>
