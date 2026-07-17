@@ -80,7 +80,8 @@
 
                         <table border="0" width="100%" style="font-size: 11px;">
                             <tr>
-                                <td colspan="2" align="center">
+                                <td width="60%">&nbsp;</td>
+                                <td width="40%" align="center">
                                     {{ $kec->nama_kec }}, {{ Tanggal::tglLatin($tgl_cair) }}
                                 </td>
                             </tr>
