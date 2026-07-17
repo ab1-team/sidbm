@@ -85,8 +85,8 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td width="50%">&nbsp;</td>
-                                <td width="50%" align="center">
+                                <td width="60%">&nbsp;</td>
+                                <td width="40%" align="center">
                                     Diterima Oleh
                                 </td>
                             </tr>
