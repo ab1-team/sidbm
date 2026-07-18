@@ -897,8 +897,7 @@
                 })
             });
 
-            const INSTANCE = @json($wa_instance_name ?? '')
-            if (!INSTANCE) {
+            const INSTANCE = @json($wa_instance_name ?? ''); if (!INSTANCE) {
                 return Swal.fire('Error', 'Instance WhatsApp belum disetel untuk lokasi ini', 'error')
             }
             const ENCODED_INSTANCE = encodeURIComponent(INSTANCE)
