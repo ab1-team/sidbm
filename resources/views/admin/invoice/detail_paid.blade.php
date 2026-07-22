@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="alert alert-info text-white fw-bold">
-        #Invoice{{ $invoice->id }} - {{ $invoice->kec->id }} {{ $invoice->kec->nama_kec }} -
+        #Invoice{{ $invoice->idv }} - {{ $invoice->kec->id }} {{ $invoice->kec->nama_kec }} -
         {{ $invoice->kec->kabupaten->nama_kab }} {{ $invoice->tgl_lunas }}
         Rp. {{ number_format($invoice->jumlah) }}
     </div>

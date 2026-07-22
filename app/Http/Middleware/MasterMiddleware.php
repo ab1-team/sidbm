@@ -15,13 +15,16 @@ class MasterMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Swap koneksi DULU supaya SubstituteBindings (yang jalan setelah middleware ini
+        // di group 'master', tapi SEBELUM untuk global web) pakai DB yang benar.
+        // Lihat Kernel::$middlewarePriority — middleware ini diprioritaskan sebelum SubstituteBindings.
         if (auth()->guard('master')->check()) {
-            if (auth()->guard('master')->user()->akses == 'master') {
-                $server = session('master_server', 'mysql_b'); // Default ke server B
-                config(['database.default' => $server]);
-                
-                return $next($request);
-            }
+            $server = session('master_server', 'mysql_b');
+            config(['database.default' => $server]);
+        }
+
+        if (auth()->guard('master')->check() && auth()->guard('master')->user()->akses == 'master') {
+            return $next($request);
         }
 
         return redirect('/master');

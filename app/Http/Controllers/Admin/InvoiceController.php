@@ -169,6 +169,8 @@ class InvoiceController extends Controller
         $invoice = AdminInvoice::where('idv', $invoice->idv)->with('kec', 'kec.kabupaten', 'jp')->withSum('trx', 'jumlah')->first();
         $rekening = AdminRekening::where('kd_rekening', '111.1001')->orwhere('kd_rekening', '121.1001')->orderBy('kd_rekening', 'DESC')->get();
 
+        abort_unless($invoice, 404, 'Invoice tidak ditemukan di server aktif.');
+
         $title = 'Detail Invoice No. ' . $invoice->nomor;
         return view('admin.invoice.detail_unpaid')->with(compact('title', 'invoice', 'rekening'));
     }
@@ -176,6 +178,8 @@ class InvoiceController extends Controller
     public function DetailPaid(AdminInvoice $invoice)
     {
         $invoice = AdminInvoice::where('idv', $invoice->idv)->with('kec', 'kec.kabupaten', 'jp')->withSum('trx', 'jumlah')->first();
+
+        abort_unless($invoice, 404, 'Invoice tidak ditemukan di server aktif.');
 
         $title = 'Detail Invoice No. ' . $invoice->nomor;
         return view('admin.invoice.detail_paid')->with(compact('title', 'invoice'));
