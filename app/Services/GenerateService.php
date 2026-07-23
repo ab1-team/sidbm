@@ -78,21 +78,25 @@ class GenerateService
         $res = $this->preview($pinkel, $kec);
 
         DB::transaction(function () use ($pinkel, $res) {
-            RencanaAngsuran::where('loan_id', $pinkel->id)->delete();
-            RealAngsuran::where('loan_id', $pinkel->id)->delete();
+            // Pakai koneksi yg sama dgn $pinkel (mysql_b utk lokasi
+            // non-default), krn tabel rencana_angsuran_xxx ada di sana.
+            $conn = $pinkel->getConnectionName() ?: DB::getDefaultConnection();
+
+            RencanaAngsuran::on($conn)->where('loan_id', $pinkel->id)->delete();
+            RealAngsuran::on($conn)->where('loan_id', $pinkel->id)->delete();
             if (count($res['id_real'] ?? []) > 0) {
-                RealAngsuran::whereIn('id', $res['id_real'])->delete();
+                RealAngsuran::on($conn)->whereIn('id', $res['id_real'])->delete();
             }
 
             if (count($res['rencana'] ?? []) > 0) {
-                RencanaAngsuran::insert($res['rencana']);
+                RencanaAngsuran::on($conn)->insert($res['rencana']);
             }
 
             $real = collect($res['real'] ?? [])->filter(function ($item) {
                 return isset($item['id']) && intval($item['id']) > 0;
             })->values()->all();
             if (count($real) > 0) {
-                RealAngsuran::insert($real);
+                RealAngsuran::on($conn)->insert($real);
             }
         });
 
