@@ -51,12 +51,6 @@ class IdentifyTenant
             // (prod kadang default ke mysql_b, jadi tenant non-holding
             // harus di-explicit switch balik ke mysql).
             config(['database.default' => 'mysql']);
-            // Hapus session master_server kalau ada (admin pernah switch ke
-            // mysql_b sebelumnya) supaya MasterMiddleware tidak override
-            // balik ke mysql_b setelah middleware ini.
-            if (session()->has('master_server')) {
-                session()->forget('master_server');
-            }
         }
 
         // 4. Set flag untuk downstream (controller / view) bahwa ini request kabupaten
