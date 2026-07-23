@@ -351,31 +351,21 @@ class GenerateService
             $h_ditangani = false;
             foreach ($penghapusan as $k => $h) {
                 if (strtotime($tempo) >= strtotime($h['tgl']) && $h['alloc_p'] == 0) {
-                    // Hitung sisa alokasi & tempo untuk baris-baris reguler
-                    // setelah baris hapus ini (dan hapus-hapus sebelumnya).
-                    // Sisa alokasi = alokasi − Σ semua yg sudah dibayar s/d
-                    // SEBELUM baris hapus current (row hapus current belum
-                    // di-increment ke target_p di sini). Sisa tempo = jumlah
-                    // baris reguler yg masih harus dibayar setelah titik ini,
-                    // termasuk baris hapus current sbg "pengganti" slot.
+                    // Hitung sisa alokasi SEBELUM target di-increment oleh
+                    // row hapus — row hapus adalah trx terpisah, bukan
+                    // cicilan reguler, jadi tidak boleh memotong sisa.
                     $sisa_alokasi_p = max(0, $alokasi_total - $target_p);
                     $sisa_alokasi_j = max(0, $total_jasa - $target_j);
-                    $sisa_tempo_p = max(1, $jangka - $i + 1);
-                    $sisa_tempo_j = max(1, $jangka - $i + 1);
+                    $sisa_tempo_p = max(1, $jangka - ($i - 1));
+                    $sisa_tempo_j = max(1, $jangka - ($i - 1));
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo_p, $kec->pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo_j, $kec->pembulatan);
                     $bulan_dipakai_rec = false;
 
                     $data_rencana[strtotime($h['tgl'])] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
                     $rencana[] = $data_rencana[strtotime($h['tgl'])];
                     $target_p += $h['p'];
                     $target_j += $h['j'];
-
-                    // Recalc dgn Σ bayar ter-update (inklusif row hapus current),
-                    // supaya iterasi setelah row hapus berikutnya masih benar
-                    // kalau ada hapus susulan.
-                    $sisa_alokasi_p = max(0, $alokasi_total - $target_p);
-                    $sisa_alokasi_j = max(0, $total_jasa - $target_j);
-                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo_p, $kec->pembulatan);
-                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo_j, $kec->pembulatan);
 
                     $penghapusan[$k]['alloc_p'] = $sisa_alokasi_p;
                     $penghapusan[$k]['alloc_j'] = $sisa_alokasi_j;
