@@ -298,6 +298,7 @@ class GenerateService
             $penghapusan[] = [
                 'tgl' => $trx_h->tgl_transaksi, 'p' => $am['p'], 'j' => $am['j'],
                 'alloc_p' => 0, 'alloc_j' => 0, 'idtp' => $idtp,
+                'inserted' => false,
             ];
             $seen_idtp[$idtp] = true;
             $data_id_real[] = $idtp;
@@ -336,80 +337,109 @@ class GenerateService
             }
         }
 
-        // Sisa alokasi & sisa tempo setelah insert baris hapus.
-        // Akan di-set saat proses trx_penghapusan, lalu dipakai untuk
-        // recompute cur_p / cur_j di bulan-bulan setelah hapus.
+        // Hapus: row hapus masuk ke slot angs_ke yang sama dgn reguler di
+        // bulan yg sama (tempo[$i] <= tgl_hapus < tempo[$i+1]). Insert
+        // reguler dulu, lalu cek apakah ada hapus di slot itu, insert sbg
+        // row kedua dgn angs_ke sama. angs_ke TIDAK bergeser ke $i+1.
+        //
+        // Pascahapus: angsuran bulan-bulan setelah slot hapus pakai
+        // (sisa_alokasi / sisa_tempo) yg dibulatkan, bukan rec_p polos.
+
         $sisa_alokasi_p = $alokasi_total;
         $sisa_alokasi_j = $total_jasa;
-        $sisa_tempo_p = 0;
-        $sisa_tempo_j = 0;
-        $bulan_dipakai_rec = true;
+        $sisa_tempo = 0;
         $sisa_dibulatkan_p = 0;
         $sisa_dibulatkan_j = 0;
+        $post_hapus = false;
 
         for ($i = 1; $i <= $jangka; $i++) {
             $tempo = $this->jatuh_tempo($i, $pinkel->sistem_angsuran, $tgl_cair);
+            $tempo_ts = strtotime($tempo);
             $cur_p = 0;
             $cur_j = 0;
-            if ($bulan_dipakai_rec) {
-                $cur_p = $rec_p[$i] ?? 0;
-                $cur_j = $rec_j[$i] ?? 0;
-            }
 
-            $h_ditangani = false;
+            // Cek dulu: ada hapus di slot ini? (tgl_hapus >= tempo[$i] dan
+            // < tempo[$i+1]). Kalau ada, insert reguler (rec_p polos) dulu
+            // lalu insert row hapus sbg row kedua dgn angs_ke=$i.
+            $h_inserted_this_iter = false;
             foreach ($penghapusan as $k => $h) {
-                if (strtotime($tempo) >= strtotime($h['tgl']) && $h['alloc_p'] == 0) {
-                    $data_rencana[strtotime($h['tgl'])] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
-                    $rencana[] = $data_rencana[strtotime($h['tgl'])];
-                    $target_p += $h['p'];
-                    $target_j += $h['j'];
-
-                    // Sisa alokasi & tempo untuk bulan-bulan setelah hapus.
-                    $sisa_alokasi_p = max(0, $alokasi_total - $target_p);
-                    $sisa_alokasi_j = max(0, $total_jasa - $target_j);
-                    $sisa_tempo_p = max(1, $jangka - ($i - 1));
-                    $sisa_tempo_j = max(1, $jangka - ($i - 1));
-                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo_p, $kec->pembulatan);
-                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo_j, $kec->pembulatan);
-                    $bulan_dipakai_rec = false;
-
-                    $penghapusan[$k]['alloc_p'] = $sisa_alokasi_p;
-                    $penghapusan[$k]['alloc_j'] = $sisa_alokasi_j;
-                    $h_ditangani = true;
-                    break;
+                if ($h['inserted']) {
+                    continue;
                 }
+                $h_ts = strtotime($h['tgl']);
+                if ($h_ts < $tempo_ts) {
+                    continue;
+                }
+                if ($i < $jangka) {
+                    $next_tempo = $this->jatuh_tempo($i + 1, $pinkel->sistem_angsuran, $tgl_cair);
+                    if ($h_ts >= strtotime($next_tempo)) {
+                        continue;
+                    }
+                }
+                // Insert reguler untuk slot ini
+                if (! $post_hapus) {
+                    $cur_p = $rec_p[$i] ?? 0;
+                    $cur_j = $rec_j[$i] ?? 0;
+                } else {
+                    $cur_p = $sisa_dibulatkan_p;
+                    $cur_j = $sisa_dibulatkan_j;
+                }
+                $target_p += $cur_p;
+                $target_j += $cur_j;
+                $data_rencana[$tempo_ts] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
+                $rencana[] = $data_rencana[$tempo_ts];
+                $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
+                $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
+
+                // Insert row hapus sbg angs_ke=$i dgn tgl hapus
+                $data_rencana[$h_ts] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
+                $rencana[] = $data_rencana[$h_ts];
+                $target_p += $h['p'];
+                $target_j += $h['j'];
+                $sisa_alokasi_p = max(0, $sisa_alokasi_p - $h['p']);
+                $sisa_alokasi_j = max(0, $sisa_alokasi_j - $h['j']);
+
+                // Set state pascahapus
+                $post_hapus = true;
+                $sisa_tempo = $jangka - $i;
+                if ($sisa_tempo > 0) {
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $kec->pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $kec->pembulatan);
+                }
+                $penghapusan[$k]['inserted'] = true;
+                $h_inserted_this_iter = true;
+                break;
             }
 
-            // baris hapus sudah menutup angs_ke-$i — skip baris reguler
-            // di iterasi yang sama agar target_p/target_j tidak double-count
-            // dan total tidak melebihi alokasi_total.
-            if ($h_ditangani) {
+            if ($h_inserted_this_iter) {
                 continue;
             }
 
-            // Setelah hapus: pakai angsuran bulatkan dari sisa alokasi / sisa tempo,
-            // bukan dari rec_p/rec_j (yg masih schedule penuh).
-            if (! $bulan_dipakai_rec) {
+            // Tidak ada hapus di slot ini — insert reguler
+            if (! $post_hapus) {
+                $cur_p = $rec_p[$i] ?? 0;
+                $cur_j = $rec_j[$i] ?? 0;
+            } else {
                 $cur_p = $sisa_dibulatkan_p;
                 $cur_j = $sisa_dibulatkan_j;
-                $sisa_tempo_p--;
-                $sisa_tempo_j--;
-                if ($sisa_tempo_p <= 1) {
-                    $cur_p = $sisa_alokasi_p;
-                }
-                if ($sisa_tempo_j <= 1) {
-                    $cur_j = $sisa_alokasi_j;
-                }
-                $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
-                $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
-                $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / max(1, $sisa_tempo_p), $kec->pembulatan);
-                $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / max(1, $sisa_tempo_j), $kec->pembulatan);
             }
-
             $target_p += $cur_p;
             $target_j += $cur_j;
-            $data_rencana[strtotime($tempo)] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
-            $rencana[] = $data_rencana[strtotime($tempo)];
+            $data_rencana[$tempo_ts] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
+            $rencana[] = $data_rencana[$tempo_ts];
+            $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
+            $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
+            if ($post_hapus && $sisa_tempo > 0) {
+                $sisa_tempo--;
+                if ($sisa_tempo > 0) {
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $kec->pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $kec->pembulatan);
+                } else {
+                    // Bulan terakhir pascahapus: pakai seluruh sisa
+                    $sisa_dibulatkan_p = $sisa_alokasi_p;
+                    $sisa_dibulatkan_j = $sisa_alokasi_j;
+                }
+            }
         }
 
         return [
