@@ -46,11 +46,6 @@ class IdentifyTenant
         }
         if ($useHolding) {
             config(['database.default' => 'mysql_b']);
-        } else {
-            // Reset ke mysql kalau default environment adalah mysql_b
-            // (prod kadang default ke mysql_b, jadi tenant non-holding
-            // harus di-explicit switch balik ke mysql).
-            config(['database.default' => 'mysql']);
         }
 
         // 4. Set flag untuk downstream (controller / view) bahwa ini request kabupaten
