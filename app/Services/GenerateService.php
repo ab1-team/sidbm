@@ -351,9 +351,12 @@ class GenerateService
             $h_ditangani = false;
             foreach ($penghapusan as $k => $h) {
                 if (strtotime($tempo) >= strtotime($h['tgl']) && $h['alloc_p'] == 0) {
-                    // Hitung sisa alokasi SEBELUM target di-increment oleh
-                    // row hapus — row hapus adalah trx terpisah, bukan
-                    // cicilan reguler, jadi tidak boleh memotong sisa.
+                    $data_rencana[strtotime($h['tgl'])] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
+                    $rencana[] = $data_rencana[strtotime($h['tgl'])];
+                    $target_p += $h['p'];
+                    $target_j += $h['j'];
+
+                    // Sisa alokasi & tempo untuk bulan-bulan setelah hapus.
                     $sisa_alokasi_p = max(0, $alokasi_total - $target_p);
                     $sisa_alokasi_j = max(0, $total_jasa - $target_j);
                     $sisa_tempo_p = max(1, $jangka - ($i - 1));
@@ -361,11 +364,6 @@ class GenerateService
                     $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo_p, $kec->pembulatan);
                     $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo_j, $kec->pembulatan);
                     $bulan_dipakai_rec = false;
-
-                    $data_rencana[strtotime($h['tgl'])] = $this->fmtRencana($pinkel->id, $i, $h['tgl'], $h['p'], $h['j'], $target_p + $h['p'], $target_j + $h['j']);
-                    $rencana[] = $data_rencana[strtotime($h['tgl'])];
-                    $target_p += $h['p'];
-                    $target_j += $h['j'];
 
                     $penghapusan[$k]['alloc_p'] = $sisa_alokasi_p;
                     $penghapusan[$k]['alloc_j'] = $sisa_alokasi_j;
