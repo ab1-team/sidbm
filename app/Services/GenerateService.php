@@ -282,17 +282,25 @@ class GenerateService
         $rec_j = $sch['jasa'];
 
         $penghapusan = [];
-        $idx = 1;
+        $seen_idtp = [];
         foreach ($pinkel->trx_penghapusan as $trx_h) {
             if (intval($trx_h->idtp) <= 0) {
                 continue;
             }
+            // Dedup by idtp: 1 trx_penghapusan dgn double-entry (2 jurnal
+            // lines di rekening_debit berbeda — pok + jasa) harusnya dihitung
+            // sbg 1 row hapus. Ambil row pertama saja per idtp.
+            $idtp = $trx_h->idtp;
+            if (isset($seen_idtp[$idtp])) {
+                continue;
+            }
             $am = $this->getTrxAmounts($trx_h);
-            $penghapusan[$idx++] = [
+            $penghapusan[] = [
                 'tgl' => $trx_h->tgl_transaksi, 'p' => $am['p'], 'j' => $am['j'],
-                'alloc_p' => 0, 'alloc_j' => 0, 'idtp' => $trx_h->idtp,
+                'alloc_p' => 0, 'alloc_j' => 0, 'idtp' => $idtp,
             ];
-            $data_id_real[] = $trx_h->idtp;
+            $seen_idtp[$idtp] = true;
+            $data_id_real[] = $idtp;
         }
 
         // Row 0 = tanggal cair ASLI (marker, bukan angsuran pertama)
