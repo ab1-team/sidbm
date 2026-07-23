@@ -32,7 +32,19 @@ class IdentifyTenant
         }
 
         // 3. Domain milik tenant (kecamatan ATAU kabupaten) → pakai holding DB
-        if ($tenantFromB || $kabFromB) {
+        //    kalau web_kec/web_alternatif berakhiran '.id' (server B). Kalau
+        //    '.net' atau NULL → data ada di server A (mysql), jangan switch.
+        $useHolding = false;
+        if ($tenantFromB) {
+            $endsWithId = (str_ends_with((string) $tenantFromB->web_kec, '.id')
+                || str_ends_with((string) ($tenantFromB->web_alternatif ?? ''), '.id'));
+            $useHolding = $endsWithId;
+        } elseif ($kabFromB) {
+            $endsWithId = (str_ends_with((string) $kabFromB->web_kab, '.id')
+                || str_ends_with((string) ($kabFromB->web_kab_alternatif ?? ''), '.id'));
+            $useHolding = $endsWithId;
+        }
+        if ($useHolding) {
             config(['database.default' => 'mysql_b']);
         }
 
