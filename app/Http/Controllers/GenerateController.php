@@ -34,10 +34,6 @@ class GenerateController extends Controller
 
         if ($tenantFromB) {
             $kec = Kecamatan::on('mysql_b')->find($tenantFromB->id);
-            // Lokasi pakai server B — switch default connection supaya
-            // GenerateService baca/tulis ke mysql_b, bukan mysql.
-            \Illuminate\Support\Facades\Config::set('database.default', 'mysql_b');
-            \Illuminate\Support\Facades\DB::setDefaultConnection('mysql_b');
         } else {
             $kec = Kecamatan::where('web_kec', $domain)
                 ->orWhere('web_alternatif', $domain)
@@ -70,11 +66,6 @@ class GenerateController extends Controller
 
     public function generate(Request $request, $offset = 0)
     {
-        // Pastikan pakai mysql_b kalau lokasi di server B (sama logikanya
-        // dgn index() — kalau route di-skip langsung ke generate, default
-        // masih mysql).
-        $this->ensureServerBConnection();
-
         $result = $this->generateService->generate($request->all(), (int) $offset);
 
         $data_pinjaman = $result['data_pinjaman'];
@@ -83,26 +74,5 @@ class GenerateController extends Controller
         $limit = $result['limit'];
 
         return view('generate.generate')->with(compact('data_pinjaman', 'data', 'offset', 'limit'));
-    }
-
-    /**
-     * Kalau lokasi (session) ada di mysql_b, switch default connection
-     * ke mysql_b supaya GenerateService.generate -> PinjamanKelompok::where
-     * query dari server yg benar (bukan mysql yg kosong utk lokasi 301).
-     */
-    protected function ensureServerBConnection()
-    {
-        $lokasi = Session::get('lokasi');
-        if (!$lokasi) {
-            return;
-        }
-        $existsInB = \Illuminate\Support\Facades\DB::connection('mysql_b')
-            ->table('kecamatan')
-            ->where('id', $lokasi)
-            ->exists();
-        if ($existsInB) {
-            \Illuminate\Support\Facades\Config::set('database.default', 'mysql_b');
-            \Illuminate\Support\Facades\DB::setDefaultConnection('mysql_b');
-        }
     }
 }
