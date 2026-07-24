@@ -11,8 +11,8 @@ class IdentifyTenant
 {
     public function handle(Request $request, Closure $next)
     {
-        $domain = $request->getHost();
-        $domainId = str_replace('.net', '.id', $domain);
+        $domain = strtolower(trim($request->getHost()));
+        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
 
         // 1. Cek di mysql_b (holding) — kecamatan dulu
         $tenantFromB = DB::connection('mysql_b')
