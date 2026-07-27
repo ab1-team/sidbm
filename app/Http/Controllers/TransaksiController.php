@@ -36,28 +36,51 @@ class TransaksiController extends Controller
 
     protected const KODE_DENDA = ['4.1.01.04', '4.1.01.05', '4.1.01.06'];
 
-    protected function redirectDenda($id)
+    protected function resolveRealForStruk($id)
     {
         if (! is_numeric($id)) {
-            return null;
-        }
-        // URL struk/{id} membawa real_angsuran.id yang sama dengan transaksi.idtp
-        $trx = Transaksi::where('idtp', $id)->first();
-        if ($trx && in_array($trx->rekening_kredit, self::KODE_DENDA, true)) {
-            return redirect('/transaksi/dokumen/bkm_angsuran/'.$trx->idt);
+            abort(404);
         }
 
-        return null;
-    }
-
-    protected function findRealOrLog($id, $tag)
-    {
+        // 1. Real row langsung — kasus Pokok/Jasa normal
         $real = RealAngsuran::where('id', $id)->first();
         if ($real) {
             return $real;
         }
-        Log::warning("struk.404 tag={$tag} id={$id} db=".config('database.default').' suffix='.config('tenant.suffix').' user_lokasi='.(auth()->user()->lokasi ?? 'guest').' table='.(new RealAngsuran)->getTable());
-        abort(404);
+
+        // 2. Angs. Denda: tidak ada row real_angsuran. Cari transaksi Denda
+        //    berdasar idtp == $id (idtp Denda == real_angsuran.id untuk Pokok/Jasa
+        //    dengan nomor urut yang kebetulan sama; untuk Denda idtp merujuk ke loan).
+        $denda = Transaksi::where('idtp', $id)
+            ->whereIn('rekening_kredit', self::KODE_DENDA)
+            ->orderBy('tgl_transaksi', 'DESC')
+            ->first();
+
+        if (! $denda) {
+            Log::warning("struk.404 id={$id} db=".config('database.default').' suffix='.config('tenant.suffix').' user_lokasi='.(auth()->user()->lokasi ?? 'guest').' table='.(new RealAngsuran)->getTable());
+            abort(404);
+        }
+
+        // 3. Snapshot real terakhir untuk loan tsb sebelum/sama dengan tgl transaksi Denda
+        $real = RealAngsuran::where('loan_id', $denda->id_pinj)
+            ->where('tgl_transaksi', '<=', $denda->tgl_transaksi)
+            ->orderBy('tgl_transaksi', 'DESC')
+            ->first();
+
+        if (! $real) {
+            Log::warning("struk.404.denda id={$id} loan={$denda->id_pinj} tgl={$denda->tgl_transaksi}");
+            abort(404);
+        }
+
+        // 4. Build record turunan: Pokok/Jasa = 0, tgl_transaksi = tgl Denda,
+        //    trx = [transaksi Denda].
+        $real->setAttribute('realisasi_pokok', 0);
+        $real->setAttribute('realisasi_jasa', 0);
+        $real->setAttribute('tgl_transaksi', $denda->tgl_transaksi);
+        $real->setAttribute('id', $denda->idt);
+        $real->setRelation('trx', collect([$denda->loadMissing('user')]));
+
+        return $real;
     }
 
     public function __construct(GenerateService $generateService)
@@ -2388,10 +2411,7 @@ class TransaksiController extends Controller
 
     public function struk($id)
     {
-        if ($r = $this->redirectDenda($id)) {
-            return $r;
-        }
-        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
+        $data['real'] = $this->resolveRealForStruk($id);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
@@ -2418,10 +2438,7 @@ class TransaksiController extends Controller
 
     public function strukMatrix($id)
     {
-        if ($r = $this->redirectDenda($id)) {
-            return $r;
-        }
-        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
+        $data['real'] = $this->resolveRealForStruk($id);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
@@ -2448,16 +2465,12 @@ class TransaksiController extends Controller
 
     public function strukThermal($id)
     {
-        if ($r = $this->redirectDenda($id)) {
-            return $r;
-        }
-
         $data['kertas'] = '80';
         if (request()->get('kertas')) {
             $data['kertas'] = request()->get('kertas');
         }
 
-        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
+        $data['real'] = $this->resolveRealForStruk($id);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
