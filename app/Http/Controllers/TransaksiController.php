@@ -106,6 +106,29 @@ class TransaksiController extends Controller
         }
 
         if (! $real) {
+            // Loan belum pernah bayar Pokok/Jasa: synthesize snapshot dari pinkel
+            $pinkel = null;
+            foreach (['mysql', 'mysql_b'] as $pal) {
+                try {
+                    $pinkel = \App\Models\PinjamanKelompok::on($pal)->where('id', $denda->id_pinj)->first();
+                    if ($pinkel) {
+                        break;
+                    }
+                } catch (\Throwable $e) {
+                    // skip
+                }
+            }
+            if ($pinkel) {
+                $real = new \App\Models\RealAngsuran;
+                $real->setAttribute('loan_id', $pinkel->id);
+                $real->setAttribute('sum_pokok', 0);
+                $real->setAttribute('sum_jasa', 0);
+                $real->setAttribute('saldo_pokok', $pinkel->alokasi);
+                $real->setAttribute('saldo_jasa', ($pinkel->alokasi * $pinkel->pros_jasa) / 100);
+            }
+        }
+
+        if (! $real) {
             abort(404);
         }
 
