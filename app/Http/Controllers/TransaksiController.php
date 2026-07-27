@@ -41,12 +41,23 @@ class TransaksiController extends Controller
         if (! is_numeric($id)) {
             return null;
         }
-        $trx = Transaksi::where('idt', $id)->first();
+        // URL struk/{id} membawa real_angsuran.id yang sama dengan transaksi.idtp
+        $trx = Transaksi::where('idtp', $id)->first();
         if ($trx && in_array($trx->rekening_kredit, self::KODE_DENDA, true)) {
-            return redirect('/transaksi/dokumen/bkm_angsuran/'.$id);
+            return redirect('/transaksi/dokumen/bkm_angsuran/'.$trx->idt);
         }
 
         return null;
+    }
+
+    protected function findRealOrLog($id, $tag)
+    {
+        $real = RealAngsuran::where('id', $id)->first();
+        if ($real) {
+            return $real;
+        }
+        Log::warning("struk.404 tag={$tag} id={$id} db=".config('database.default').' suffix='.config('tenant.suffix').' user_lokasi='.(auth()->user()->lokasi ?? 'guest').' table='.(new RealAngsuran)->getTable());
+        abort(404);
     }
 
     public function __construct(GenerateService $generateService)
@@ -2380,7 +2391,7 @@ class TransaksiController extends Controller
         if ($r = $this->redirectDenda($id)) {
             return $r;
         }
-        $data['real'] = RealAngsuran::where('id', $id)->with('trx', 'trx.user')->firstOrFail();
+        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
@@ -2410,7 +2421,7 @@ class TransaksiController extends Controller
         if ($r = $this->redirectDenda($id)) {
             return $r;
         }
-        $data['real'] = RealAngsuran::where('id', $id)->with('trx', 'trx.user')->firstOrFail();
+        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
@@ -2446,7 +2457,7 @@ class TransaksiController extends Controller
             $data['kertas'] = request()->get('kertas');
         }
 
-        $data['real'] = RealAngsuran::where('id', $id)->with('trx', 'trx.user')->firstOrFail();
+        $data['real'] = $this->findRealOrLog($id, 'struk')->load(['trx', 'trx.user']);
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
             'kelompok.d',
