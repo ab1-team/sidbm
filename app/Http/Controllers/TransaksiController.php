@@ -57,7 +57,6 @@ class TransaksiController extends Controller
             ->first();
 
         if (! $denda) {
-            Log::warning("struk.404 id={$id} db=".config('database.default').' suffix='.config('tenant.suffix').' user_lokasi='.(auth()->user()->lokasi ?? 'guest').' table='.(new RealAngsuran)->getTable());
             abort(404);
         }
 
@@ -68,7 +67,6 @@ class TransaksiController extends Controller
             ->first();
 
         if (! $real) {
-            Log::warning("struk.404.denda id={$id} loan={$denda->id_pinj} tgl={$denda->tgl_transaksi}");
             abort(404);
         }
 

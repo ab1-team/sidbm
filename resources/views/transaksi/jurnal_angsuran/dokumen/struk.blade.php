@@ -30,7 +30,7 @@
 
     $jum_angsuran = $pinkel->jangka / $pinkel->sis_pokok->sistem;
 
-    if ($pinkel->jangka <= $ra_bulan_ini->angsuran_ke) {
+    if ($ra_bulan_ini && $pinkel->jangka <= $ra_bulan_ini->angsuran_ke) {
         $angsur_bulan_depan = false;
     }
 
