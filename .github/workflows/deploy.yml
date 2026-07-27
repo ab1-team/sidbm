@@ -19,3 +19,7 @@ jobs:
             cd /var/www/sidbm.net
             git pull origin master
             composer install
+            php artisan optimize:clear || true
+            php artisan config:clear || true
+            php artisan route:clear || true
+            php artisan view:clear || true
