@@ -42,29 +42,68 @@ class TransaksiController extends Controller
             abort(404);
         }
 
-        // 1. Real row langsung — kasus Pokok/Jasa normal
-        $real = RealAngsuran::where('id', $id)->first();
-        if ($real) {
-            return $real;
+        // 1. Real row langsung di DB aktif — kasus Pokok/Jasa normal
+        try {
+            $real = RealAngsuran::where('id', $id)->first();
+            if ($real) {
+                return $real;
+            }
+        } catch (\Throwable $e) {
+            // Tabel suffix tidak ada di DB aktif — lanjut fallback DB lain
+        }
+
+        // 1b. Fallback DB: coba connection satunya (mysql <-> mysql_b)
+        foreach (['mysql', 'mysql_b'] as $alt) {
+            if ($alt === config('database.default')) {
+                continue;
+            }
+            try {
+                $real = RealAngsuran::on($alt)->where('id', $id)->first();
+                if ($real) {
+                    return $real;
+                }
+            } catch (\Throwable $e) {
+                // skip
+            }
         }
 
         // 2. Angs. Denda: tidak ada row real_angsuran. Cari transaksi Denda
         //    berdasar idtp == $id (idtp Denda == real_angsuran.id untuk Pokok/Jasa
         //    dengan nomor urut yang kebetulan sama; untuk Denda idtp merujuk ke loan).
-        $denda = Transaksi::where('idtp', $id)
-            ->whereIn('rekening_kredit', self::KODE_DENDA)
-            ->orderBy('tgl_transaksi', 'DESC')
-            ->first();
+        $denda = null;
+        foreach (['mysql', 'mysql_b'] as $alt) {
+            try {
+                $denda = Transaksi::on($alt)->where('idtp', $id)
+                    ->whereIn('rekening_kredit', self::KODE_DENDA)
+                    ->orderBy('tgl_transaksi', 'DESC')
+                    ->first();
+                if ($denda) {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // skip
+            }
+        }
 
         if (! $denda) {
             abort(404);
         }
 
         // 3. Snapshot real terakhir untuk loan tsb sebelum/sama dengan tgl transaksi Denda
-        $real = RealAngsuran::where('loan_id', $denda->id_pinj)
-            ->where('tgl_transaksi', '<=', $denda->tgl_transaksi)
-            ->orderBy('tgl_transaksi', 'DESC')
-            ->first();
+        $real = null;
+        foreach (['mysql', 'mysql_b'] as $alt) {
+            try {
+                $real = RealAngsuran::on($alt)->where('loan_id', $denda->id_pinj)
+                    ->where('tgl_transaksi', '<=', $denda->tgl_transaksi)
+                    ->orderBy('tgl_transaksi', 'DESC')
+                    ->first();
+                if ($real) {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // skip
+            }
+        }
 
         if (! $real) {
             abort(404);
