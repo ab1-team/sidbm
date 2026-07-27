@@ -34,6 +34,21 @@ class TransaksiController extends Controller
 {
     protected $generateService;
 
+    protected const KODE_DENDA = ['4.1.01.04', '4.1.01.05', '4.1.01.06'];
+
+    protected function redirectDenda($id)
+    {
+        if (! is_numeric($id)) {
+            return null;
+        }
+        $trx = Transaksi::where('idt', $id)->first();
+        if ($trx && in_array($trx->rekening_kredit, self::KODE_DENDA, true)) {
+            return redirect('/transaksi/dokumen/bkm_angsuran/'.$id);
+        }
+
+        return null;
+    }
+
     public function __construct(GenerateService $generateService)
     {
         $this->generateService = $generateService;
@@ -2362,6 +2377,9 @@ class TransaksiController extends Controller
 
     public function struk($id)
     {
+        if ($r = $this->redirectDenda($id)) {
+            return $r;
+        }
         $data['real'] = RealAngsuran::where('id', $id)->with('trx', 'trx.user')->firstOrFail();
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
@@ -2389,6 +2407,9 @@ class TransaksiController extends Controller
 
     public function strukMatrix($id)
     {
+        if ($r = $this->redirectDenda($id)) {
+            return $r;
+        }
         $data['real'] = RealAngsuran::where('id', $id)->with('trx', 'trx.user')->firstOrFail();
         $data['pinkel'] = PinjamanKelompok::where('id', $data['real']->loan_id)->with([
             'kelompok',
@@ -2416,6 +2437,9 @@ class TransaksiController extends Controller
 
     public function strukThermal($id)
     {
+        if ($r = $this->redirectDenda($id)) {
+            return $r;
+        }
 
         $data['kertas'] = '80';
         if (request()->get('kertas')) {
