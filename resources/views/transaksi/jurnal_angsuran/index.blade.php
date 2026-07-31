@@ -672,22 +672,20 @@
             });
         })
 
-        const ANGSURAN_INSTANCE = encodeURIComponent(@json($wa_instance_name ?? ''))
-        const ANGSURAN_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + ANGSURAN_INSTANCE
+        const ANGSURAN_INSTANCE = @json($wa_instance_name ?? '')
         function sendMsg(number, nama, msg, repeat = 0) {
-            const randomDelay = 1500 + Math.floor(Math.random() * 2000)
             $.ajax({
                 type: 'POST',
-                url: ANGSURAN_URL,
+                url: '/wa/send',
                 headers: {
-                    'apikey': '{{ $api_key }}'
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
                 },
-                contentType: 'application/json',
-                data: JSON.stringify({
+                data: {
                     number: number,
                     text: msg,
-                    delay: randomDelay
-                }),
+                    instance: ANGSURAN_INSTANCE
+                },
                 success: function(result) {
                     if (result.success) {
                         MultiToast('success', 'Pesan untuk kelompok ' + nama + ' berhasil dikirim')

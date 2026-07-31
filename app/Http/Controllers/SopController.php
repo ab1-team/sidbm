@@ -30,9 +30,6 @@ class SopController extends Controller
 {
     public function index()
     {
-        $api = env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com');
-        $api_key = env('WA_GATEWAY_API_KEY');
-
         $kec = Kecamatan::where('id', Session::get('lokasi'))->with('ttd', 'personalia', 'wa_session')->first();
         $token = $kec->token;
 
@@ -40,7 +37,7 @@ class SopController extends Controller
 
         $title = 'Personalisasi SOP';
 
-        return view('sop.index')->with(compact('title', 'kec', 'api', 'token', 'api_key', 'instance_name'));
+        return view('sop.index')->with(compact('title', 'kec', 'token', 'instance_name'));
     }
 
     public function coa()
@@ -907,7 +904,7 @@ class SopController extends Controller
             return response()->json(['success' => false, 'msg' => 'WA_GATEWAY_API_KEY belum di-set di .env']);
         }
 
-        $instanceName = \Illuminate\Support\Str::slug($kec->nama_lembaga_sort ?? $kec->nama_kec ?? 'kec').'-'.$kec->id;
+        $instanceName = 'sidbm-'.\Illuminate\Support\Str::slug($kec->nama_lembaga_sort ?? $kec->nama_kec ?? 'kec').'-'.$kec->id;
 
         try {
             // 1) Create instance — use Guzzle explicit so we control headers fully.
@@ -920,17 +917,15 @@ class SopController extends Controller
                 ],
             ]);
 
-            $createRes = $client->post($base.'/instance/create', [
+            $createRes = $client->post($base.'/create-instance', [
                 'headers' => [
-                    'apikey' => $apiKey,
+                    'Authorization' => 'Basic '.base64_encode($apiKey),
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ],
                 'body' => json_encode([
-                    'instanceName' => $instanceName,
-                    'qrcode' => true,
-                    'integration' => 'WHATSAPP-BAILEYS',
-                    'token' => (string) \Illuminate\Support\Str::uuid(),
+                    'instance' => $instanceName,
+                    'lokasi' => $lokasi,
                 ]),
             ]);
 
@@ -955,10 +950,10 @@ class SopController extends Controller
                 ]);
             }
 
-            // 2) Per Evolution v2 schema: create response already contains qrcode.base64 at root.
-//    If 403 (instance exists) or qrcode.base64 missing, poll /connect/{name} (also returns qrcode.base64).
-            $qr = $createBody['qrcode']['base64'] ?? null;
-            $pairingCode = $createBody['qrcode']['pairingCode'] ?? ($createBody['qrcode']['code'] ?? null);
+            $instanceBody = $createBody['data']['instance'] ?? [];
+            $qr = $instanceBody['qr'] ?? null;
+            $pairingCode = $instanceBody['pairingCode'] ?? ($instanceBody['code'] ?? null);
+            $status = $instanceBody['status'] ?? null;
 
             // If create returned no QR (instance already existed and was close), restart + poll connect
             if (! $qr) {
@@ -1013,111 +1008,11 @@ class SopController extends Controller
                 'instance' => $instanceName,
                 'qr' => $qr,
                 'pairingCode' => $pairingCode,
-                'state' => $connectBody['instance']['state'] ?? null,
+                'state' => $status ?? null,
             ]);
         } catch (\Exception $e) {
             \Log::error('Evolution save_whatsapp_session error: '.$e->getMessage());
 
-            return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
-        }
-    }
-
-    public function evolution_connection_state(Request $request)
-    {
-        $lokasi = Session::get('lokasi');
-        if (! $lokasi) {
-            return response()->json(['success' => false, 'msg' => 'Lokasi session tidak ditemukan']);
-        }
-
-        $wa = Whatsapp::where('lokasi', $lokasi)->first();
-        if (! $wa || ! $wa->instance_name) {
-            return response()->json(['success' => false, 'state' => 'unknown']);
-        }
-
-        $apiKey = env('WA_GATEWAY_API_KEY');
-        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
-
-        try {
-            $client = new \GuzzleHttp\Client([
-                'timeout' => 10,
-                'http_errors' => false,
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                ],
-            ]);
-            $res = $client->get($base.'/instance/connectionState/'.$wa->instance_name, [
-                'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
-            ]);
-
-            $bodyRaw = (string) $res->getBody();
-            $body = json_decode($bodyRaw, true) ?? [];
-            $state = $body['instance']['state'] ?? ($body['state'] ?? 'unknown');
-
-            if ($state === 'open') {
-                Whatsapp::where('lokasi', $lokasi)->update(['status' => 'connected']);
-            }
-
-            return response()->json([
-                'success' => true,
-                'state' => $state,
-                'raw' => $body,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Proxy QR / pairingCode for current user's instance.
-     * Frontend polls this every 2-3s after create until QR appears.
-     */
-    public function evolution_qr(Request $request)
-    {
-        $lokasi = Session::get('lokasi');
-        if (! $lokasi) {
-            return response()->json(['success' => false, 'msg' => 'Lokasi session tidak ditemukan']);
-        }
-
-        $wa = Whatsapp::where('lokasi', $lokasi)->first();
-        if (! $wa || ! $wa->instance_name) {
-            return response()->json(['success' => false, 'qr' => null, 'pairingCode' => null]);
-        }
-
-        $apiKey = env('WA_GATEWAY_API_KEY');
-        $base = rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/');
-
-        try {
-            $client = new \GuzzleHttp\Client([
-                'timeout' => 10,
-                'http_errors' => false,
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                ],
-            ]);
-
-            $res = $client->get($base.'/instance/connect/'.$wa->instance_name, [
-                'headers' => ['apikey' => $apiKey, 'Accept' => 'application/json'],
-            ]);
-
-            $raw = (string) $res->getBody();
-            $body = json_decode($raw, true) ?? [];
-
-            $qr = $body['qrcode']['base64']
-                ?? $body['base64']
-                ?? null;
-            $pairingCode = $body['qrcode']['pairingCode']
-                ?? $body['pairingCode']
-                ?? $body['qrcode']['code']
-                ?? $body['code']
-                ?? null;
-
-            return response()->json([
-                'success' => true,
-                'qr' => $qr,
-                'pairingCode' => $pairingCode,
-                'state' => $body['instance']['state'] ?? ($body['state'] ?? null),
-            ]);
-        } catch (\Exception $e) {
             return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
         }
     }
@@ -1142,23 +1037,17 @@ class SopController extends Controller
                 'timeout' => 10,
                 'http_errors' => false,
                 'headers' => [
+                    'Authorization' => 'Basic '.base64_encode($apiKey),
+                    'Accept' => 'application/json',
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 ],
             ]);
             try {
-                $client->delete($base.'/instance/logout/'.$wa->instance_name, [
-                    'headers' => ['apikey' => $apiKey],
+                $client->delete($base.'/delete-instance', [
+                    'query' => ['instance' => $wa->instance_name],
                 ]);
             } catch (\Exception $e) {
-                \Log::warning('Evolution logout error: '.$e->getMessage());
-            }
-
-            try {
-                $client->delete($base.'/instance/delete/'.$wa->instance_name, [
-                    'headers' => ['apikey' => $apiKey],
-                ]);
-            } catch (\Exception $e) {
-                \Log::warning('Evolution delete error: '.$e->getMessage());
+                \Log::warning('Gateway delete error: '.$e->getMessage());
             }
         }
 

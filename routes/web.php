@@ -26,6 +26,7 @@ use App\Http\Controllers\ServiceWorkerController;
 use App\Http\Controllers\SopController;
 use App\Http\Controllers\TandaTanganController;
 use App\Http\Controllers\TransaksiController;
+use App\Http\Controllers\WhatsappController;
 use App\Http\Controllers\UploadAplikasiController;
 use App\Http\Controllers\UserController;
 use App\Models\Kecamatan;
@@ -169,8 +170,10 @@ Route::group(['middleware' => 'tenant'], function () {
 
     Route::post('/pengaturan/whatsapp/save_device', [SopController::class, 'save_whatsapp_session'])->middleware('auth');
     Route::post('/pengaturan/whatsapp/delete_session', [SopController::class, 'delete_whatsapp_session'])->middleware('auth');
-    Route::get('/pengaturan/whatsapp/connection_state', [SopController::class, 'evolution_connection_state'])->middleware('auth');
-    Route::get('/pengaturan/whatsapp/qr', [SopController::class, 'evolution_qr'])->middleware('auth');
+    Route::get('/pengaturan/whatsapp/instance_state', [WhatsappController::class, 'instanceState'])->middleware('auth');
+    Route::post('/wa/send', [WhatsappController::class, 'sendMessage'])->middleware('auth');
+Route::post('/wa/send-bulk', [WhatsappController::class, 'sendMessages'])->middleware('auth');
+Route::get('/wa/history', [WhatsappController::class, 'historyMessage'])->middleware('auth');
 
     Route::get('/pengaturan/invoice', [SopController::class, 'invoice'])->middleware('auth');
     Route::get('/pengaturan/{inv}/invoice', [SopController::class, 'detailInvoice'])->middleware('auth');

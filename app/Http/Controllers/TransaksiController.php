@@ -183,11 +183,10 @@ class TransaksiController extends Controller
         }
 
         $api = env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com');
-        $api_key = env('WA_GATEWAY_API_KEY');
 
         $wa_instance_name = $kec->wa_session->instance_name ?? null;
 
-        return view('transaksi.jurnal_angsuran.index')->with(compact('title', 'rekening', 'pinkel', 'kec', 'api', 'api_key', 'wa_instance_name'));
+        return view('transaksi.jurnal_angsuran.index')->with(compact('title', 'rekening', 'pinkel', 'kec', 'api', 'wa_instance_name'));
     }
 
     public function ebudgeting()
@@ -1658,11 +1657,6 @@ class TransaksiController extends Controller
                 'number' => $pinkel->kelompok->telpon,
                 'nama_kelompok' => $pinkel->kelompok->nama_kelompok,
                 'pesan' => $pesan,
-                'instance' => optional(\App\Models\Whatsapp::where('lokasi', $kec->id)->first())->instance_name,
-                'apikey' => env('WA_GATEWAY_API_KEY'),
-                'url' => optional(\App\Models\Whatsapp::where('lokasi', $kec->id)->first())->instance_name
-                    ? rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/').'/message/sendText/'.optional(\App\Models\Whatsapp::where('lokasi', $kec->id)->first())->instance_name
-                    : null,
             ]);
         }
 

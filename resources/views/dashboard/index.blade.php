@@ -892,55 +892,43 @@
                 }
 
                 messages.push({
-                    number,
-                    message: msg
+                    number: number,
+                    text: msg
                 })
             });
+
+            if (messages.length === 0) {
+                return Swal.fire('Info', 'Tidak ada pesan yang dipilih', 'info')
+            }
 
             const INSTANCE = @json($wa_instance_name ?? ''); if (!INSTANCE) {
                 return Swal.fire('Error', 'Instance WhatsApp belum disetel untuk lokasi ini', 'error')
             }
-            const ENCODED_INSTANCE = encodeURIComponent(INSTANCE)
-            const GATEWAY_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + ENCODED_INSTANCE
-            console.log('Sending message via Gateway:', { instance: INSTANCE, url: GATEWAY_URL })
 
-            // Send sequentially with random delay 1500-3500ms to avoid WhatsApp spam detection
-            (async function sendSequential() {
-                let success = 0
-                let failed = 0
-                for (let i = 0; i < messages.length; i++) {
-                    const m = messages[i]
-                    const randomDelay = 1500 + Math.floor(Math.random() * 2000)
-
-                    try {
-                        await $.ajax({
-                            type: 'POST',
-                            url: GATEWAY_URL,
-                            headers: {
-                                'apikey': '{{ $api_key }}'
-                            },
-                            contentType: 'application/json',
-                            data: JSON.stringify({
-                                number: m.number,
-                                text: m.message,
-                                delay: randomDelay
-                            })
-                        })
-                        success++
-                    } catch (err) {
-                        failed++
-                        console.error('Send failed for', m.number, err)
+            // Bulk — 1 HTTP call, bearer di server
+            $.ajax({
+                type: 'POST',
+                url: '/wa/send-bulk',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                data: {
+                    instance: INSTANCE,
+                    messages: messages
+                },
+                traditional: true,
+                success: function(res) {
+                    if (res.success) {
+                        Swal.fire('Berhasil', res.count + ' pesan berhasil dikirim', 'success')
+                    } else {
+                        Swal.fire('Error', res.msg || 'Gagal mengirim pesan', 'error')
                     }
+                },
+                error: function(xhr) {
+                    Swal.fire('Error', xhr.responseJSON?.msg || 'Gagal mengirim pesan', 'error')
                 }
-
-                if (failed === 0) {
-                    Swal.fire('Berhasil', success + ' pesan berhasil dikirim', 'success')
-                } else if (success === 0) {
-                    Swal.fire('Error', 'Semua pesan gagal dikirim', 'error')
-                } else {
-                    Swal.fire('Sebagian Gagal', success + ' terkirim, ' + failed + ' gagal', 'warning')
-                }
-            })()
+            })
         })
 
         $(document).on('click', '#btnjatuhTempo', function(e) {
@@ -1008,22 +996,20 @@
     @if (Session::get('invoice'))
         <script>
             const INVOICE_INSTANCE = encodeURIComponent(@json($wa_instance_name ?? ''))
-            const INVOICE_URL = @json(rtrim($api ?? '', '/')) + '/message/sendText/' + INVOICE_INSTANCE
             function msgInvoice(number, msg, repeat = 0) {
-                const randomDelay = 1500 + Math.floor(Math.random() * 2000)
                 $.ajax({
                     type: 'POST',
-                    url: INVOICE_URL,
+                    url: '/wa/send',
                     timeout: 0,
                     headers: {
-                        "Content-Type": "application/json",
-                        "apikey": "{{ $api_key }}"
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
                     },
-                    data: JSON.stringify({
+                    data: {
                         number: number,
                         text: msg,
-                        delay: randomDelay
-                    }),
+                        instance: INVOICE_INSTANCE
+                    },
                     success: function(result) {
                         if (!result.success) {
                             setTimeout(function() {

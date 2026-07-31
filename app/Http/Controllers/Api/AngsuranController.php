@@ -416,8 +416,6 @@ class AngsuranController extends Controller
 
         $waSession = \App\Models\Whatsapp::where('lokasi', $kec->id)->first();
         $instanceName = $waSession->instance_name ?? null;
-        $waBase = rtrim(env('WA_GATEWAY_BASE', $apiEndpoint->whatsapp_api ?? 'https://wa-gateway.enpiistudio.com'), '/');
-        $waApiKey = env('WA_GATEWAY_API_KEY');
 
         if (strlen($kelompok->telpon) >= 11 && strlen(auth()->user()->hp) >= 11 && (Keuangan::startWith($kelompok->telpon, '08') || Keuangan::startWith($kelompok->telpon, '628'))) {
             $whatsapp = true;
@@ -432,8 +430,6 @@ class AngsuranController extends Controller
                 'telpon' => $kelompok->telpon,
                 'pesan' => $pesan,
                 'instance' => $instanceName,
-                'apikey' => $waApiKey,
-                'url' => $instanceName ? $waBase.'/message/sendText/'.$instanceName : null,
             ],
         ]);
     }

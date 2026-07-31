@@ -252,8 +252,6 @@
 @section('script')
     <script>
         let ListContainer = $('#ListConnection')
-        const API = '{{ $api }}'
-        const MASTER_KEY = '{{ $api_key }}'
         const SAVED_INSTANCE = '{{ $instance_name }}'
 
         const LOKASI_ID = '{{ $kec->id }}'
@@ -286,7 +284,7 @@
             pollInterval = setInterval(() => {
                 $.ajax({
                     type: 'GET',
-                    url: '/pengaturan/whatsapp/connection_state',
+                    url: '/pengaturan/whatsapp/instance_state',
                     success: function(res) {
                         console.log('Connection state:', res)
                         if (res.state === 'open') {
@@ -331,7 +329,7 @@
 
                 $.ajax({
                     type: 'GET',
-                    url: '/pengaturan/whatsapp/qr',
+                    url: '/pengaturan/whatsapp/instance_state',
                     success: function(res) {
                         console.log('QR poll:', res)
                         if (res.success && res.qr) {
@@ -357,7 +355,7 @@
                 // Ada instance tersimpan → cek status
                 $.ajax({
                     type: 'GET',
-                    url: '/pengaturan/whatsapp/connection_state',
+                    url: '/pengaturan/whatsapp/instance_state',
                     success: function(res) {
                         console.log('Initial state:', res)
                         if (res.state === 'open') {

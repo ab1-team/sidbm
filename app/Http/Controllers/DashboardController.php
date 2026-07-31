@@ -107,7 +107,6 @@ class DashboardController extends Controller
         $data['jumlah_saldo'] = Saldo::where('kode_akun', 'NOT LIKE', $kec->kd_kec.'%')->count();
 
         $data['api'] = env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com');
-        $data['api_key'] = env('WA_GATEWAY_API_KEY');
 
         $wa = \App\Models\Whatsapp::where('lokasi', Session::get('lokasi'))->first();
         $data['wa_instance_name'] = $wa->instance_name ?? null;
