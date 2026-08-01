@@ -672,7 +672,7 @@
             });
         })
 
-        const ANGSURAN_INSTANCE = @json($wa_instance_name ?? '')
+        const ANGSURAN_INSTANCE = @json($wa_instance_name ?? '');
         function sendMsg(number, nama, msg, repeat = 0) {
             $.ajax({
                 type: 'POST',
