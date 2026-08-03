@@ -911,13 +911,13 @@
                 url: '/wa/send-bulk',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                data: {
+                data: JSON.stringify({
                     instance: INSTANCE,
                     messages: messages
-                },
-                traditional: true,
+                }),
                 success: function(res) {
                     if (res.success) {
                         Swal.fire('Berhasil', res.count + ' pesan berhasil dikirim', 'success')
