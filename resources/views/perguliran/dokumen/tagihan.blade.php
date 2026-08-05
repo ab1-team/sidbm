@@ -221,8 +221,8 @@
         <tr>
             <td>&nbsp;</td>
             <td align="center" valign="bottom" height="60" style="position: relative;">
-                @if (file_exists(public_path('assets/img/' . $kec->id . '.png')))
-                    <img style="position: absolute; top: -32px; left: 28px;" src="{{ public_path('assets/img/' . $kec->id . '.png') }}" width="220" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
+                @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
+                    <img style="position: absolute; top: -32px; left: 28px;" src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" width="220" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
                 @else
                     &nbsp;
                 @endif
