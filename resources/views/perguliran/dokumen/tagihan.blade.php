@@ -220,19 +220,14 @@
         </tr>
         <tr>
             <td>&nbsp;</td>
-            <td align="center" valign="bottom" height="60">
-                &nbsp;
+            <td align="center" valign="bottom">
+                @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
+                    <img src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="60" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
+                @endif
             </td>
         </tr>
         <tr>
-            <td>&nbsp;</td>
-            <td align="center" valign="bottom" height="60" style="position: relative;">
-                @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
-                    <img style="position: absolute; top: -60px; left: 28px;" src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" width="220" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
-                @else
-                    &nbsp;
-                @endif
-            </td>
+            <td colspan="2" height="20">&nbsp;</td>
         </tr>
         <tr>
             <td>&nbsp;</td>
