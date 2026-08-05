@@ -220,14 +220,11 @@
         </tr>
         <tr>
             <td>&nbsp;</td>
-            <td align="center" valign="bottom">
+            <td align="center" valign="bottom" height="60">
                 @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
                     <img src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="60" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
                 @endif
             </td>
-        </tr>
-        <tr>
-            <td colspan="2" height="20">&nbsp;</td>
         </tr>
         <tr>
             <td>&nbsp;</td>
