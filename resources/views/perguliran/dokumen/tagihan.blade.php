@@ -65,6 +65,14 @@
                 <div>
                     Ketua dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
                 </div>
+                @php
+                    $ketua = $pinkel->kelompok->ketua;
+                    if ($pinkel->struktur_kelompok) {
+                        $struktur_kelompok = json_decode($pinkel->struktur_kelompok, true);
+                        $ketua = isset($struktur_kelompok['ketua']) ? $struktur_kelompok['ketua'] : $ketua;
+                    }
+                @endphp
+                <div>{{ $ketua }}</div>
                 <div>Di</div>
                 <div style=" text-align: center;">
                     {{ strtoupper($pinkel->kelompok->d->nama_desa) }}
