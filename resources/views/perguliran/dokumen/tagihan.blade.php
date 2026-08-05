@@ -219,13 +219,10 @@
             <td align="center">{{ $kec->sebutan_level_1 }}</td>
         </tr>
         <tr>
-            <td colspan="2" height="40">&nbsp;</td>
-        </tr>
-        <tr>
             <td>&nbsp;</td>
-            <td align="center" valign="bottom" style="position: relative; height: 80px;">
+            <td align="center" valign="bottom" height="60">
                 @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
-                    <img style="position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);" src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="120" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
+                    <img src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="120" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
                 @endif
             </td>
         </tr>
