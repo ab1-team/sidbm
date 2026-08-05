@@ -62,9 +62,6 @@
             <td colspan="3">&nbsp;</td>
             <td align="left" width="140">
                 <div>Kepada Yth.</div>
-                <div>
-                    Ketua dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
-                </div>
                 @php
                     $ketua = $pinkel->kelompok->ketua;
                     if ($pinkel->struktur_kelompok) {
@@ -72,7 +69,13 @@
                         $ketua = isset($struktur_kelompok['ketua']) ? $struktur_kelompok['ketua'] : $ketua;
                     }
                 @endphp
-                <div>{{ $ketua }}</div>
+                <div>
+                    @if ($ketua)
+                        Ketua {{ $ketua }} dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
+                    @else
+                        Ketua dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
+                    @endif
+                </div>
                 <div>Di</div>
                 <div style=" text-align: center;">
                     {{ strtoupper($pinkel->kelompok->d->nama_desa) }}
