@@ -220,9 +220,9 @@
         </tr>
         <tr>
             <td>&nbsp;</td>
-            <td align="center" valign="bottom" height="60">
+            <td align="center" valign="bottom" style="position: relative; height: 30px;">
                 @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
-                    <img src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="60" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
+                    <img style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);" src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="120" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
                 @endif
             </td>
         </tr>
