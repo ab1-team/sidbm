@@ -71,7 +71,11 @@
                 @endphp
                 <div>
                     @if ($ketua)
-                        Ketua {{ $ketua }} dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
+                        Ketua {{ $ketua }}
+                        @if (session('lokasi') == 270)
+                            <br>{{ $pinkel->kelompok->alamat_kelompok }}
+                        @endif
+                        <br>dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
                     @else
                         Ketua dan Anggota Kelompok {{ $pinkel->kelompok->nama_kelompok }}
                     @endif
