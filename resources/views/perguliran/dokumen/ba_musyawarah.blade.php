@@ -93,7 +93,11 @@
             </li>
             <li>
                 Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
-                {{ $pinkel->pros_jasa / $pinkel->jangka }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                @if ($kec->id == 373)
+                    _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                @else
+                    {{ $pinkel->pros_jasa / $pinkel->jangka }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                @endif
             </li>
             <li>
                 Forum menyepakati penggunaan selisih angsuran bunga ke {{ $kec->nama_lembaga_sort }} akan digunakan
