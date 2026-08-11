@@ -2240,6 +2240,55 @@ class PinjamanKelompokController extends Controller
         }
     }
 
+
+    public function spkRestrukturisasi($id, $data)
+    {
+        $keuangan = new Keuangan;
+        $data['pinkel'] = PinjamanKelompok::where('id', $id)->with([
+            'jpp',
+            'jasa',
+            'sis_pokok',
+            'sis_jasa',
+            'kelompok',
+            'kelompok.d',
+            'kelompok.d.sebutan_desa',
+        ])->first();
+
+        $data['dir'] = User::where([
+            ['level', '1'],
+            ['jabatan', '1'],
+            ['lokasi', Session::get('lokasi')],
+        ])->first();
+
+        $data['dir_utama'] = User::where([
+            ['level', '2'],
+            ['jabatan', '65'],
+            ['lokasi', Session::get('lokasi')],
+        ])->first();
+
+        $data['keuangan'] = $keuangan;
+
+        $jenis_dokumen = request()->get('jenis') ?: 'dokumen_pencairan';
+        $dokumenPinjaman = DokumenPinjaman::where([
+            ['file', $data['report']],
+            ['jenis_dokumen', $jenis_dokumen],
+        ])->with('tanda_tangan')->first();
+        $data['tanda_tangan'] = '';
+        if ($dokumenPinjaman && $dokumenPinjaman->tanda_tangan) {
+            $data['tanda_tangan'] = Pinjaman::keyword($dokumenPinjaman->tanda_tangan->tanda_tangan, $data);
+        }
+
+        $data['judul'] = 'Surat Perjanjian Pinjaman Restrukturisasi ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';
+        $view = view('perguliran.dokumen.spk_restrukturisasi', $data)->render();
+
+        if ($data['type'] == 'pdf') {
+            $pdf = PDF::loadHTML($view);
+
+            return $pdf->stream();
+        } else {
+            return $view;
+        }
+    }
     public function suratKelayakan($id, $data)
     {
         $keuangan = new Keuangan;
