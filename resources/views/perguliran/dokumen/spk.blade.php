@@ -63,8 +63,12 @@
 @section('content')
     @php
         $resc = '';
+        $title_spk = 'SURAT PERJANJIAN KREDIT (SPK)';
+        $text_spk = 'surat perjanjian kredit (SPK)';
         if ($pinkel->sumber == '2') {
-            $resc = ' RESCEDULE ';
+            $resc = ' RESCHEDULING';
+            $title_spk = 'SURAT PERJANJIAN KREDIT RESCHEDULING';
+            $text_spk = 'surat perjanjian kredit rescheduling (SPK RESCHEDULING)';
         }
     @endphp
 
@@ -72,7 +76,7 @@
         <tr>
             <td colspan="3" align="center">
                 <div style="font-size: 18px;">
-                    <b>SURAT PERJANJIAN KREDIT (SPK{{ $resc }})</b>
+                    <b>{{ $title_spk }}</b>
                 </div>
                 <div style="font-size: 14px;">
                     Nomor: {{ $pinkel->spk_no }}
@@ -170,7 +174,7 @@
 
     <p style="text-align: justify; font-size: 14px;">
         Dalam kedudukan para pihak sebagaimana tertulis diatas, dengan sadar dan sukarela serta rasa penuh tanggung jawab
-        menyatakan telah membuat surat perjanjian kredit (SPK) dengan ketentuan-ketentuan yang disepakati bersama sebagai
+        menyatakan telah membuat {{ $text_spk }} dengan ketentuan-ketentuan yang disepakati bersama sebagai
         berikut :
     </p>
 
