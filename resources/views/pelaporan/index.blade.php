@@ -99,10 +99,12 @@
                     <button type="button" id="SimpanSaldo" class="btn btn-sm btn-danger me-2">Simpan Saldo</button>
                 @endif
                 @if (in_array('laporan.download_excel', Session::get('tombol')))
-                    <button type="button" id="Excel" class="btn btn-sm btn-success me-2">Excel</button>
+                    <button type="button" id="Excel" class="btn btn-sm btn-success me-2" disabled
+                        title="Pilih nama laporan terlebih dahulu">Excel</button>
                 @endif
                 @if (in_array('laporan.preview_pdf', Session::get('tombol')))
-                    <button type="button" id="Preview" class="btn btn-sm btn-github">Preview</button>
+                    <button type="button" id="Preview" class="btn btn-sm btn-github" disabled
+                        title="Pilih nama laporan terlebih dahulu">Preview</button>
                 @endif
             </div>
         </div>
@@ -176,6 +178,8 @@
                 tanggal_laporan.setChoiceByValue('')
             }
 
+            toggleActionButtons()
+
             subLaporan(file)
         })
 
@@ -202,6 +206,34 @@
                 select_sub_laporan.setChoiceByValue(sub_laporan)
             })
         }
+
+        function toggleActionButtons() {
+            var laporan = $('select#laporan').val()
+            var file = ''
+            if (laporan && laporan.indexOf('|') !== -1) {
+                file = laporan.split('|')[1]
+            }
+
+            var butuh_sub = file == 'buku_besar'
+            var sub_laporan = $('select#sub_laporan').val()
+
+            if (!laporan || laporan == '') {
+                $('#Preview').prop('disabled', true).attr('title', 'Pilih nama laporan terlebih dahulu')
+                $('#Excel').prop('disabled', true).attr('title', 'Pilih nama laporan terlebih dahulu')
+            } else if (butuh_sub && (!sub_laporan || sub_laporan == '')) {
+                $('#Preview').prop('disabled', true).attr('title', 'Pilih sub laporan terlebih dahulu')
+                $('#Excel').prop('disabled', true).attr('title', 'Pilih sub laporan terlebih dahulu')
+            } else {
+                $('#Preview').prop('disabled', false).removeAttr('title')
+                $('#Excel').prop('disabled', false).removeAttr('title')
+            }
+        }
+
+        toggleActionButtons()
+
+        $(document).on('change', '#sub_laporan', function(e) {
+            toggleActionButtons()
+        })
 
         var quill = new Quill('#editor', {
             theme: 'snow'
