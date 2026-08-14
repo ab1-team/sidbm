@@ -60,20 +60,14 @@ class IdentifyTenant
                     ])->orderBy('tgl_invoice', 'ASC')->first();
                 }
 
-                if ($invoice) {
-                    $kec = Kecamatan::find($user->lokasi) ?: Kecamatan::on('mysql_b')->find($user->lokasi);
-                    $tgl_inv = $invoice->tgl_invoice ?: ($kec?->tgl_registrasi ?: $kec?->tgl_pakai);
-                    $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
+                if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
+                    // Jangan blokir logout atau halaman invoice/ts agar tetap bisa diakses
+                    if (! $request->is('logout') && ! $request->is('pengaturan/invoice*') && ! $request->is('pelaporan/invoice/*') && ! $request->is('pelaporan/ts')) {
+                        Auth::guard('web')->logout();
+                        $request->session()->invalidate();
+                        $request->session()->regenerateToken();
 
-                    if (date('Y-m-d') > $batas_akhir_pembayaran) {
-                        // Jangan blokir logout atau halaman invoice/ts agar tetap bisa diakses
-                        if (! $request->is('logout') && ! $request->is('pengaturan/invoice*') && ! $request->is('pelaporan/invoice/*') && ! $request->is('pelaporan/ts')) {
-                            Auth::guard('web')->logout();
-                            $request->session()->invalidate();
-                            $request->session()->regenerateToken();
-
-                            return redirect('/')->with('error', 'Invoice belum terbayar');
-                        }
+                        return redirect('/')->with('error', 'Invoice belum terbayar');
                     }
                 }
             }

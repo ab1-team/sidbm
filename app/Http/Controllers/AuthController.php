@@ -76,14 +76,9 @@ class AuthController extends Controller
         ];
 
         Session::put('login', true);
-        if ($invoice) {
-            $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
-            $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
-
-            if (date('Y-m-d') > $batas_akhir_pembayaran) {
-                $setting['login'] = false;
-                Session::put('login', false);
-            }
+        if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
+            $setting['login'] = false;
+            Session::put('login', false);
         }
 
         $app = AppUpdate::latest()->first();
@@ -142,13 +137,8 @@ class AuthController extends Controller
                 ])->orderBy('tgl_invoice', 'ASC')->first();
             }
 
-            if ($invoice) {
-                $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
-                $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
-
-                if (date('Y-m-d') > $batas_akhir_pembayaran) {
-                    return redirect()->back()->with('error', 'Invoice belum terbayar')->withInput($request->only('username'));
-                }
+            if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
+                return redirect()->back()->with('error', 'Invoice belum terbayar')->withInput($request->only('username'));
             }
         }
 
