@@ -109,10 +109,12 @@ class SsoController extends Controller
      */
     private function resolveLocalUser(Request $request, array $payload): ?User
     {
-        $host = $request->getHost();
+        $host = strtolower(trim($request->getHost()));
+        $domainId = str_replace('sidbm.net', 'sidbm.id', $host);
+        $domainNet = str_replace('sidbm.id', 'sidbm.net', $host);
 
-        $kec = Kecamatan::where('web_kec', $host)
-            ->orWhere('web_alternatif', $host)
+        $kec = Kecamatan::whereIn('web_kec', [$host, $domainId, $domainNet])
+            ->orWhereIn('web_alternatif', [$host, $domainId, $domainNet])
             ->first();
 
         if (! $kec) {

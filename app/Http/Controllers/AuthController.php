@@ -30,9 +30,17 @@ class AuthController extends Controller
             return redirect('/master');
         }
 
-        $kec = Kecamatan::where('web_kec', request()->getHost())->orwhere('web_alternatif', request()->getHost())->first();
+        $domain = strtolower(trim(request()->getHost()));
+        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
+        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
+
+        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
+            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+            ->first();
         if (! $kec) {
-            $kab = Kabupaten::where('web_kab', request()->getHost())->orwhere('web_kab_alternatif', request()->getHost())->first();
+            $kab = Kabupaten::whereIn('web_kab', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
+                ->first();
             if (! $kab) {
                 abort(404, 'Lembaga atau domain tidak terdaftar');
             }
@@ -83,7 +91,14 @@ class AuthController extends Controller
             ]);
         }
 
-        $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->with('kabupaten')->first();
+        $domain = strtolower(trim($url));
+        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
+        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
+
+        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
+            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+            ->with('kabupaten')
+            ->first();
         if (!$kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
@@ -250,7 +265,13 @@ class AuthController extends Controller
         $username = $uname;
         $password = $uname;
 
-        $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->first();
+        $domain = strtolower(trim($url));
+        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
+        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
+
+        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
+            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+            ->first();
         if (!$kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
