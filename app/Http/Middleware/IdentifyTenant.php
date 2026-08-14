@@ -15,12 +15,13 @@ class IdentifyTenant
     {
         $domain = strtolower(trim($request->getHost()));
         $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
+        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
 
         // 1. Cek di mysql_b (holding) — kecamatan dulu
         $tenantFromB = DB::connection('mysql_b')
             ->table('kecamatan')
-            ->where('web_kec', $domainId)
-            ->orWhere('web_alternatif', $domainId)
+            ->whereIn('web_kec', [$domain, $domainId, $domainNet])
+            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
             ->first();
 
         // 2. Kalau bukan kecamatan, cek kabupaten di mysql_b
@@ -28,8 +29,8 @@ class IdentifyTenant
         if (! $tenantFromB) {
             $kabFromB = DB::connection('mysql_b')
                 ->table('kabupaten')
-                ->where('web_kab', $domainId)
-                ->orWhere('web_kab_alternatif', $domainId)
+                ->whereIn('web_kab', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
                 ->first();
         }
 
@@ -52,8 +53,15 @@ class IdentifyTenant
                     ['status', 'UNPAID'],
                 ])->orderBy('tgl_invoice', 'ASC')->first();
 
+                if (! $invoice) {
+                    $invoice = AdminInvoice::on('mysql_b')->where([
+                        ['lokasi', $user->lokasi],
+                        ['status', 'UNPAID'],
+                    ])->orderBy('tgl_invoice', 'ASC')->first();
+                }
+
                 if ($invoice) {
-                    $kec = Kecamatan::find($user->lokasi);
+                    $kec = Kecamatan::find($user->lokasi) ?: Kecamatan::on('mysql_b')->find($user->lokasi);
                     $tgl_inv = $invoice->tgl_invoice ?: ($kec?->tgl_registrasi ?: $kec?->tgl_pakai);
                     $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
 
@@ -97,7 +105,9 @@ class IdentifyTenant
             $tenant = (object) ['id' => $kabFromB->id];
         } else {
             // Fallback: cek default DB (untuk domain lokal/development)
-            $tenant = Kecamatan::where('web_kec', $domain)->orWhere('web_alternatif', $domain)->first();
+            $tenant = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+                ->first();
         }
 
         $suffix = $tenant ? "_{$tenant->id}" : '_1';

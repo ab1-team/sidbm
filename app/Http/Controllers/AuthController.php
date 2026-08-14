@@ -38,9 +38,20 @@ class AuthController extends Controller
             ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
             ->first();
         if (! $kec) {
+            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+                ->first();
+        }
+
+        if (! $kec) {
             $kab = Kabupaten::whereIn('web_kab', [$domain, $domainId, $domainNet])
                 ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
                 ->first();
+            if (! $kab) {
+                $kab = Kabupaten::on('mysql_b')->whereIn('web_kab', [$domain, $domainId, $domainNet])
+                    ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
+                    ->first();
+            }
             if (! $kab) {
                 abort(404, 'Lembaga atau domain tidak terdaftar');
             }
@@ -52,6 +63,13 @@ class AuthController extends Controller
             ['lokasi', $kec->id],
             ['status', 'UNPAID'],
         ])->with(['jp'])->orderBy('tgl_invoice', 'ASC')->first();
+
+        if (! $invoice) {
+            $invoice = AdminInvoice::on('mysql_b')->where([
+                ['lokasi', $kec->id],
+                ['status', 'UNPAID'],
+            ])->with(['jp'])->orderBy('tgl_invoice', 'ASC')->first();
+        }
 
         $setting = [
             'login' => true,
@@ -99,6 +117,13 @@ class AuthController extends Controller
             ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
             ->with('kabupaten')
             ->first();
+        if (! $kec) {
+            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+                ->with('kabupaten')
+                ->first();
+        }
+
         if (!$kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
@@ -109,6 +134,13 @@ class AuthController extends Controller
                 ['lokasi', $lokasi],
                 ['status', 'UNPAID'],
             ])->orderBy('tgl_invoice', 'ASC')->first();
+
+            if (! $invoice) {
+                $invoice = AdminInvoice::on('mysql_b')->where([
+                    ['lokasi', $lokasi],
+                    ['status', 'UNPAID'],
+                ])->orderBy('tgl_invoice', 'ASC')->first();
+            }
 
             if ($invoice) {
                 $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
@@ -173,15 +205,6 @@ class AuthController extends Controller
                     ]);
 
                     $redirect = '/dashboard';
-                    /*
-                    if (in_array('1', $hak_akses)) {
-                        $menu_redirect = Menu::where([
-                            ['parent_id', '0'],
-                            ['aktif', 'Y'],
-                        ])->whereNotIn('id', $hak_akses)->where('link', 'LIKE', '/%')->orderBy('sort', 'ASC')->orderBy('id', 'ASC')->first();
-                        $redirect = $menu_redirect->link;
-                    }
-                    */
 
                     return redirect($redirect)->with([
                         'pesan' => 'Selamat Datang '.$user->namadepan.' '.$user->namabelakang,
@@ -262,16 +285,22 @@ class AuthController extends Controller
         $request = request();
 
         $url = $request->getHost();
-        $username = $uname;
-        $password = $uname;
-
         $domain = strtolower(trim($url));
         $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
         $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
 
+        $username = $uname;
+        $password = $uname;
+
         $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
             ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
             ->first();
+        if (! $kec) {
+            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
+                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
+                ->first();
+        }
+
         if (!$kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
@@ -364,13 +393,23 @@ class AuthController extends Controller
             ['jenis_pembayaran', '2'],
         ])->whereBetween('tgl_invoice', [$tgl_invoice, $tgl_pakai]);
 
+        if (! $invoice->exists()) {
+            $invoice = AdminInvoice::on('mysql_b')->where([
+                ['lokasi', $kec->id],
+                ['jenis_pembayaran', '2'],
+            ])->whereBetween('tgl_invoice', [$tgl_invoice, $tgl_pakai]);
+        }
+
         $pesan = '';
         if ($invoice->count() <= 0 && date('Y-m-d') >= $tgl_invoice) {
 
             $tanggal = date('Y-m-d');
             $nomor_invoice = date('ymd', strtotime($tanggal));
-            $invoice = AdminInvoice::where('tgl_invoice', $tanggal)->count();
-            $nomor_urut = str_pad($invoice + 1, '2', '0', STR_PAD_LEFT);
+            $invoiceCount = AdminInvoice::where('tgl_invoice', $tanggal)->count();
+            if ($invoiceCount == 0) {
+                $invoiceCount = AdminInvoice::on('mysql_b')->where('tgl_invoice', $tanggal)->count();
+            }
+            $nomor_urut = str_pad($invoiceCount + 1, '2', '0', STR_PAD_LEFT);
             $nomor_invoice .= $nomor_urut;
 
             $invoice = AdminInvoice::create([
@@ -426,14 +465,19 @@ class AuthController extends Controller
         $cases = [];
         $params = [];
 
-        foreach ($UpdateDataPemanfaat as $update) {
-            $cases[] = 'WHEN id_pinkel = ? THEN ?';
-            $params[] = $update['id_pinkel'];
-            $params[] = $update['pros_jasa'];
+        foreach ($UpdateDataPemanfaat as $item) {
+            $cases[] = "WHEN id_pinkel = {$item['id_pinkel']} THEN {$item['pros_jasa']}";
+            $params[] = $item['id_pinkel'];
         }
 
         $query .= implode(' ', $cases);
-        $query .= ' ELSE pros_jasa END';
-        DB::update($query, $params);
+        $query .= ' END WHERE id_pinkel IN ('.implode(',', $params).')';
+
+        DB::statement($query);
+
+        return response()->json([
+            'success' => true,
+            'msg' => 'Data pemanfaat berhasil diperbarui',
+        ]);
     }
 }
