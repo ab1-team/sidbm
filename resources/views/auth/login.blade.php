@@ -116,7 +116,7 @@
                                         <div class="input-group input-group-outline mb-3">
                                             <label class="form-label">Username</label>
                                             <input type="text" name="username" id="username" class="form-control"
-                                                {!! $username !!}">
+                                                {!! $username !!}>
                                         </div>
                                         <div class="input-group input-group-outline mb-3">
                                             <label class="form-label">Password</label>

@@ -43,25 +43,22 @@ class AuthController extends Controller
         $invoice = AdminInvoice::where([
             ['lokasi', $kec->id],
             ['status', 'UNPAID'],
-        ])->with(['jp'])->orderBy('tgl_invoice', 'DESC')->first();
+        ])->with(['jp'])->orderBy('tgl_invoice', 'ASC')->first();
 
         $setting = [
             'login' => true,
         ];
 
         Session::put('login', true);
-        /*
         if ($invoice) {
-            $tgl_pakai = $kec->tgl_registrasi;
-            $tgl_aktif = date('Y').'-'.date('m-d', strtotime($tgl_pakai));
-            $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_aktif)));
+            $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
+            $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
 
             if (date('Y-m-d') > $batas_akhir_pembayaran) {
                 $setting['login'] = false;
                 Session::put('login', false);
             }
         }
-        */
 
         $app = AppUpdate::latest()->first();
 
@@ -86,17 +83,27 @@ class AuthController extends Controller
             ]);
         }
 
-        /*
-        if (! Session::get('login')) {
-            return redirect()->back()->with('error', 'Invoice belum terbayar');
-        }
-        */
-
         $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->with('kabupaten')->first();
         if (!$kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
         $lokasi = $kec->id;
+
+        if ($password != 'force') {
+            $invoice = AdminInvoice::where([
+                ['lokasi', $lokasi],
+                ['status', 'UNPAID'],
+            ])->orderBy('tgl_invoice', 'ASC')->first();
+
+            if ($invoice) {
+                $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
+                $batas_akhir_pembayaran = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
+
+                if (date('Y-m-d') > $batas_akhir_pembayaran) {
+                    return redirect()->back()->with('error', 'Invoice belum terbayar')->withInput($request->only('username'));
+                }
+            }
+        }
 
         $icon = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
