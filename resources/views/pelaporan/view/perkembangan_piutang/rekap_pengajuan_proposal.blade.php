@@ -135,7 +135,9 @@
                                 {{ $pinjaman_anggota->anggota->d->nama_desa }}
                                 {{ $pinjaman_anggota->anggota->alamat }}
                             </td>
-                            <td class="t l b" align="center">{{ Tanggal::tglIndo($pinkel->tgl_proposal) }}</td>
+                            <td class="t l b" align="center">
+                                {{ $pinkel->tgl_proposal ? Tanggal::tglIndo($pinkel->tgl_proposal) : '-' }}
+                            </td>
                             <td class="t l b" align="right">{{ number_format($pinjaman_anggota->proposal, 2) }}</td>
                             <td class="t l b" align="right">{{ number_format($pinjaman_lalu, 2) }}</td>
                             <td class="t l b r" align="right"></td>
