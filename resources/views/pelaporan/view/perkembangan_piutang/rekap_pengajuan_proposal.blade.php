@@ -126,15 +126,21 @@
 
                             $pengajuan += $pinjaman_anggota->proposal;
                             $pengajuan_lalu += $pinjaman_lalu;
+
+                            // Susun alamat dengan null-safe operator (`?->`)
+                            // agar baris tetap tampil meskipun relasi Desa
+                            // (`d`) atau SebutanDesa kosong — kalau pakai
+                            // `->` di PHP, akses terhadap null akan melempar
+                            // exception dan SELURUH <tr> anggota terlewat.
+                            $sebutan_desa = $pinjaman_anggota->anggota->d?->sebutan_desa?->sebutan_desa ?? '';
+                            $nama_desa_agt = $pinjaman_anggota->anggota->d?->nama_desa ?? '';
+                            $alamat_agt = $pinjaman_anggota->anggota->alamat ?? '';
+                            $alamat_gabung = trim($sebutan_desa.' '.$nama_desa_agt.' '.$alamat_agt);
                         @endphp
                         <tr>
                             <td class="t l b" align="center">&nbsp;</td>
                             <td class="t l b" align="left">{{ $pinjaman_anggota->anggota->namadepan }}</td>
-                            <td class="t l b" align="left">
-                                {{ $pinjaman_anggota->anggota->d->sebutan_desa->sebutan_desa }}
-                                {{ $pinjaman_anggota->anggota->d->nama_desa }}
-                                {{ $pinjaman_anggota->anggota->alamat }}
-                            </td>
+                            <td class="t l b" align="left">{{ $alamat_gabung }}</td>
                             <td class="t l b" align="center">
                                 {{ $pinkel->tgl_proposal ? Tanggal::tglIndo($pinkel->tgl_proposal) : '-' }}
                             </td>
