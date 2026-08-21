@@ -55,11 +55,19 @@ class AuthController extends Controller
                     ])->orderBy('tgl_invoice', 'ASC')->first();
                 }
 
-                if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Akses diblokir: Invoice belum terbayar.',
-                    ], 403);
+                if ($invoice) {
+                    $tgl_inv = $invoice->tgl_invoice ?: ($kecamatan->tgl_registrasi ?: $kecamatan->tgl_pakai);
+                    $batas_toleransi = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
+                    if (! empty($invoice->tgl_lunas) && $invoice->tgl_lunas > $batas_toleransi) {
+                        $batas_toleransi = $invoice->tgl_lunas;
+                    }
+
+                    if (date('Y-m-d') > $batas_toleransi) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Akses diblokir: Invoice belum terbayar.',
+                        ], 403);
+                    }
                 }
 
                 $user = User::where([['uname', $data['username']], ['lokasi', $lokasi]])->first();

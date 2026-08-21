@@ -76,9 +76,17 @@ class AuthController extends Controller
         ];
 
         Session::put('login', true);
-        if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
-            $setting['login'] = false;
-            Session::put('login', false);
+        if ($invoice) {
+            $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
+            $batas_toleransi = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
+            if (! empty($invoice->tgl_lunas) && $invoice->tgl_lunas > $batas_toleransi) {
+                $batas_toleransi = $invoice->tgl_lunas;
+            }
+
+            if (date('Y-m-d') > $batas_toleransi) {
+                $setting['login'] = false;
+                Session::put('login', false);
+            }
         }
 
         $app = AppUpdate::latest()->first();
@@ -137,8 +145,16 @@ class AuthController extends Controller
                 ])->orderBy('tgl_invoice', 'ASC')->first();
             }
 
-            if ($invoice && date('Y-m-d') >= $invoice->tgl_invoice) {
-                return redirect()->back()->with('error', 'Invoice belum terbayar')->withInput($request->only('username'));
+            if ($invoice) {
+                $tgl_inv = $invoice->tgl_invoice ?: ($kec->tgl_registrasi ?: $kec->tgl_pakai);
+                $batas_toleransi = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
+                if (! empty($invoice->tgl_lunas) && $invoice->tgl_lunas > $batas_toleransi) {
+                    $batas_toleransi = $invoice->tgl_lunas;
+                }
+
+                if (date('Y-m-d') > $batas_toleransi) {
+                    return redirect()->back()->with('error', 'Invoice belum terbayar')->withInput($request->only('username'));
+                }
             }
         }
 
