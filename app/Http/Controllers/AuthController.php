@@ -378,16 +378,19 @@ class AuthController extends Controller
 
         $tgl_invoice = date('Y-m-d', strtotime('-1 month', strtotime($tgl_pakai)));
 
+        $batas_awal = date('Y-m-d', strtotime('-12 months'));
+        $batas_akhir = date('Y-m-d', strtotime('+1 month'));
+
         $invoice = AdminInvoice::where([
             ['lokasi', $kec->id],
             ['jenis_pembayaran', '2'],
-        ])->whereYear('tgl_invoice', date('Y'));
+        ])->whereBetween('tgl_invoice', [$batas_awal, $batas_akhir]);
 
         if (! $invoice->exists()) {
             $invoice = AdminInvoice::on('mysql_b')->where([
                 ['lokasi', $kec->id],
                 ['jenis_pembayaran', '2'],
-            ])->whereYear('tgl_invoice', date('Y'));
+            ])->whereBetween('tgl_invoice', [$batas_awal, $batas_akhir]);
         }
 
         $pesan = '';
