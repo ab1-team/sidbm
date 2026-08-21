@@ -1028,4 +1028,411 @@ class Keuangan
             'kredit' => $saldo_kredit,
         ];
     }
+
+    /**
+     * Mengumpulkan data parameter keuangan untuk laporan PTK_POJK.
+     * - Total Aset, Liabilitas, Ekuitas, Kas, Liabilitas Lancar, dll.
+     * - Data kolektibilitas POJK 5 tingkat (Lancar, DPK, KL, Diragukan, Macet).
+     * - Outstanding, NPL Neto, PPAP Wajib Minimum, dll.
+     */
+    public function ptkPojkData($tgl_kondisi)
+    {
+        $pecah = explode('-', $tgl_kondisi);
+        $thn = $pecah[0];
+        $bln = $pecah[1];
+
+        $data_saldo = [
+            'tahun' => $thn,
+            'bulan' => $bln,
+        ];
+
+        $rekening_aktif = Rekening::where(function ($query) use ($tgl_kondisi) {
+            $query->whereNull('tgl_nonaktif')->orwhere('tgl_nonaktif', '>', $tgl_kondisi);
+        })->where(function ($query) {
+            $query->where('lev1', '<=', '3');
+        })->with([
+            'kom_saldo' => function ($query) use ($data_saldo) {
+                $query->where('tahun', $data_saldo['tahun'])->where(function ($query) use ($data_saldo) {
+                    $query->where('bulan', '0')->orwhere('bulan', $data_saldo['bulan']);
+                });
+            },
+        ])->get();
+
+        $total_aset = 0;
+        $total_liabilitas = 0;
+        $total_ekuitas = 0;
+        $kas_setara_kas = 0;
+        $liabilitas_lancar = 0;
+        $piutang_pinjaman = 0;
+        $cadangan_piutang = 0;
+        $modal_disetor = 0;
+
+        foreach ($rekening_aktif as $rek) {
+            $saldo = $this->komSaldo($rek);
+            $lev1 = (int) $rek->lev1;
+            $lev2 = (int) $rek->lev2;
+            $lev3 = (int) $rek->lev3;
+            $lev4 = (int) $rek->lev4;
+
+            if ($lev1 === 1) {
+                $total_aset += $saldo;
+                if ($lev2 === 1 && in_array($lev3, [1, 2], true)) {
+                    $kas_setara_kas += $saldo;
+                }
+                if ($lev2 === 1 && $lev3 === 3) {
+                    $piutang_pinjaman += $saldo;
+                }
+                if ($lev3 === 4) {
+                    $cadangan_piutang += $saldo;
+                }
+            } elseif ($lev1 === 2) {
+                $total_liabilitas += $saldo;
+                if ($lev2 === 1 && $lev4 === 0) {
+                    $liabilitas_lancar += $saldo;
+                }
+            } elseif ($lev1 === 3) {
+                $total_ekuitas += $saldo;
+                if ($lev2 === 1 && $lev3 === 1) {
+                    $modal_disetor += $saldo;
+                }
+            }
+        }
+
+        $cadangan_piutang_positif = abs($cadangan_piutang);
+
+        return [
+            'total_aset' => $total_aset,
+            'total_liabilitas' => $total_liabilitas,
+            'total_ekuitas' => $total_ekuitas,
+            'kas_setara_kas' => $kas_setara_kas,
+            'liabilitas_lancar' => $liabilitas_lancar,
+            'piutang_pinjaman' => $piutang_pinjaman,
+            'cadangan_piutang' => $cadangan_piutang_positif,
+            'modal_disetor' => $modal_disetor,
+        ];
+    }
+
+    /**
+     * Menghitung kolektibilitas POJK (Lancar/DPK/KL/Diragukan/Macet)
+     * dari tabel PinjamanKelompok (semua jenis pinjaman) menggunakan
+     * pattern kolektibilitas existing (angsuran_ke vs target).
+     *
+     * Return: array dengan 'kolek_items', 'sum_kolek_total',
+     *                  'npl_neto', 'ppap_wajib_minimum', 'outstanding_pinjaman'.
+     */
+    public function ptkPojkKolek($tgl_kondisi)
+    {
+        $kolek_items = [
+            ['nama' => 'Lancar', 'prosentase' => 0],
+            ['nama' => 'Dalam Perhatian Khusus', 'prosentase' => 5],
+            ['nama' => 'Kurang Lancar', 'prosentase' => 15],
+            ['nama' => 'Diragukan', 'prosentase' => 50],
+            ['nama' => 'Macet', 'prosentase' => 100],
+        ];
+        $sum_kolek_total = array_fill(0, count($kolek_items), 0);
+
+        $pecah = explode('-', $tgl_kondisi);
+        $thn = $pecah[0];
+
+        $pinjaman_kelompok = PinjamanKelompok::where('sistem_angsuran', '!=', '12')
+            ->where(function ($query) use ($tgl_kondisi, $thn) {
+                $query->where([
+                    ['status', 'A'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                ])->orwhere([
+                    ['status', 'L'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'L'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'R'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'R'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'H'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'H'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ]);
+            })->with([
+                'saldo' => function ($query) use ($tgl_kondisi) {
+                    $query->where('tgl_transaksi', '<=', $tgl_kondisi);
+                },
+                'target' => function ($query) use ($tgl_kondisi) {
+                    $query->where('jatuh_tempo', '<=', $tgl_kondisi);
+                },
+            ])->get();
+
+        $outstanding = 0;
+        $npl_neto = 0;
+        $ppap_wajib_minimum = 0;
+
+        foreach ($pinjaman_kelompok as $pinkel) {
+            $saldo_pokok = $pinkel->alokasi;
+            if ($pinkel->saldo) {
+                $saldo_pokok = $pinkel->saldo->saldo_pokok;
+            }
+
+            $target_pokok = 0;
+            $wajib_pokok = 0;
+            $angsuran_ke = 0;
+            if ($pinkel->target) {
+                $target_pokok = $pinkel->target->target_pokok;
+                $wajib_pokok = $pinkel->target->wajib_pokok;
+                $angsuran_ke = $pinkel->target->angsuran_ke;
+            }
+
+            if ($saldo_pokok <= 0) {
+                continue;
+            }
+
+            $tunggakan_pokok = max(0, $wajib_pokok - $target_pokok);
+
+            $tgl_cair = new \DateTime($pinkel->tgl_cair);
+            $tgl_kond = new \DateTime($tgl_kondisi);
+            $diff = $tgl_kond->diff($tgl_cair);
+            $selisih_bulan = ($diff->y * 12) + $diff->m;
+
+            $rasio_tunggakan = $wajib_pokok > 0 ? ($tunggakan_pokok / $wajib_pokok) : 0;
+            $bulan_tunggak = round($rasio_tunggakan + ($selisih_bulan - $angsuran_ke));
+
+            if ($bulan_tunggak <= 3) {
+                $kategori = 0;
+            } elseif ($bulan_tunggak <= 6) {
+                $kategori = 1;
+            } elseif ($bulan_tunggak <= 9) {
+                $kategori = 2;
+            } elseif ($bulan_tunggak <= 12) {
+                $kategori = 3;
+            } else {
+                $kategori = 4;
+            }
+
+            $sum_kolek_total[$kategori] += $saldo_pokok;
+            $outstanding += $saldo_pokok;
+
+            if ($kategori >= 2) {
+                $npl_neto += $saldo_pokok;
+            }
+            $prosentase = $kolek_items[$kategori]['prosentase'];
+            if ($prosentase > 0) {
+                $ppap_wajib_minimum += $saldo_pokok * ($prosentase / 100);
+            }
+        }
+
+        return [
+            'kolek_items' => $kolek_items,
+            'sum_kolek_total' => $sum_kolek_total,
+            'npl_neto' => $npl_neto,
+            'ppap_wajib_minimum' => $ppap_wajib_minimum,
+            'outstanding_pinjaman' => $outstanding,
+        ];
+    }
+
+    /**
+     * Menghasilkan daftar detail pinjaman (per kelompok) yang diklasifikasikan
+     * ke 5 kolektibilitas POJK (Lancar/DPK/KL/Diragukan/Macet). Dipakai untuk
+     * section G laporan kolektabilitas pada PTK_POJK.
+     *
+     * Return: array ['detail_kelompok' => [...], 'total' => [alokasi,saldo,t_kolek1..t_kolek5]]
+     */
+    public function ptkPojkKolekDetail($tgl_kondisi)
+    {
+        $pecah = explode('-', $tgl_kondisi);
+        $thn = $pecah[0];
+
+        $pinjaman_kelompok = PinjamanKelompok::where('sistem_angsuran', '!=', '12')
+            ->with([
+                'kelompok' => function ($query) {
+                    $query->select('id', 'nama_kelompok', 'desa', 'ketua');
+                },
+                'kelompok.d' => function ($query) {
+                    $query->select('kd_desa', 'nama_desa', 'sebutan');
+                },
+                'jpp' => function ($query) {
+                    $query->select('id', 'nama_jpp', 'lokasi');
+                },
+                'saldo' => function ($query) use ($tgl_kondisi) {
+                    $query->where('tgl_transaksi', '<=', $tgl_kondisi);
+                },
+                'target' => function ($query) use ($tgl_kondisi) {
+                    $query->where('jatuh_tempo', '<=', $tgl_kondisi);
+                },
+                'pinjaman_anggota',
+                'pinjaman_anggota.anggota',
+            ])
+            ->where(function ($query) use ($tgl_kondisi, $thn) {
+                $query->where([
+                    ['status', 'A'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                ])->orwhere([
+                    ['status', 'L'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'L'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'R'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'R'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'H'],
+                    ['tgl_cair', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ])->orwhere([
+                    ['status', 'H'],
+                    ['tgl_lunas', '<=', $tgl_kondisi],
+                    ['tgl_lunas', '>=', "$thn-01-01"],
+                ]);
+            })
+            ->orderBy('tgl_cair', 'ASC')
+            ->get();
+
+        $detail_per_kelompok = [];
+        $tot = [
+            'alokasi' => 0, 'saldo' => 0,
+            'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
+        ];
+
+        foreach ($pinjaman_kelompok as $pinkel) {
+            $saldo_pokok = $pinkel->alokasi;
+            $saldo_jasa = $pinkel->pros_jasa > 0 ? $pinkel->alokasi * ($pinkel->pros_jasa / 100) : 0;
+            if ($pinkel->saldo) {
+                $saldo_pokok = $pinkel->saldo->saldo_pokok;
+                $saldo_jasa = $pinkel->saldo->saldo_jasa;
+            }
+
+            $target_pokok = 0;
+            $target_jasa = 0;
+            $wajib_pokok = 0;
+            $wajib_jasa = 0;
+            $angsuran_ke = 0;
+            if ($pinkel->target) {
+                $target_pokok = $pinkel->target->target_pokok;
+                $target_jasa = $pinkel->target->target_jasa;
+                $wajib_pokok = $pinkel->target->wajib_pokok;
+                $wajib_jasa = $pinkel->target->wajib_jasa;
+                $angsuran_ke = $pinkel->target->angsuran_ke;
+            }
+
+            if ($pinkel->tgl_lunas <= $tgl_kondisi && in_array($pinkel->status, ['L', 'R', 'H'], true)) {
+                $tunggakan_pokok = 0;
+                $tunggakan_jasa = 0;
+                $saldo_pokok = 0;
+                $saldo_jasa = 0;
+            } else {
+                $tunggakan_pokok = $wajib_pokok - $target_pokok;
+                if ($tunggakan_pokok < 0) {
+                    $tunggakan_pokok = 0;
+                }
+                $tunggakan_jasa = $wajib_jasa - $target_jasa;
+                if ($tunggakan_jasa < 0) {
+                    $tunggakan_jasa = 0;
+                }
+            }
+
+            if ($saldo_pokok <= 0) {
+                continue;
+            }
+
+            $pross = $pinkel->alokasi > 0 ? ($saldo_pokok / $pinkel->alokasi) : 0;
+
+            $tgl_cair = new \DateTime($pinkel->tgl_cair);
+            $tgl_kond = new \DateTime($tgl_kondisi);
+            $diff = $tgl_kond->diff($tgl_cair);
+            $selisih_bulan = ($diff->y * 12) + $diff->m;
+
+            $rasio_tunggakan = $wajib_pokok > 0 ? ($tunggakan_pokok / $wajib_pokok) : 0;
+            $bulan_tunggak = round($rasio_tunggakan + ($selisih_bulan - $angsuran_ke));
+
+            if ($bulan_tunggak <= 3) {
+                $kategori = 1;
+            } elseif ($bulan_tunggak <= 6) {
+                $kategori = 2;
+            } elseif ($bulan_tunggak <= 9) {
+                $kategori = 3;
+            } elseif ($bulan_tunggak <= 12) {
+                $kategori = 4;
+            } else {
+                $kategori = 5;
+            }
+
+            $nama_kelompok = $pinkel->kelompok ? $pinkel->kelompok->nama_kelompok : '-';
+            $sebutan_desa = ($pinkel->kelompok && $pinkel->kelompok->d) ? $pinkel->kelompok->d->sebutan : null;
+            $nama_desa = ($pinkel->kelompok && $pinkel->kelompok->d) ? $pinkel->kelompok->d->nama_desa : '-';
+            $nama_jpp = $pinkel->jpp ? $pinkel->jpp->nama_jpp : '-';
+
+            $anggota_list = [];
+            if ($pinkel->pinjaman_anggota) {
+                foreach ($pinkel->pinjaman_anggota as $pa) {
+                    if ($pa->anggota) {
+                        $anggota_list[] = [
+                            'nama' => $pa->anggota->nama ?? ($pa->anggota->nama_anggota ?? '-'),
+                            'nia' => $pa->anggota->id ?? $pa->nia,
+                        ];
+                    }
+                }
+            }
+
+            $row = [
+                'id' => $pinkel->id,
+                'tgl_cair' => $pinkel->tgl_cair,
+                'nama_jpp' => $nama_jpp,
+                'nama_kelompok' => $nama_kelompok,
+                'nama_desa' => $nama_desa,
+                'sebutan_desa' => $sebutan_desa,
+                'alokasi' => (float) $pinkel->alokasi,
+                'saldo_pokok' => (float) $saldo_pokok,
+                'pross' => $pross,
+                'tunggakan_pokok' => (float) $tunggakan_pokok,
+                'tunggakan_jasa' => (float) $tunggakan_jasa,
+                'bulan_tunggak' => (int) $bulan_tunggak,
+                'kategori' => $kategori,
+                'kategori_label' => [1 => 'Lancar', 2 => 'DPK', 3 => 'KL', 4 => 'Diragukan', 5 => 'Macet'][$kategori],
+                'status_pinjaman' => $pinkel->status,
+                'anggota' => $anggota_list,
+            ];
+
+            if (!isset($detail_per_kelompok[$pinkel->jenis_pp])) {
+                $detail_per_kelompok[$pinkel->jenis_pp] = [
+                    'nama_jpp' => $nama_jpp,
+                    'rows' => [],
+                    'tot' => [
+                        'alokasi' => 0, 'saldo' => 0,
+                        'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
+                    ],
+                ];
+            }
+            $detail_per_kelompok[$pinkel->jenis_pp]['rows'][] = $row;
+            $detail_per_kelompok[$pinkel->jenis_pp]['tot']['alokasi'] += (float) $pinkel->alokasi;
+            $detail_per_kelompok[$pinkel->jenis_pp]['tot']['saldo'] += (float) $saldo_pokok;
+            $key = 'kolek'.$kategori;
+            $detail_per_kelompok[$pinkel->jenis_pp]['tot'][$key] += (float) $saldo_pokok;
+
+            $tot['alokasi'] += (float) $pinkel->alokasi;
+            $tot['saldo'] += (float) $saldo_pokok;
+            $tot[$key] += (float) $saldo_pokok;
+        }
+
+        return [
+            'detail' => array_values($detail_per_kelompok),
+            'total' => $tot,
+        ];
+    }
 }

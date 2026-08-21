@@ -205,7 +205,21 @@ class PelaporanController extends Controller
             ];
         }
 
+        if ($file == 'ptk_pojk') {
+            $data = [
+                [
+                    'title' => 'Penilaian Tingkat Kesehatan POJK',
+                    'value' => 'PTK_POJK',
+                ],
+            ];
+        }
+
         $laporan = JenisLaporan::where('file', $file)->first();
+
+        if (!$laporan) {
+            $laporan = new JenisLaporan();
+            $laporan->nama_laporan = 'Laporan';
+        }
 
         return view('pelaporan.partials.sub_laporan')->with(compact('file', 'data', 'laporan'));
     }
@@ -4038,6 +4052,463 @@ class PelaporanController extends Controller
         } else {
             return $view;
         }
+    }
+
+    private function PTK_POJK(array $data)
+    {
+        $keuangan = new Keuangan();
+        $tgl_kondisi = $data['tgl_kondisi'];
+        $kec = $data['kec'];
+
+        if (!empty($data['bulanan'])) {
+            $data['sub_judul'] = 'Per '.Tanggal::tglLatin($tgl_kondisi);
+            $data['tgl'] = Tanggal::namaBulan($tgl_kondisi).' '.Tanggal::tahun($tgl_kondisi);
+        } else {
+            $data['sub_judul'] = 'Tahun '.Tanggal::tahun($tgl_kondisi);
+            $data['tgl'] = Tanggal::tahun($tgl_kondisi);
+        }
+
+        $param = $keuangan->ptkPojkData($tgl_kondisi);
+        $kolek = $keuangan->ptkPojkKolek($tgl_kondisi);
+
+        $pendapatan = $keuangan->pendapatan($tgl_kondisi);
+        $biaya = $keuangan->biaya($tgl_kondisi);
+        $laba_bersih = $pendapatan - $biaya;
+
+        $total_aset = (float) $param['total_aset'];
+        $total_liabilitas = (float) $param['total_liabilitas'];
+        $total_ekuitas = (float) $param['total_ekuitas'];
+        $kas_setara_kas = (float) $param['kas_setara_kas'];
+        $liabilitas_lancar = (float) $param['liabilitas_lancar'];
+        $modal_disetor = (float) $param['modal_disetor'];
+        $cadangan_ppap_terbentuk = (float) $param['cadangan_piutang'];
+
+        $outstanding_pinjaman = (float) $kolek['outstanding_pinjaman'];
+        $npl_neto = (float) $kolek['npl_neto'];
+        $ppap_wajib_minimum = (float) $kolek['ppap_wajib_minimum'];
+        $kolek_items = $kolek['kolek_items'];
+        $sum_kolek_total = $kolek['sum_kolek_total'];
+
+        $rasio_solvabilitas = $total_liabilitas > 0 ? ($total_aset / $total_liabilitas) * 100 : 0;
+        $rasio_ekuitas = $modal_disetor > 0 ? ($total_ekuitas / $modal_disetor) * 100 : 0;
+        $rasio_npl_neto = $outstanding_pinjaman > 0 ? ($npl_neto / $outstanding_pinjaman) * 100 : 0;
+        $rasio_likuiditas = $liabilitas_lancar > 0 ? ($kas_setara_kas / $liabilitas_lancar) * 100 : 0;
+        $roa = $total_aset > 0 ? ($laba_bersih / $total_aset) * 100 : 0;
+
+        if ($ppap_wajib_minimum <= 0) {
+            $ppap_coverage = 100;
+        } else {
+            $ppap_coverage = $cadangan_ppap_terbentuk > 0 ? ($cadangan_ppap_terbentuk / $ppap_wajib_minimum) * 100 : 0;
+        }
+
+        $skor_solv = $this->ptkPojkScoreBand($rasio_solvabilitas, [120 => 100, 115 => 75, 110 => 50, 105 => 25, 0 => 0]);
+        $skor_ek = $this->ptkPojkScoreBand($rasio_ekuitas, [100 => 100, 90 => 75, 75 => 50, 60 => 25, 0 => 0]);
+        $skor_permodalan = ($skor_solv + $skor_ek) / 2;
+
+        $skor_npl = $this->ptkPojkScoreBandReverse($rasio_npl_neto, [2 => 100, 3.5 => 75, 5 => 50, 10 => 25, 100 => 0]);
+        $skor_ppap = $this->ptkPojkScoreBand($ppap_coverage, [100 => 100, 80 => 75, 60 => 50, 40 => 25, 0 => 0]);
+        $skor_kualitas_aset = ($skor_npl + $skor_ppap) / 2;
+
+        $skor_manajemen = 75;
+
+        $skor_rentabilitas = $this->ptkPojkScoreBand($roa, [2.5 => 100, 1.5 => 75, 0.5 => 50, 0 => 25, -9999 => 0]);
+
+        $skor_likuiditas = $this->ptkPojkScoreBand($rasio_likuiditas, [10 => 100, 7 => 75, 4 => 50, 2 => 25, 0 => 0]);
+
+        $skor_komposit = ($skor_permodalan * 0.25)
+            + ($skor_kualitas_aset * 0.35)
+            + ($skor_manajemen * 0.20)
+            + ($skor_rentabilitas * 0.10)
+            + ($skor_likuiditas * 0.10);
+
+        $trigger_pk5 = ($rasio_npl_neto >= 25) || ($rasio_ekuitas < 50) || ($ppap_coverage < 50);
+
+        if ($trigger_pk5) {
+            $pk = 5;
+        } elseif ($skor_komposit >= 81) {
+            $pk = 1;
+        } elseif ($skor_komposit >= 66) {
+            $pk = 2;
+        } elseif ($skor_komposit >= 51) {
+            $pk = 3;
+        } else {
+            $pk = 4;
+        }
+
+        $pk_labels = [
+            1 => 'Sangat Sehat',
+            2 => 'Sehat',
+            3 => 'Cukup Sehat',
+            4 => 'Kurang Sehat',
+            5 => 'Tidak Sehat',
+        ];
+        $pk_label = $pk_labels[$pk];
+
+        $status_pengawasan_alasan = [];
+        if ($pk == 5) {
+            $status = 'Pengawasan Khusus';
+            $warna = '#dc3545';
+            $status_pengawasan_alasan[] = 'Peringkat Komposit (PK 5)';
+        } elseif ($rasio_ekuitas < 50 || $rasio_npl_neto >= 25) {
+            $status = 'Pengawasan Khusus';
+            $warna = '#dc3545';
+            if ($rasio_ekuitas < 50) {
+                $status_pengawasan_alasan[] = 'Rasio Ekuitas <50% ('.number_format($rasio_ekuitas, 2).'%)';
+            }
+            if ($rasio_npl_neto >= 25) {
+                $status_pengawasan_alasan[] = 'NPL Neto >=25% ('.number_format($rasio_npl_neto, 2).'%)';
+            }
+        } elseif ($pk == 4 || ($rasio_ekuitas >= 50 && $rasio_ekuitas < 75) || ($rasio_npl_neto > 5 && $rasio_npl_neto < 25)) {
+            $status = 'Pengawasan Intensif';
+            $warna = '#fd7e14';
+            if ($pk == 4) {
+                $status_pengawasan_alasan[] = 'Peringkat Komposit (PK 4)';
+            }
+            if ($rasio_ekuitas >= 50 && $rasio_ekuitas < 75) {
+                $status_pengawasan_alasan[] = 'Rasio Ekuitas 50% s.d <75% ('.number_format($rasio_ekuitas, 2).'%)';
+            }
+            if ($rasio_npl_neto > 5 && $rasio_npl_neto < 25) {
+                $status_pengawasan_alasan[] = 'NPL Neto >5% s.d <25% ('.number_format($rasio_npl_neto, 2).'%)';
+            }
+        } else {
+            $status = 'Pengawasan Normal';
+            $warna = '#28a745';
+            $status_pengawasan_alasan[] = 'Seluruh rasio utama terpenuhi';
+        }
+
+        $status_pengawasan_alasan_text = implode('; ', $status_pengawasan_alasan);
+
+        $rekomendasi = $this->ptkPojkRekomendasi([
+            'total_aset' => $total_aset,
+            'total_liabilitas' => $total_liabilitas,
+            'total_ekuitas' => $total_ekuitas,
+            'modal_disetor' => $modal_disetor,
+            'kas_setara_kas' => $kas_setara_kas,
+            'liabilitas_lancar' => $liabilitas_lancar,
+            'cadangan_ppap_terbentuk' => $cadangan_ppap_terbentuk,
+            'ppap_wajib_minimum' => $ppap_wajib_minimum,
+            'outstanding_pinjaman' => $outstanding_pinjaman,
+            'npl_neto' => $npl_neto,
+            'pendapatan' => $pendapatan,
+            'biaya' => $biaya,
+            'laba_bersih' => $laba_bersih,
+            'rasio_solvabilitas' => $rasio_solvabilitas,
+            'rasio_ekuitas' => $rasio_ekuitas,
+            'rasio_npl_neto' => $rasio_npl_neto,
+            'rasio_likuiditas' => $rasio_likuiditas,
+            'ppap_coverage' => $ppap_coverage,
+            'roa' => $roa,
+        ], $kec);
+
+        $kolek_detail = $keuangan->ptkPojkKolekDetail($tgl_kondisi);
+
+        $data['analisis'] = [
+            'total_aset' => $total_aset,
+            'total_liabilitas' => $total_liabilitas,
+            'kas_setara_kas' => $kas_setara_kas,
+            'liabilitas_lancar' => $liabilitas_lancar,
+            'modal_disetor' => $modal_disetor,
+            'total_ekuitas' => $total_ekuitas,
+            'outstanding_pinjaman' => $outstanding_pinjaman,
+            'npl_neto' => $npl_neto,
+            'cadangan_ppap_terbentuk' => $cadangan_ppap_terbentuk,
+            'ppap_wajib_minimum' => $ppap_wajib_minimum,
+            'ppap_coverage' => $ppap_coverage,
+            'pendapatan' => $pendapatan,
+            'biaya' => $biaya,
+            'laba_bersih' => $laba_bersih,
+            'roa' => $roa,
+            'kolek_items' => $kolek_items,
+            'sum_kolek_total' => $sum_kolek_total,
+            'rasio_solvabilitas' => $rasio_solvabilitas,
+            'rasio_ekuitas' => $rasio_ekuitas,
+            'rasio_npl_neto' => $rasio_npl_neto,
+            'rasio_likuiditas' => $rasio_likuiditas,
+            'skor_permodalan' => $skor_permodalan,
+            'skor_kualitas_aset' => $skor_kualitas_aset,
+            'skor_manajemen' => $skor_manajemen,
+            'skor_rentabilitas' => $skor_rentabilitas,
+            'skor_likuiditas' => $skor_likuiditas,
+            'skor_komposit' => $skor_komposit,
+            'pk' => $pk,
+            'pk_label' => $pk_label,
+            'status_pengawasan' => $status,
+            'status_pengawasan_label' => $status,
+            'status_pengawasan_warna' => $warna,
+            'status_pengawasan_alasan' => $status_pengawasan_alasan_text,
+            'rekomendasi' => $rekomendasi,
+            'kolek_detail' => $kolek_detail,
+        ];
+
+        $data['laporan'] = 'Penilaian Tingkat Kesehatan POJK';
+
+        if ($data['type'] == 'pdf') {
+            $paperSize = Session::get('lokasi') == 109 ? [0, 0, 595.28, 935.43] : 'A4';
+
+            $data['laporan_portrait'] = $data['laporan'];
+
+            $view_portrait = view('pelaporan.view.pojk.penilaian_tingkat_kesehatan', $data)->render();
+
+            $view_kolek = view('pelaporan.view.pojk.kolektabilitas_detail', $data)->render();
+
+            $html = $this->combineLandscapePage($view_portrait, $view_kolek, $paperSize);
+
+            return PDF::loadHTML($html)->setPaper($paperSize, 'portrait')->stream();
+        }
+
+        $view = view('pelaporan.view.pojk.penilaian_tingkat_kesehatan', $data)->render();
+
+        return $view;
+    }
+
+    private function combineLandscapePage($html_portrait, $html_landscape, $paperSize)
+    {
+        $landscape_inner = $html_landscape;
+        if (preg_match('/<body[^>]*>(.*)<\/body>/s', $html_landscape, $m)) {
+            $landscape_inner = $m[1];
+        } elseif (preg_match('/<main[^>]*>(.*)<\/main>/s', $html_landscape, $m)) {
+            $landscape_inner = $m[1];
+        }
+
+        $clean_portrait = $html_portrait;
+
+        $is_a4 = is_string($paperSize) && strtoupper($paperSize) === 'A4';
+        $landscape_size_css = $is_a4 ? '297mm 210mm' : '935.43pt 595.28pt';
+
+        $style_block = '<style>@page landscape_page { size: '.$landscape_size_css.'; } .landscape-page { page: landscape_page; page-break-before: always; }</style>';
+
+        if (preg_match('/<\/head>/i', $clean_portrait)) {
+            $clean_portrait = preg_replace('/<\/head>/i', $style_block.'</head>', $clean_portrait, 1);
+        } else {
+            $clean_portrait = $style_block.$clean_portrait;
+        }
+
+        $landscape_html = '<div class="landscape-page">'.$landscape_inner.'</div>';
+
+        if (preg_match_all('/<\/body>/i', $clean_portrait, $matches, PREG_OFFSET_CAPTURE)) {
+            $last = end($matches[0]);
+            $clean_portrait = substr($clean_portrait, 0, $last[1]).$landscape_html.substr($clean_portrait, $last[1] + strlen('</body>'));
+        } else {
+            $clean_portrait .= $landscape_html;
+        }
+
+        return $clean_portrait;
+    }
+
+    private function ptkPojkScoreBand($value, array $bands)
+    {
+        foreach ($bands as $min => $score) {
+            if ($value >= $min) {
+                return $score;
+            }
+        }
+
+        return 0;
+    }
+
+    private function ptkPojkScoreBandReverse($value, array $bands)
+    {
+        foreach ($bands as $max => $score) {
+            if ($value <= $max) {
+                return $score;
+            }
+        }
+
+        return 0;
+    }
+
+    private function ptkPojkRekomendasi(array $a, $kec)
+    {
+        $rp = function ($n) {
+            return 'Rp '.number_format((float) $n, 0, ',', '.');
+        };
+
+        $rek_kas = Rekening::where('kode_akun', 'like', '1.1.01%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_bank = Rekening::where('kode_akun', 'like', '1.1.02%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_cadangan = Rekening::where('kode_akun', 'like', '1.1.14%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_pokok = Rekening::where('kode_akun', 'like', '3.1.01%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_wajib = Rekening::where('kode_akun', 'like', '3.1.02%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_hibah = Rekening::where('kode_akun', 'like', '3.1.03%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_cadangan_ekuitas = Rekening::where('kode_akun', 'like', '3.2.01%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_liabilitas_lancar = Rekening::where('kode_akun', 'like', '2.1.0%')
+            ->where('lev1', '2')->where('lev2', '1')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_giro = Rekening::where('kode_akun', 'like', '1.1.02.01%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_deposito = Rekening::where('kode_akun', 'like', '1.1.02.02%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_piutang = Rekening::where('kode_akun', 'like', '1.1.03%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_pendapatan_jasa = Rekening::where('lev1', '4')->where('lev2', '1')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_beban_gaji = Rekening::where('kode_akun', 'like', '5.1.01%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_beban_atk = Rekening::where('kode_akun', 'like', '5.1.02%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rek_beban_adm = Rekening::where('kode_akun', 'like', '5.1.03%')
+            ->where(function ($q) {
+                $q->whereNull('tgl_nonaktif')->orWhere('tgl_nonaktif', '>', now());
+            })->orderBy('kode_akun', 'ASC')->get(['kode_akun', 'nama_akun']);
+
+        $rekomendasi = [];
+
+        $listRekText = function ($rek_list, $prefix_nama) {
+            if ($rek_list->isEmpty()) {
+                return $prefix_nama.' (rekening belum tersedia)';
+            }
+            $items = [];
+            foreach ($rek_list as $r) {
+                $items[] = $r->kode_akun.' ('.$r->nama_akun.')';
+            }
+
+            return $prefix_nama.' '.implode(', ', $items);
+        };
+
+        $listRekSingkat = function ($rek_list, $prefix_nama) {
+            if ($rek_list->isEmpty()) {
+                return $prefix_nama.' (rekening belum tersedia)';
+            }
+            $items = [];
+            foreach ($rek_list as $r) {
+                $items[] = $r->kode_akun;
+            }
+
+            return $prefix_nama.' '.implode(', ', $items);
+        };
+
+        if ($a['rasio_solvabilitas'] < 110) {
+            $need_solv = max(0, ($a['total_liabilitas'] * 1.10) - $a['total_aset']);
+            $target_total_aset = max(0, ($a['total_liabilitas'] * 1.10));
+            $rekomendasi[] =
+                "PERMODALAN: Rasio Solvabilitas ".number_format($a['rasio_solvabilitas'], 2)."% di bawah batas minimum 110%. "
+                ."Cara perbaikan: (a) Tambahkan minimal ".$rp($need_solv)." ke rekening ".str_replace('rekening ', '', $listRekSingkat($rek_kas, '')).' / '.str_replace('rekening ', '', $listRekSingkat($rek_bank, ''))
+                ." dari setoran modal/hibah/penambahan simpanan anggota; "
+                ."(b) Naikkan ekuitas di rekening ".$listRekSingkat($rek_pokok, '').', '.$listRekSingkat($rek_wajib, '').', atau '.$listRekSingkat($rek_hibah, '').' minimal '.$rp(max(0, ($a['total_liabilitas'] * 1.10) - ($a['total_aset'] - $a['total_liabilitas'])))
+                ."; (c) Atau kurangi liabilitas dengan membayar jatuh tempo simpanan anggota / utang pihak ke-3 tepat waktu. "
+                ."Setelah penyesuaian, target Total Aset minimal ".$rp($target_total_aset).' (110% dari Liabilitas '.$rp($a['total_liabilitas']).').';
+        }
+
+        if ($a['rasio_ekuitas'] < 75) {
+            $need_ekuitas = max(0, ($a['modal_disetor'] * 0.75) - $a['total_ekuitas']);
+            $rekomendasi[] =
+                "PERMODALAN: Rasio Ekuitas ".number_format($a['rasio_ekuitas'], 2)."% di bawah batas minimum 75%. "
+                ."Cara perbaikan: (a) Setoran Simpanan Pokok anggota baru di rekening ".$listRekSingkat($rek_pokok, '')."; "
+                ."(b) Naikkan Simpanan Wajib ".$listRekSingkat($rek_wajib, '')." melalui iuran bulanan; "
+                ."(c) Setor modal hibah ke ".$listRekSingkat($rek_hibah, '')."; "
+                ."(d) Alokasikan SHU tahun berjalan ke rekening cadangan ekuitas ".$listRekSingkat($rek_cadangan_ekuitas, '').". "
+                ."Target Total Ekuitas minimal ".$rp($a['modal_disetor'] * 0.75)." (75% dari Modal Disetor ".$rp($a['modal_disetor']).').';
+        }
+
+        if ($a['rasio_npl_neto'] > 5) {
+            $target_npl = $a['outstanding_pinjaman'] * 0.05;
+            $selisih_npl = max(0, $a['npl_neto'] - $target_npl);
+            $rekomendasi[] =
+                "KUALITAS ASET: Rasio NPL Neto ".number_format($a['rasio_npl_neto'], 2)."% di atas batas maksimum 5%. "
+                ."Cara perbaikan: (a) Kurangi NPL Neto menjadi <= ".$rp($target_npl)." (5% dari Outstanding ".$rp($a['outstanding_pinjaman']).'), selisih diturunkan '.$rp($selisih_npl).'; '
+                ."(b) Restrukturisasi pinjaman Kurang Lancar/Diragukan (perpanjang tenor, reschedule angsuran); "
+                ."(c) Hapus buku pinjaman Macet melalui mekanisme Penghapusan Piutang ke rekening ".$listRekSingkat($rek_cadangan, '').'; '
+                ."(d) Early warning system: angsuran ke-3 kirim surat peringatan, ke-4 kunjungan, ke-6 proses collection; "
+                ."(e) Coverage agunan minimal 125% untuk pinjaman baru; "
+                ."(f) Review kelayakan penerima pinjaman baru via Komite Kredit.";
+        }
+
+        if ($a['ppap_coverage'] < 100) {
+            $need_ppap = max(0, $a['ppap_wajib_minimum'] - $a['cadangan_ppap_terbentuk']);
+            $rekomendasi[] =
+                "KUALITAS ASET: Coverage PPAP ".number_format($a['ppap_coverage'], 2)."% di bawah batas minimum 100%. "
+                ."Cara perbaikan: (a) Tambahkan penyisihan PPAP ke rekening ".$listRekSingkat($rek_cadangan, '').' sebesar '.$rp($need_ppap)
+                ." agar coverage menjadi 100%; "
+                ."(b) Sumber dana: alokasi SHU tahun berjalan atau beban laba rugi periode berjalan; "
+                ."(c) Formulasi PPAP sesuai kolektibilitas POJK: Lancar 0%, DPK 5%, Kurang Lancar 15%, Diragukan 50%, Macet 100%.";
+        }
+
+        if ($a['rasio_likuiditas'] < 4) {
+            $need_kas = max(0, ($a['liabilitas_lancar'] * 0.04) - $a['kas_setara_kas']);
+            $target_kas = max(0, ($a['liabilitas_lancar'] * 0.04));
+            $liab_text = $listRekSingkat($rek_liabilitas_lancar, '');
+            $rekomendasi[] =
+                "LIKUIDITAS: Rasio Kas & Setara Kas ".number_format($a['rasio_likuiditas'], 2)."% di bawah batas minimum 4%. "
+                ."Cara perbaikan: (a) Tambah saldo ".$listRekSingkat($rek_kas, '').' / '.$listRekSingkat($rek_bank, '').' minimal '.$rp($need_kas).' agar rasio menjadi 4%; '
+                ."(b) Percepat penagihan piutang, tunda pencairan pinjaman baru, tarik simpanan berjangka jatuh tempo; "
+                ."(c) Diversifikasi penempatan kas: giro ".$listRekSingkat($rek_giro, '')." (60%), deposito on-call ".$listRekSingkat($rek_deposito, '')." (30%), kas tunai ".$listRekSingkat($rek_kas, '')." (10%); "
+                ."(d) Monitor liabilitas lancar ".$liab_text.' (simpanan sukarela, simpanan berjangka <=1 tahun) untuk menjaga rasio tetap >=4%; '
+                ."Target Kas & Setara Kas minimal ".$rp($target_kas).'.';
+        }
+
+        if ($a['roa'] < 0.5) {
+            $target_roa = $a['total_aset'] * 0.005;
+            $gap_laba = max(0, $target_roa - $a['laba_bersih']);
+            $rekomendasi[] =
+                "RENTABILITAS: ROA ".number_format($a['roa'], 2)."% di bawah batas minimum 0.5%. "
+                ."Cara perbaikan: (a) Naikkan laba bersih menjadi minimal ".$rp($target_roa)." (gap ".$rp($gap_laba).") melalui: "
+                ."- review margin jasa di rekening ".$listRekSingkat($rek_pendapatan_jasa, '').', '
+                ."- efisiensi ".$listRekSingkat($rek_beban_gaji, '').', '.$listRekSingkat($rek_beban_atk, '').', '.$listRekSingkat($rek_beban_adm, '').'; '
+                ."(b) Alirkan Kas/Bank ke pinjaman produktif (rekening ".$listRekSingkat($rek_piutang, '').") untuk meningkatkan pendapatan bunga; "
+                ."(c) Review portofolio pinjaman: hentikan produk dengan margin rendah, fokus pada layanan jasa baru (administrasi, transfer, asuransi).";
+        }
+
+        $rekomendasi[] =
+            "MANAJEMEN: Lengkapi dokumentasi tata kelola: (a) Notulen rapat pengurus & rapat anggota; "
+            ."(b) Kebijakan risiko & SOP operasional; "
+            ."(c) Program pelatihan SDM untuk pengurus/staf; "
+            ."(d) Audit internal berkala (minimal 1x/tahun oleh pihak independen).";
+
+        if (count($rekomendasi) === 1) {
+            $rekomendasi = [
+                'PERTAHANKAN: Kinerja keuangan LKM saat ini telah memenuhi seluruh rasio POJK (Solvabilitas, Ekuitas, NPL, PPAP, Likuiditas, ROA). Pertahankan praktik baik: (a) Monitoring kolektibilitas piutang secara berkala; (b) Review kecukupan PPAP tiap akhir bulan; (c) Jaga likuiditas kas minimal 4% dari liabilitas lancar; (d) Lanjutkan efisiensi biaya operasional; (e) Dokumentasi tata kelola & rapat pengurus.',
+            ];
+        }
+
+        return $rekomendasi;
     }
 
     public function beritaAcara()
