@@ -43,7 +43,7 @@ class AuthController extends Controller
                 $kecamatan = $getToken->kec;
                 $lokasi = $kecamatan->id;
 
-                $invoice = \App\Models\AdminInvoice::where([
+                $invoice = \App\Models\AdminInvoice::on('mysql')->where([
                     ['lokasi', $lokasi],
                     ['status', 'UNPAID'],
                 ])->orderBy('tgl_invoice', 'ASC')->first();

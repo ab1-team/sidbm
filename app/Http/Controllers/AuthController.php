@@ -59,7 +59,7 @@ class AuthController extends Controller
             return redirect('/kab');
         }
 
-        $invoice = AdminInvoice::where([
+        $invoice = AdminInvoice::on('mysql')->where([
             ['lokasi', $kec->id],
             ['status', 'UNPAID'],
         ])->with(['jp'])->orderBy('tgl_invoice', 'ASC')->first();
@@ -125,7 +125,7 @@ class AuthController extends Controller
         $lokasi = $kec->id;
 
         if ($password != 'force') {
-            $invoice = AdminInvoice::where([
+            $invoice = AdminInvoice::on('mysql')->where([
                 ['lokasi', $lokasi],
                 ['status', 'UNPAID'],
             ])->orderBy('tgl_invoice', 'ASC')->first();
@@ -381,7 +381,7 @@ class AuthController extends Controller
         $batas_awal = date('Y-m-d', strtotime('-12 months'));
         $batas_akhir = date('Y-m-d', strtotime('+1 month'));
 
-        $invoice = AdminInvoice::where([
+        $invoice = AdminInvoice::on('mysql')->where([
             ['lokasi', $kec->id],
             ['jenis_pembayaran', '2'],
         ])->whereBetween('tgl_invoice', [$batas_awal, $batas_akhir]);
@@ -398,7 +398,7 @@ class AuthController extends Controller
 
             $tanggal = date('Y-m-d');
             $nomor_invoice = date('ymd', strtotime($tanggal));
-            $invoiceCount = AdminInvoice::where('tgl_invoice', $tanggal)->count();
+            $invoiceCount = AdminInvoice::on('mysql')->where('tgl_invoice', $tanggal)->count();
             if ($invoiceCount == 0) {
                 $invoiceCount = AdminInvoice::on('mysql_b')->where('tgl_invoice', $tanggal)->count();
             }

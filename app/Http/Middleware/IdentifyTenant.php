@@ -48,7 +48,7 @@ class IdentifyTenant
 
             // Cek pemblokiran jika user memiliki tagihan invoice unpaid yang overdue
             if ($user->uname !== 'superadmin') {
-                $invoice = AdminInvoice::where([
+                $invoice = AdminInvoice::on('mysql')->where([
                     ['lokasi', $user->lokasi],
                     ['status', 'UNPAID'],
                 ])->orderBy('tgl_invoice', 'ASC')->first();
