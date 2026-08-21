@@ -92,7 +92,7 @@
                 dengan jumlah piutang yang diterima dan tanggal yang telah disepakati.
             </li>
             <li>
-                Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
+                Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok1 sebesar
                 @if (in_array($kec->id, [372, 373]))
                     _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @else
