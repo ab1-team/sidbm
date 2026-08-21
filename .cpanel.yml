@@ -3,3 +3,7 @@ deployment:
     - export DEST="/home/dbm/public_html/apps"
     - rm -rf "$DEST"/*
     - cp -r * "$DEST"
+    - cd "$DEST" && php artisan optimize:clear
+    - cd "$DEST" && php artisan view:clear
+    - cd "$DEST" && php artisan config:clear
+    - cd "$DEST" && php artisan cache:clear
