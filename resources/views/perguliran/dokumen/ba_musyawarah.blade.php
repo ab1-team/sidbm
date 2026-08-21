@@ -93,13 +93,17 @@
             </li>
             <li>
                 Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
-                @if ($kec->id == 373 || $kec->id == 372)
+                @if (in_array($kec->id, [373, 372]))
                     _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @else
                     @php
                         $bungaPerBulan = $pinkel->pros_jasa / $pinkel->jangka;
-                        $bungaFormatted = rtrim(rtrim(number_format($bungaPerBulan, 2, '.', ''), '0'), '.');
+                        $bungaFormatted = rtrim(
+                            rtrim(number_format($bungaPerBulan, 2, '.', ''), '0'),
+                            '.'
+                        );
                     @endphp
+
                     {{ $bungaFormatted }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @endif
             </li>
