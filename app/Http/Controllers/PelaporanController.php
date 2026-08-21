@@ -4253,7 +4253,7 @@ class PelaporanController extends Controller
 
             $html = $this->combineLandscapePage($view_portrait, $view_kolek, $paperSize);
 
-            return PDF::loadHTML($html)->setPaper($paperSize, 'portrait')->stream();
+            return PDF::loadHTML($html)->setPaper($paperSize, 'landscape')->stream();
         }
 
         $view = view('pelaporan.view.pojk.penilaian_tingkat_kesehatan', $data)->render();
