@@ -95,7 +95,7 @@
                 Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
                 @if ($kec->id == 373)
                     _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
-                @elseif (Session::get('lokasi') == '372')
+                @elseif ($kec->id == 372)
                     ........ setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @else
                     @php
