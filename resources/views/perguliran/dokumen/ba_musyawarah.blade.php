@@ -93,10 +93,8 @@
             </li>
             <li>
                 Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
-                @if ($kec->id == 373)
+                @if ($kec->id == 373 || $kec->id == 372)
                     _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
-                @elseif ($kec->id == 372)
-                    ........ setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @else
                     @php
                         $bungaPerBulan = $pinkel->pros_jasa / $pinkel->jangka;
