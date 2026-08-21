@@ -220,12 +220,18 @@
                         <input type="hidden" name="id" value="{{ $perguliran->id }}">
                         <div class="row">
                             @foreach ($dokumen_proposal as $doc => $val)
+                                @php
+                                    $label = $loop->iteration . '. ' . $val['title'];
+                                    if (Session::get('lokasi') == '372' && $val['file'] == 'ba_musyawarah') {
+                                        $label = $loop->iteration . '. .....';
+                                    }
+                                @endphp
                                 <div class="col-md-3 d-grid">
                                     @if ($val['withExcel'])
                                         <div class="btn-group">
                                             <button class="btn btn-linkedin btn-sm text-start" type="submit"
                                                 name="report" value="{{ $val['file'] }}#pdf">
-                                                {{ $loop->iteration }}. {{ $val['title'] }}
+                                                {{ $label }}
                                             </button>
                                             <button class="btn btn-icon btn-sm btn-instagram" type="submit"
                                                 name="report" value="{{ $val['file'] }}#excel">
@@ -235,7 +241,7 @@
                                     @else
                                         <button class="btn btn-linkedin btn-sm text-start" type="submit" name="report"
                                             value="{{ $val['file'] }}#pdf">
-                                            {{ $loop->iteration }}. {{ $val['title'] }}
+                                            {{ $label }}
                                         </button>
                                     @endif
                                 </div>

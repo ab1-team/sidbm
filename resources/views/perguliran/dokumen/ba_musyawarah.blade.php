@@ -96,7 +96,11 @@
                 @if ($kec->id == 373)
                     _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @else
-                    {{ $pinkel->pros_jasa / $pinkel->jangka }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                    @php
+                        $bungaPerBulan = $pinkel->pros_jasa / $pinkel->jangka;
+                        $bungaFormatted = rtrim(rtrim(number_format($bungaPerBulan, 2, '.', ''), '0'), '.');
+                    @endphp
+                    {{ $bungaFormatted }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
                 @endif
             </li>
             <li>
