@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\AdminInvoice;
 use App\Models\Kecamatan;
+use App\Support\TenantResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,33 +15,14 @@ class IdentifyTenant
     public function handle(Request $request, Closure $next)
     {
         $domain = strtolower(trim($request->getHost()));
-        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
-        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
+        $resolved = TenantResolver::resolveByDomain($domain);
 
-        // 1. Cek di mysql_b (holding) — kecamatan dulu
-        $tenantFromB = DB::connection('mysql_b')
-            ->table('kecamatan')
-            ->whereIn('web_kec', [$domain, $domainId, $domainNet])
-            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-            ->first();
-
-        // 2. Kalau bukan kecamatan, cek kabupaten di mysql_b
-        $kabFromB = null;
-        if (! $tenantFromB) {
-            $kabFromB = DB::connection('mysql_b')
-                ->table('kabupaten')
-                ->whereIn('web_kab', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
-                ->first();
+        // Aktifkan koneksi holding hanya jika tenant ditemukan di DB holding.
+        if ($resolved) {
+            TenantResolver::applyResolvedConnection($resolved);
         }
 
-        // 3. Domain milik tenant (kecamatan ATAU kabupaten) — pakai holding DB
-        if ($tenantFromB || $kabFromB) {
-            config(['database.default' => 'mysql_b']);
-        }
-
-        // 4. Set flag untuk downstream (controller / view) bahwa ini request kabupaten
-        config(['tenant.is_kab' => (bool) $kabFromB]);
+        TenantResolver::markAsKabupaten(($resolved['type'] ?? null) === 'kabupaten');
 
         if ($user = request()->user()) {
             $suffix = $user->lokasi;
@@ -61,7 +43,8 @@ class IdentifyTenant
                 }
 
                 if ($invoice) {
-                    $kec = Kecamatan::find($user->lokasi) ?: Kecamatan::on('mysql_b')->find($user->lokasi);
+                    $kec = Kecamatan::on(TenantResolver::CONNECTION_A)->find($user->lokasi)
+                        ?: Kecamatan::on(TenantResolver::CONNECTION_B)->find($user->lokasi);
                     $tgl_inv = $invoice->tgl_invoice ?: ($kec?->tgl_registrasi ?: $kec?->tgl_pakai);
                     $batas_toleransi = date('Y-m-d', strtotime('+1 month', strtotime($tgl_inv)));
                     if (! empty($invoice->tgl_lunas) && $invoice->tgl_lunas > $batas_toleransi) {
@@ -84,37 +67,40 @@ class IdentifyTenant
             return $next($request);
         }
 
-        // User login via 'kab' guard — pakai kd_kab dari session untuk suffix
+        // User login via 'kab' guard - pakai kd_kab dari session untuk suffix
         if (auth()->guard('kab')->check()) {
             $kabId = session('kd_kab');
             if ($kabId) {
-                $kabRow = DB::connection('mysql_b')
+                $kabRow = DB::connection(TenantResolver::CONNECTION_A)
                     ->table('kabupaten')
                     ->where('kd_kab', $kabId)
                     ->first();
+
+                if (! $kabRow) {
+                    $kabRow = DB::connection(TenantResolver::CONNECTION_B)
+                        ->table('kabupaten')
+                        ->where('kd_kab', $kabId)
+                        ->first();
+                }
+
                 if ($kabRow) {
-                    config(['tenant.suffix' => "_{$kabRow->id}"]);
-                    config(['tenant.is_kab' => true]);
+                    TenantResolver::applyResolvedConnection([
+                        'connection' => $kabRow->getConnectionName(),
+                    ]);
+                    config(['tenant.suffix' => "_" . $kabRow->id]);
+                    TenantResolver::markAsKabupaten();
                 }
             }
 
             return $next($request);
         }
 
-        if ($tenantFromB) {
-            $tenant = Kecamatan::on('mysql_b')->find($tenantFromB->id);
-        } elseif ($kabFromB) {
-            // Domain kabupaten — suffix pakai id_kab agar konsistensi dengan tabel pinjaman_kab_*
-            $tenant = (object) ['id' => $kabFromB->id];
+        if ($resolved && ($resolved['type'] === 'kecamatan' || $resolved['type'] === 'kabupaten')) {
+            $tenantId = $resolved['tenant']->id;
+            config(['tenant.suffix' => "_{$tenantId}"]);
         } else {
-            // Fallback: cek default DB (untuk domain lokal/development)
-            $tenant = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-                ->first();
+            config(['tenant.suffix' => '_1']);
         }
-
-        $suffix = $tenant ? "_{$tenant->id}" : '_1';
-        config(['tenant.suffix' => $suffix]);
 
         return $next($request);
     }

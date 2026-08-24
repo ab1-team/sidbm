@@ -10,12 +10,12 @@ use App\Models\Kecamatan;
 use App\Models\Menu;
 use App\Models\MenuTombol;
 use App\Models\PinjamanKelompok;
+use App\Support\TenantResolver;
 use App\Models\User;
 use App\Utils\Keuangan;
 use App\Utils\Tanggal;
 use Auth;
 use Cookie;
-use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Session;
@@ -31,32 +31,23 @@ class AuthController extends Controller
         }
 
         $domain = strtolower(trim(request()->getHost()));
-        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
-        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
 
-        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
-            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-            ->first();
-        if (! $kec) {
-            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-                ->first();
+        $resolvedTenant = TenantResolver::resolveByDomain($domain);
+
+        if ($resolvedTenant && $resolvedTenant['type'] === 'kabupaten') {
+            TenantResolver::applyResolvedConnection($resolvedTenant);
+
+            return redirect('/kab');
+        }
+
+        $kec = $resolvedTenant['tenant'] ?? null;
+
+        if ($kec) {
+            TenantResolver::applyResolvedConnection($resolvedTenant);
         }
 
         if (! $kec) {
-            $kab = Kabupaten::whereIn('web_kab', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
-                ->first();
-            if (! $kab) {
-                $kab = Kabupaten::on('mysql_b')->whereIn('web_kab', [$domain, $domainId, $domainNet])
-                    ->orWhereIn('web_kab_alternatif', [$domain, $domainId, $domainNet])
-                    ->first();
-            }
-            if (! $kab) {
-                abort(404, 'Lembaga atau domain tidak terdaftar');
-            }
-
-            return redirect('/kab');
+            abort(404, 'Lembaga atau domain tidak terdaftar');
         }
 
         $invoice = AdminInvoice::on('mysql')->where([
@@ -113,18 +104,14 @@ class AuthController extends Controller
         }
 
         $domain = strtolower(trim($url));
-        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
-        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
 
-        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
-            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-            ->with('kabupaten')
-            ->first();
-        if (! $kec) {
-            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-                ->with('kabupaten')
-                ->first();
+        $resolvedTenant = TenantResolver::resolveByDomain($domain);
+        $kec = ($resolvedTenant && $resolvedTenant['type'] === 'kecamatan')
+            ? Kecamatan::on($resolvedTenant['connection'])->find($resolvedTenant['tenant']->id)
+            : null;
+
+        if ($kec) {
+            TenantResolver::applyResolvedConnection($resolvedTenant);
         }
 
         if (!$kec) {
@@ -292,19 +279,17 @@ class AuthController extends Controller
 
         $url = $request->getHost();
         $domain = strtolower(trim($url));
-        $domainId = str_replace('sidbm.net', 'sidbm.id', $domain);
-        $domainNet = str_replace('sidbm.id', 'sidbm.net', $domain);
 
         $username = $uname;
         $password = $uname;
 
-        $kec = Kecamatan::whereIn('web_kec', [$domain, $domainId, $domainNet])
-            ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-            ->first();
-        if (! $kec) {
-            $kec = Kecamatan::on('mysql_b')->whereIn('web_kec', [$domain, $domainId, $domainNet])
-                ->orWhereIn('web_alternatif', [$domain, $domainId, $domainNet])
-                ->first();
+        $resolvedTenant = TenantResolver::resolveByDomain($domain);
+        $kec = ($resolvedTenant && $resolvedTenant['type'] === 'kecamatan')
+            ? Kecamatan::on($resolvedTenant['connection'])->find($resolvedTenant['tenant']->id)
+            : null;
+
+        if ($kec) {
+            TenantResolver::applyResolvedConnection($resolvedTenant);
         }
 
         if (!$kec) {

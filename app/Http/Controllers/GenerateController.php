@@ -7,6 +7,7 @@ use App\Models\PinjamanKelompok;
 use App\Models\RealAngsuran;
 use App\Models\RencanaAngsuran;
 use App\Services\GenerateService;
+use App\Support\TenantResolver;
 use App\Utils\Keuangan;
 use Illuminate\Http\Request;
 use Session;
@@ -23,22 +24,16 @@ class GenerateController extends Controller
 
     public function index()
     {
-        $domain = request()->getHost();
-        $domainId = str_replace('.net', '.id', $domain);
+        $resolvedTenant = TenantResolver::resolveByDomain(request()->getHost());
 
-        $tenantFromB = \Illuminate\Support\Facades\DB::connection('mysql_b')
-            ->table('kecamatan')
-            ->where('web_kec', $domainId)
-            ->orWhere('web_alternatif', $domainId)
-            ->first();
-
-        if ($tenantFromB) {
-            $kec = Kecamatan::on('mysql_b')->find($tenantFromB->id);
+        if ($resolvedTenant && $resolvedTenant['type'] === 'kecamatan') {
+            $connection = $resolvedTenant['connection'];
+            $kec = Kecamatan::on($connection)->find($resolvedTenant['tenant']->id);
         } else {
-            $kec = Kecamatan::where('web_kec', $domain)
-                ->orWhere('web_alternatif', $domain)
-                ->first();
+            abort(404, 'Lembaga tidak ditemukan');
         }
+
+        config(['database.default' => $connection]);
 
         Session::put('lokasi', $kec->id);
 
