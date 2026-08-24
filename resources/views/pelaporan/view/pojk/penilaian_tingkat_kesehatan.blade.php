@@ -26,7 +26,7 @@
         </tr>
         <tr>
             <td colspan="3" align="center" style="font-size: 11px;">
-                (Berdasarkan Parameter POJK tentang Penilaian Tingkat Kesehatan LKM)
+                (Berdasarkan Parameter POJK tentang Penilaian Tingkat Kesehatan Lembaga)
             </td>
         </tr>
     </table>
@@ -35,13 +35,13 @@
     <table border="0" width="100%" cellspacing="0" cellpadding="2" style="font-size: 10px;">
         <tr>
             <td width="3%" valign="top">1.</td>
-            <td width="35%" valign="top">Nama LKM</td>
+            <td width="35%" valign="top">Nama Lembaga</td>
             <td width="62%" valign="top">: <b>{{ $kec->nama_lembaga_long }}</b></td>
         </tr>
         <tr>
             <td valign="top">2.</td>
-            <td valign="top">Sandi LKM</td>
-            <td valign="top">: {{ $kec->sandi_lkm }}</td>
+            <td valign="top">Sandi Lembaga</td>
+            <td valign="top">: {{ $kec->sandi_Lembaga }}</td>
         </tr>
         <tr>
             <td valign="top">3.</td>
@@ -236,25 +236,25 @@
             <td class="t l b r" align="center">PK 1</td>
             <td class="t l b r">Sangat Sehat</td>
             <td class="t l b r" align="center">81 - 100</td>
-            <td class="t l b r">LKM dalam kondisi sangat sehat, seluruh rasio terpenuhi dengan margin kuat.</td>
+            <td class="t l b r">Lembaga dalam kondisi sangat sehat, seluruh rasio terpenuhi dengan margin kuat.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 2</td>
             <td class="t l b r">Sehat</td>
             <td class="t l b r" align="center">66 - &lt;81</td>
-            <td class="t l b r">LKM sehat, seluruh rasio utama terpenuhi.</td>
+            <td class="t l b r">Lembaga sehat, seluruh rasio utama terpenuhi.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 3</td>
             <td class="t l b r">Cukup Sehat</td>
             <td class="t l b r" align="center">51 - &lt;66</td>
-            <td class="t l b r">LKM cukup sehat, terdapat sebagian kecil rasio yang perlu perbaikan.</td>
+            <td class="t l b r">Lembaga cukup sehat, terdapat sebagian kecil rasio yang perlu perbaikan.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 4</td>
             <td class="t l b r">Kurang Sehat</td>
             <td class="t l b r" align="center">&lt;51 (kecuali trigger PK 5)</td>
-            <td class="t l b r">LKM kurang sehat, beberapa rasio tidak memenuhi batas.</td>
+            <td class="t l b r">Lembaga kurang sehat, beberapa rasio tidak memenuhi batas.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 5</td>
