@@ -12,6 +12,24 @@ class User extends Authenticatable
     use HasFactory, HasApiTokens;
     public $timestamps = false;
 
+    /**
+     * Filter user yang aktif berdasarkan masa keanggotaan:
+     * status = 1, sejak < $tanggal, dan hingga >= $tanggal
+     * (atau hingga NULL = tanpa batas waktu, tetap dianggap aktif).
+     */
+    public function scopeAktif($query, ?string $tanggal = null)
+    {
+        $tanggal = $tanggal ?: date('Y-m-d');
+
+        return $query
+            ->where('status', '1')
+            ->where('sejak', '<', $tanggal)
+            ->where(function ($q) use ($tanggal) {
+                $q->where('hingga', '>=', $tanggal)
+                    ->orWhereNull('hingga');
+            });
+    }
+
     public function j()
     {
         return $this->belongsTo(Jabatan::class, 'jabatan');

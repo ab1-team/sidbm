@@ -167,7 +167,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = User::where([['uname', $username], ['lokasi', $lokasi]])->first();
+        $user = User::where([['uname', $username], ['lokasi', $lokasi]])->aktif()->first();
         if ($user) {
             if ($password === $user->pass) {
                 if (Auth::loginUsingId($user->id)) {
@@ -309,7 +309,7 @@ class AuthController extends Controller
             'lokasi' => $lokasi,
         ]);
 
-        $user = User::where([['uname', $username], ['lokasi', $lokasi]])->first();
+        $user = User::where([['uname', $username], ['lokasi', $lokasi]])->aktif()->first();
         if ($user) {
             if ($password === $user->pass) {
                 if (Auth::loginUsingId($user->id)) {
@@ -432,7 +432,7 @@ class AuthController extends Controller
                 ['lokasi', $kec->id],
                 ['jabatan', '1'],
                 ['level', '1'],
-            ])->first();
+            ])->aktif()->first();
 
             $return['dir'] = $dir->hp;
         }

@@ -2691,19 +2691,19 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $sekr = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $dir_utama = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $gambar = $kec->logo;
 
@@ -2722,19 +2722,19 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $sekr = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $dir_utama = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $gambar = $kec->logo;
 
@@ -2753,19 +2753,19 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $sekr = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $dir_utama = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $gambar = $kec->logo;
 
@@ -2784,19 +2784,19 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $sekr = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $dir_utama = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $gambar = $kec->logo;
 
@@ -2815,13 +2815,13 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $data['sekr'] = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $logo = $data['kec']->logo;
         $data['gambar'] = $logo;
@@ -2845,13 +2845,13 @@ class TransaksiController extends Controller
             ['level', '1'],
             ['jabatan', '1'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $data['sekr'] = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', Session::get('lokasi')],
-        ])->first();
+        ])->aktif()->first();
 
         $logo = $data['kec']->logo;
         $data['gambar'] = $logo;

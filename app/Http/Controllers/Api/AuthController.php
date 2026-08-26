@@ -70,7 +70,7 @@ class AuthController extends Controller
                     }
                 }
 
-                $user = User::where([['uname', $data['username']], ['lokasi', $lokasi]])->first();
+                $user = User::where([['uname', $data['username']], ['lokasi', $lokasi]])->aktif()->first();
                 if ($user) {
                     if ($data['password'] === $user->pass) {
                         if (Auth::loginUsingId($user->id)) {

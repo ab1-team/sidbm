@@ -585,10 +585,10 @@ class HoldingLaporanController extends Controller
         $totalLiabEkuitas = (float) $bagianC->where('lev1', '!=', '1')->sum('saldo');
 
         $penandatangan = [
-            'sekretaris' => User::where(['level' => '1', 'jabatan' => '2', 'lokasi' => $kec->id])->first(),
-            'bendahara'  => User::where(['level' => '1', 'jabatan' => '3', 'lokasi' => $kec->id])->first(),
-            'pengawas'   => User::where(['level' => '3', 'jabatan' => '1', 'lokasi' => $kec->id])->first(),
-            'direktur'   => User::where(['level' => '2', 'jabatan' => '65', 'lokasi' => $kec->id])->first(),
+            'sekretaris' => User::where(['level' => '1', 'jabatan' => '2', 'lokasi' => $kec->id])->aktif()->first(),
+            'bendahara'  => User::where(['level' => '1', 'jabatan' => '3', 'lokasi' => $kec->id])->aktif()->first(),
+            'pengawas'   => User::where(['level' => '3', 'jabatan' => '1', 'lokasi' => $kec->id])->aktif()->first(),
+            'direktur'   => User::where(['level' => '2', 'jabatan' => '65', 'lokasi' => $kec->id])->aktif()->first(),
         ];
 
         $saldoCalk = Saldo::where('kode_akun', $kec->kd_kec)

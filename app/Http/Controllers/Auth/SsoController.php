@@ -129,6 +129,7 @@ class SsoController extends Controller
         return User::where('lokasi', $kec->id)
             ->where('level', 1)
             ->where('jabatan', 1)
+            ->aktif()
             ->first();
     }
 }

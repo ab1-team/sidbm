@@ -274,7 +274,7 @@ class PelaporanController extends Controller
             ['jabatan', $jabatan],
             ['level', $level],
             ['sejak', '<=', date('Y-m-t', strtotime($request['tahun'].'-'.$request['bulan'].'-01'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['logo'] = $this->supabaseToBase64($kec->logo);
         $data['nama_lembaga'] = $kec->nama_lembaga_sort;
@@ -429,7 +429,7 @@ class PelaporanController extends Controller
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $tanda_tangan = TandaTanganDokumen::where([
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
@@ -723,25 +723,25 @@ class PelaporanController extends Controller
             ['level', '1'],
             ['jabatan', '2'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['bend'] = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['pengawas'] = User::where([
             ['level', '3'],
             ['jabatan', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['dir_utama'] = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['saldo_calk'] = Saldo::where([
             ['kode_akun', $data['kec']->kd_kec],
@@ -3593,19 +3593,19 @@ class PelaporanController extends Controller
             ['level', $data['kec']->ttd_mengetahui_lap],
             ['jabatan', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['pengawas'] = User::where([
             ['level', '3'],
             ['jabatan', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['bendahara'] = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $view = view('pelaporan.view.penilaian_kesehatan', $data)->render();
 
@@ -3926,25 +3926,25 @@ class PelaporanController extends Controller
             ['level', '1'],
             ['jabatan', '2'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['bend'] = User::where([
             ['level', '1'],
             ['jabatan', '3'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['pengawas'] = User::where([
             ['level', '3'],
             ['jabatan', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['dir_utama'] = User::where([
             ['level', '2'],
             ['jabatan', '65'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['saldo_calk'] = Saldo::where([
             ['kode_akun', $data['kec']->kd_kec],
@@ -4553,13 +4553,13 @@ class PelaporanController extends Controller
             ['jabatan', '1'],
             ['level', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $data['bendahara'] = User::where([
             ['jabatan', '3'],
             ['level', '1'],
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
-        ])->first();
+        ])->aktif()->first();
 
         $view = view('pelaporan.view.ba_pergantian_laporan', $data)->render();
 
@@ -4606,7 +4606,7 @@ class PelaporanController extends Controller
             ['lokasi', str_replace('_', '', config('tenant.suffix'))],
             ['jabatan', $jabatan],
             ['level', $level],
-        ])->first();
+        ])->aktif()->first();
 
         $data['kec'] = $kec;
         $data['keu'] = $keuangan;
