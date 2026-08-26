@@ -71,13 +71,15 @@ class IdentifyTenant
         if (auth()->guard('kab')->check()) {
             $kabId = session('kd_kab');
             if ($kabId) {
-                $kabRow = DB::connection(TenantResolver::CONNECTION_A)
+                $connection = TenantResolver::CONNECTION_A;
+                $kabRow = DB::connection($connection)
                     ->table('kabupaten')
                     ->where('kd_kab', $kabId)
                     ->first();
 
                 if (! $kabRow) {
-                    $kabRow = DB::connection(TenantResolver::CONNECTION_B)
+                    $connection = TenantResolver::CONNECTION_B;
+                    $kabRow = DB::connection($connection)
                         ->table('kabupaten')
                         ->where('kd_kab', $kabId)
                         ->first();
@@ -85,7 +87,7 @@ class IdentifyTenant
 
                 if ($kabRow) {
                     TenantResolver::applyResolvedConnection([
-                        'connection' => $kabRow->getConnectionName(),
+                        'connection' => $connection,
                     ]);
                     config(['tenant.suffix' => "_" . $kabRow->id]);
                     TenantResolver::markAsKabupaten();
