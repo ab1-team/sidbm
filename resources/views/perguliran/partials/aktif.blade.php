@@ -272,58 +272,68 @@
 @endif
 
 @php
-    $Class = '';
+    $CetakDokumenProposal = false;
+    $CetakDokumenPencairan = false;
+    $CetakDokumenVerifikasi = $perguliran->status == 'L';
     $CetakDokumen = false;
-    if (
-        in_array('tahapan_perguliran.aktif.cetak_dokumen_proposal', Session::get('tombol')) ||
-        in_array('tahapan_perguliran.aktif.cetak_dokumen_pencairan', Session::get('tombol'))
-    ) {
-        $Class = 'col-12 col-sm-6 col-md-6';
+
+    $jumlahCetak = 0;
+    if (in_array('tahapan_perguliran.aktif.cetak_dokumen_proposal', Session::get('tombol'))) {
+        $CetakDokumenProposal = true;
         $CetakDokumen = true;
+        $jumlahCetak++;
+    }
 
-        if (!in_array('tahapan_perguliran.aktif.cetak_dokumen_proposal', Session::get('tombol'))) {
-            $Class = 'col-12 col-sm-12 col-md-12';
-        }
+    if (in_array('tahapan_perguliran.aktif.cetak_dokumen_pencairan', Session::get('tombol'))) {
+        $CetakDokumenPencairan = true;
+        $CetakDokumen = true;
+        $jumlahCetak++;
+    }
 
-        if (!in_array('tahapan_perguliran.aktif.cetak_dokumen_pencairan', Session::get('tombol'))) {
-            $Class = 'col-12 col-sm-12 col-md-12';
-        }
+    if ($CetakDokumenVerifikasi) {
+        $CetakDokumen = true;
+        $jumlahCetak++;
+    }
+
+    $Class = '';
+    if ($jumlahCetak > 0) {
+        $Class = 'col-12 col-sm-' . 12 / $jumlahCetak . ' col-md-' . 12 / $jumlahCetak;
     }
 @endphp
 
 @if ($CetakDokumen)
     <div class="card card-body p-2 pb-0 mb-3">
         <div class="row">
-            <div class="{{ $Class }}">
-                <div class="d-grid">
-                    <button type="button" data-bs-toggle="modal" data-bs-target="#CetakDokumenProposal"
-                        class="btn btn-info btn-sm mb-2">Cetak Dokumen Proposal</button>
+            @if ($CetakDokumenProposal)
+                <div class="{{ $Class }}">
+                    <div class="d-grid">
+                        <button type="button" data-bs-toggle="modal" data-bs-target="#CetakDokumenProposal"
+                            class="btn btn-info btn-sm mb-2">Cetak Dokumen Proposal</button>
+                    </div>
                 </div>
-            </div>
-            <div class="{{ $Class }}">
-                <div class="d-grid">
-                    <button type="button" data-bs-toggle="modal" data-bs-target="#CetakDokumenPencairan"
-                        class="btn btn-info btn-sm mb-2">Cetak Dokumen Pencairan</button>
+            @endif
+            @if ($CetakDokumenPencairan)
+                <div class="{{ $Class }}">
+                    <div class="d-grid">
+                        <button type="button" data-bs-toggle="modal" data-bs-target="#CetakDokumenPencairan"
+                            class="btn btn-info btn-sm mb-2">Cetak Dokumen Pencairan</button>
+                    </div>
                 </div>
-            </div>
+            @endif
+            @if ($CetakDokumenVerifikasi)
+                <div class="{{ $Class }}">
+                    <div class="d-grid">
+                        <button type="button" id="BtnCetakDokVerifikasi" class="btn btn-info btn-sm mb-2">
+                            Dok. Verifikasi
+                        </button>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 @endif
 
-{{-- Tombol Dok. Verifikasi (riwayat) - hanya untuk pinjaman yang sudah lunas --}}
-@if ($perguliran->status == 'L')
-    <div class="card card-body p-2 pb-0 mb-3">
-        <div class="row">
-            <div class="col-12 col-sm-6 col-md-6">
-                <div class="d-grid">
-                    <button type="button" id="BtnCetakDokVerifikasi" class="btn btn-info btn-sm mb-2">
-                        Dok. Verifikasi
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+@if ($CetakDokumenVerifikasi)
     <form action="/perguliran/dokumen?status=L&jenis=dokumen_verifikasi" target="_blank" method="post"
         id="formCetakDokVerifikasi">
         @csrf
