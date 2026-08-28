@@ -310,6 +310,29 @@
     </div>
 @endif
 
+{{-- Tombol Dok. Verifikasi (riwayat) - hanya untuk pinjaman yang sudah lunas --}}
+@if ($perguliran->status == 'L')
+    <div class="card card-body p-2 pb-0 mb-3">
+        <div class="row">
+            <div class="col-12 col-sm-6 col-md-6">
+                <div class="d-grid">
+                    <button type="button" id="BtnCetakDokVerifikasi" class="btn btn-info btn-sm mb-2">
+                        Dok. Verifikasi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form action="/perguliran/dokumen?status=L&jenis=dokumen_verifikasi" target="_blank" method="post"
+        id="formCetakDokVerifikasi">
+        @csrf
+
+        <input type="hidden" name="id" value="{{ $perguliran->id }}">
+        <input type="hidden" name="report" value="formVerifikasi#pdf">
+    </form>
+@endif
+
 <div class="card mb-3 {{ $perguliran->status == 'T' ? 'd-none' : '' }}">
     <div class="card-body pb-2">
         <h5 class="mb-1">

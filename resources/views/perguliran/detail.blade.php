@@ -1001,6 +1001,12 @@
             $('#formCetakRekomTV').submit()
         })
 
+        $(document).on('click', '#BtnCetakDokVerifikasi', function(e) {
+            e.preventDefault()
+
+            $('#formCetakDokVerifikasi').submit()
+        })
+
         $(document).on('click', '#btnCatatanBimbingan', function() {
             catatan()
         })
