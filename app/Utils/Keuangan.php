@@ -1240,11 +1240,18 @@ class Keuangan
     }
 
     /**
-     * Menghasilkan daftar detail pinjaman (per kelompok) yang diklasifikasikan
-     * ke 5 kolektibilitas POJK (Lancar/DPK/KL/Diragukan/Macet). Dipakai untuk
-     * section G laporan kolektabilitas pada PTK_POJK.
+     * Menghasilkan daftar detail pinjaman yang diklasifikasikan ke 5 kolektibilitas
+     * POJK (Lancar/DPK/KL/Diragukan/Macet). Dipakai untuk lampiran kolektibilitas
+     * pada laporan PTK_POJK.
      *
-     * Return: array ['detail_kelompok' => [...], 'total' => [alokasi,saldo,t_kolek1..t_kolek5]]
+     * Urutan/struktur data mengikuti laporan kolektibilitas DBM versi klasik
+     * (kolek_kelompok): per jenis produk pinjaman (JPP) -> per desa -> per kelompok,
+     * lengkap dengan subtotal per desa ("Jumlah {desa}") dan total per JPP.
+     *
+     * Return: array [
+     *   'detail' => [ ['nama_jpp' => ..., 'desa' => [ ['nama_desa', 'kode_desa', 'sebutan_desa', 'rows' => [...], 'tot' => [...], 'jpp_tot' => ... ] ] ], ... ],
+     *   'total'  => [alokasi, saldo, kolek1..kolek5],
+     * ]
      */
     public function ptkPojkKolekDetail($tgl_kondisi)
     {
@@ -1257,7 +1264,10 @@ class Keuangan
                     $query->select('id', 'nama_kelompok', 'desa', 'ketua');
                 },
                 'kelompok.d' => function ($query) {
-                    $query->select('kd_desa', 'nama_desa', 'sebutan');
+                    $query->select('kd_desa', 'nama_desa', 'kode_desa', 'sebutan');
+                },
+                'kelompok.d.sebutan_desa' => function ($query) {
+                    $query->select('id', 'sebutan_desa');
                 },
                 'jpp' => function ($query) {
                     $query->select('id', 'nama_jpp', 'lokasi');
@@ -1304,7 +1314,7 @@ class Keuangan
             ->orderBy('tgl_cair', 'ASC')
             ->get();
 
-        $detail_per_kelompok = [];
+        $detail_per_jpp = [];
         $tot = [
             'alokasi' => 0, 'saldo' => 0,
             'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
@@ -1313,9 +1323,16 @@ class Keuangan
         foreach ($pinjaman_kelompok as $pinkel) {
             $saldo_pokok = $pinkel->alokasi;
             $saldo_jasa = $pinkel->pros_jasa > 0 ? $pinkel->alokasi * ($pinkel->pros_jasa / 100) : 0;
+            $sum_pokok = 0;
+            $sum_jasa = 0;
             if ($pinkel->saldo) {
+                $sum_pokok = $pinkel->saldo->sum_pokok;
+                $sum_jasa = $pinkel->saldo->sum_jasa;
                 $saldo_pokok = $pinkel->saldo->saldo_pokok;
                 $saldo_jasa = $pinkel->saldo->saldo_jasa;
+            }
+            if ($saldo_jasa < 0) {
+                $saldo_jasa = 0;
             }
 
             $target_pokok = 0;
@@ -1331,35 +1348,44 @@ class Keuangan
                 $angsuran_ke = $pinkel->target->angsuran_ke;
             }
 
+            $tunggakan_pokok = $target_pokok - $sum_pokok;
+            if ($tunggakan_pokok < 0) {
+                $tunggakan_pokok = 0;
+            }
+            $tunggakan_jasa = $target_jasa - $sum_jasa;
+            if ($tunggakan_jasa < 0) {
+                $tunggakan_jasa = 0;
+            }
+
+            $pross = $pinkel->alokasi > 0 ? ($saldo_pokok / $pinkel->alokasi) : 0;
+
             if ($pinkel->tgl_lunas <= $tgl_kondisi && in_array($pinkel->status, ['L', 'R', 'H'], true)) {
                 $tunggakan_pokok = 0;
                 $tunggakan_jasa = 0;
                 $saldo_pokok = 0;
                 $saldo_jasa = 0;
-            } else {
-                $tunggakan_pokok = $wajib_pokok - $target_pokok;
-                if ($tunggakan_pokok < 0) {
-                    $tunggakan_pokok = 0;
-                }
-                $tunggakan_jasa = $wajib_jasa - $target_jasa;
-                if ($tunggakan_jasa < 0) {
-                    $tunggakan_jasa = 0;
-                }
             }
 
-            if ($saldo_pokok <= 0) {
-                continue;
+            $tgl_angsur = $tgl_kondisi;
+            if ($pinkel->target) {
+                $tgl_angsur = $pinkel->target->jatuh_tempo;
             }
+            $tgl_akhir = new \DateTime($tgl_kondisi);
+            if ($saldo_pokok == 0) {
+                $tgl_akhir = new \DateTime($tgl_angsur);
+            }
+            $tgl_awal = new \DateTime($pinkel->tgl_cair);
+            $selisih = $tgl_akhir->diff($tgl_awal);
+            $selisih_bulan = ($selisih->y * 12) + $selisih->m;
 
-            $pross = $pinkel->alokasi > 0 ? ($saldo_pokok / $pinkel->alokasi) : 0;
-
-            $tgl_cair = new \DateTime($pinkel->tgl_cair);
-            $tgl_kond = new \DateTime($tgl_kondisi);
-            $diff = $tgl_kond->diff($tgl_cair);
-            $selisih_bulan = ($diff->y * 12) + $diff->m;
-
-            $rasio_tunggakan = $wajib_pokok > 0 ? ($tunggakan_pokok / $wajib_pokok) : 0;
-            $bulan_tunggak = round($rasio_tunggakan + ($selisih_bulan - $angsuran_ke));
+            $_kolek = 0;
+            if ($wajib_pokok != '0') {
+                $_kolek = $tunggakan_pokok / $wajib_pokok;
+            }
+            $bulan_tunggak = round($_kolek + ($selisih_bulan - $angsuran_ke));
+            if ($saldo_pokok == 0) {
+                $bulan_tunggak = 0;
+            }
 
             if ($bulan_tunggak <= 3) {
                 $kategori = 1;
@@ -1374,8 +1400,11 @@ class Keuangan
             }
 
             $nama_kelompok = $pinkel->kelompok ? $pinkel->kelompok->nama_kelompok : '-';
-            $sebutan_desa = ($pinkel->kelompok && $pinkel->kelompok->d) ? $pinkel->kelompok->d->sebutan : null;
-            $nama_desa = ($pinkel->kelompok && $pinkel->kelompok->d) ? $pinkel->kelompok->d->nama_desa : '-';
+            $desa = $pinkel->kelompok ? $pinkel->kelompok->d : null;
+            $kd_desa = $desa ? $desa->kd_desa : '0';
+            $kode_desa = $desa ? $desa->kode_desa : '';
+            $nama_desa = $desa ? $desa->nama_desa : '-';
+            $sebutan_desa = ($desa && $desa->sebutan_desa) ? $desa->sebutan_desa->sebutan_desa : 'Desa';
             $nama_jpp = $pinkel->jpp ? $pinkel->jpp->nama_jpp : '-';
 
             $anggota_list = [];
@@ -1395,6 +1424,8 @@ class Keuangan
                 'tgl_cair' => $pinkel->tgl_cair,
                 'nama_jpp' => $nama_jpp,
                 'nama_kelompok' => $nama_kelompok,
+                'kd_desa' => $kd_desa,
+                'kode_desa' => $kode_desa,
                 'nama_desa' => $nama_desa,
                 'sebutan_desa' => $sebutan_desa,
                 'alokasi' => (float) $pinkel->alokasi,
@@ -1409,9 +1440,23 @@ class Keuangan
                 'anggota' => $anggota_list,
             ];
 
-            if (!isset($detail_per_kelompok[$pinkel->jenis_pp])) {
-                $detail_per_kelompok[$pinkel->jenis_pp] = [
+            // Struktur: JPP -> desa -> rows kelompok
+            if (! isset($detail_per_jpp[$pinkel->jenis_pp])) {
+                $detail_per_jpp[$pinkel->jenis_pp] = [
                     'nama_jpp' => $nama_jpp,
+                    'desa' => [],
+                    'tot' => [
+                        'alokasi' => 0, 'saldo' => 0,
+                        'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
+                    ],
+                ];
+            }
+            if (! isset($detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa])) {
+                $detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa] = [
+                    'kd_desa' => $kd_desa,
+                    'kode_desa' => $kode_desa,
+                    'nama_desa' => $nama_desa,
+                    'sebutan_desa' => $sebutan_desa,
                     'rows' => [],
                     'tot' => [
                         'alokasi' => 0, 'saldo' => 0,
@@ -1419,19 +1464,34 @@ class Keuangan
                     ],
                 ];
             }
-            $detail_per_kelompok[$pinkel->jenis_pp]['rows'][] = $row;
-            $detail_per_kelompok[$pinkel->jenis_pp]['tot']['alokasi'] += (float) $pinkel->alokasi;
-            $detail_per_kelompok[$pinkel->jenis_pp]['tot']['saldo'] += (float) $saldo_pokok;
+
             $key = 'kolek'.$kategori;
-            $detail_per_kelompok[$pinkel->jenis_pp]['tot'][$key] += (float) $saldo_pokok;
+
+            $detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa]['rows'][] = $row;
+            $detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa]['tot']['alokasi'] += (float) $pinkel->alokasi;
+            $detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa]['tot']['saldo'] += (float) $saldo_pokok;
+            $detail_per_jpp[$pinkel->jenis_pp]['desa'][$kd_desa]['tot'][$key] += (float) $saldo_pokok;
+
+            $detail_per_jpp[$pinkel->jenis_pp]['tot']['alokasi'] += (float) $pinkel->alokasi;
+            $detail_per_jpp[$pinkel->jenis_pp]['tot']['saldo'] += (float) $saldo_pokok;
+            $detail_per_jpp[$pinkel->jenis_pp]['tot'][$key] += (float) $saldo_pokok;
 
             $tot['alokasi'] += (float) $pinkel->alokasi;
             $tot['saldo'] += (float) $saldo_pokok;
             $tot[$key] += (float) $saldo_pokok;
         }
 
+        // urutkan desa by kode_desa, sama seperti orderBy desa pada kolek kelompok
+        foreach ($detail_per_jpp as &$jppItem) {
+            uasort($jppItem['desa'], function ($a, $b) {
+                return [$a['kode_desa'], $a['nama_desa']] <=> [$b['kode_desa'], $b['nama_desa']];
+            });
+            $jppItem['desa'] = array_values($jppItem['desa']);
+        }
+        unset($jppItem);
+
         return [
-            'detail' => array_values($detail_per_kelompok),
+            'detail' => array_values($detail_per_jpp),
             'total' => $tot,
         ];
     }

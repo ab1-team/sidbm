@@ -48,7 +48,7 @@
 
     @forelse ($detail as $jpp)
         @php
-            $rows = $jpp['rows'] ?? [];
+            $desaList = $jpp['desa'] ?? [];
             $t = $jpp['tot'] ?? [
                 'alokasi' => 0, 'saldo' => 0,
                 'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
@@ -87,25 +87,52 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($rows as $row)
-                    <tr>
-                        <td class="t l b r" align="center">{{ $nomor++ }}</td>
-                        <td class="t l b r" align="center">{{ $row['id'] }}</td>
-                        <td class="t l b r" align="center">{{ Tanggal::tglLatin($row['tgl_cair']) }}</td>
-                        <td class="t l b r">{{ $row['nama_kelompok'] }} - {{ $row['sebutan_desa'] ?? 'Desa' }} {{ $row['nama_desa'] }}</td>
-                        <td class="t l b r" align="right">{{ number_format($row['alokasi'], 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($row['saldo_pokok'], 0, ',', '.') }}</td>
-                        <td class="t l b r" align="center">{{ number_format(floor($row['pross'] * 100), 0) }}</td>
-                        <td class="t l b r" align="right">{{ number_format($row['tunggakan_pokok'], 0, ',', '.') }}</td>
-                        <td class="t l b r" align="center">{{ $row['bulan_tunggak'] }}</td>
-                        <td class="t l b r" align="right" style="{{ $row['kategori'] == 1 ? 'background: rgb(212,237,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 1 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                        <td class="t l b r" align="right" style="{{ $row['kategori'] == 2 ? 'background: rgb(255,243,205); font-weight: bold;' : '' }}">{{ $row['kategori'] == 2 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                        <td class="t l b r" align="right" style="{{ $row['kategori'] == 3 ? 'background: rgb(255,224,192); font-weight: bold;' : '' }}">{{ $row['kategori'] == 3 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                        <td class="t l b r" align="right" style="{{ $row['kategori'] == 4 ? 'background: rgb(248,215,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 4 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                        <td class="t l b r" align="right" style="{{ $row['kategori'] == 5 ? 'background: rgb(220,53,69); color: #fff; font-weight: bold;' : '' }}">{{ $row['kategori'] == 5 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                        <td class="t l b r" align="center">{{ $row['status_pinjaman'] }}</td>
+                @foreach ($desaList as $desa)
+                    {{-- header desa, gaya kolek kelompok DBM: "{kode}. {nama desa}" --}}
+                    <tr style="font-weight: bold; background: rgb(245,245,245);">
+                        <td class="t l b r" colspan="15" align="left">
+                            {{ $desa['kode_desa'] }}. {{ $desa['sebutan_desa'] ?? 'Desa' }} {{ $desa['nama_desa'] }}
+                        </td>
+                    </tr>
+                    @php
+                        $nomor = 1;
+                    @endphp
+                    @foreach ($desa['rows'] as $row)
+                        <tr>
+                            <td class="t l b r" align="center">{{ $nomor++ }}</td>
+                            <td class="t l b r" align="center">{{ $row['id'] }}</td>
+                            <td class="t l b r" align="center">{{ Tanggal::tglLatin($row['tgl_cair']) }}</td>
+                            <td class="t l b r">{{ $row['nama_kelompok'] }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['alokasi'], 0, ',', '.') }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['saldo_pokok'], 0, ',', '.') }}</td>
+                            <td class="t l b r" align="center">{{ number_format(floor($row['pross'] * 100), 0) }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['tunggakan_pokok'], 0, ',', '.') }}</td>
+                            <td class="t l b r" align="center">{{ $row['bulan_tunggak'] }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 1 ? 'background: rgb(212,237,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 1 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 2 ? 'background: rgb(255,243,205); font-weight: bold;' : '' }}">{{ $row['kategori'] == 2 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 3 ? 'background: rgb(255,224,192); font-weight: bold;' : '' }}">{{ $row['kategori'] == 3 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 4 ? 'background: rgb(248,215,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 4 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 5 ? 'background: rgb(220,53,69); color: #fff; font-weight: bold;' : '' }}">{{ $row['kategori'] == 5 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="center">{{ $row['status_pinjaman'] }}</td>
+                        </tr>
+                    @endforeach
+                    {{-- subtotal per desa --}}
+                    <tr style="font-weight: bold; background: rgb(250,250,245);">
+                        <td class="t l b r" colspan="4" align="right">Jumlah {{ $desa['sebutan_desa'] ?? 'Desa' }} {{ $desa['nama_desa'] }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['alokasi'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['saldo'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="center">-</td>
+                        <td class="t l b r" align="right">-</td>
+                        <td class="t l b r" align="center">-</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek1'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek2'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek3'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek4'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek5'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="center">-</td>
                     </tr>
                 @endforeach
+                {{-- total per JPP --}}
                 <tr style="background: rgb(232,232,232); font-weight: bold;">
                     <td class="t l b r" colspan="4" align="right">JUMLAH {{ strtoupper($jpp['nama_jpp'] ?? '-') }}</td>
                     <td class="t l b r" align="right">{{ number_format($t['alokasi'], 0, ',', '.') }}</td>
