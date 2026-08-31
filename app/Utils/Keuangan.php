@@ -1087,7 +1087,7 @@ class Keuangan
                 }
             } elseif ($lev1 === 2) {
                 $total_liabilitas += $saldo;
-                if ($lev2 === 1 && $lev4 === 0) {
+                if ($lev2 === 1) {
                     $liabilitas_lancar += $saldo;
                 }
             } elseif ($lev1 === 3) {
