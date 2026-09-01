@@ -76,47 +76,47 @@
             <tr>
                 <td class="t l b r" align="center">1</td>
                 <td class="t l b r">Total Aset</td>
-                <td class="t l b r" align="right">{{ number_format($a['total_aset'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['total_aset'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">2</td>
                 <td class="t l b r">Total Liabilitas</td>
-                <td class="t l b r" align="right">{{ number_format($a['total_liabilitas'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['total_liabilitas'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">3</td>
                 <td class="t l b r">Kas & Setara Kas (Akun 1.1.01 & 1.1.02)</td>
-                <td class="t l b r" align="right">{{ number_format($a['kas_setara_kas'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['kas_setara_kas'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">4</td>
                 <td class="t l b r">Liabilitas Lancar (Akun 2.1.xx)</td>
-                <td class="t l b r" align="right">{{ number_format($a['liabilitas_lancar'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['liabilitas_lancar'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">5</td>
                 <td class="t l b r">Modal Disetor (Akun 3.1.01.xx)</td>
-                <td class="t l b r" align="right">{{ number_format($a['modal_disetor'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['modal_disetor'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">6</td>
                 <td class="t l b r">Total Ekuitas (Akun 3.xx)</td>
-                <td class="t l b r" align="right">{{ number_format($a['total_ekuitas'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['total_ekuitas'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">7</td>
                 <td class="t l b r">Total Outstanding Pinjaman</td>
-                <td class="t l b r" align="right">{{ number_format($a['outstanding_pinjaman'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['outstanding_pinjaman'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">8</td>
                 <td class="t l b r">Nilai Pinjaman Bermasalah (Kurang Lancar + Diragukan + Macet)</td>
-                <td class="t l b r" align="right">{{ number_format($a['npl_neto'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['npl_neto'], 0, '.', ',') }}</td>
             </tr>
             <tr>
                 <td class="t l b r" align="center">9</td>
                 <td class="t l b r">Cadangan PPAP yang Dibentuk (Akun 1.1.14)</td>
-                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'], 0, '.', ',') }}</td>
             </tr>
         </tbody>
     </table>
@@ -154,7 +154,7 @@
                 <td class="t l b r" align="center">12,5%</td>
                 <td class="t l b r" align="right"><b>{{ number_format($a['rasio_solvabilitas'], 2) }}%</b></td>
                 <td class="t l b r" align="center">Min. 110%</td>
-                <td class="t l b r" align="center">{{ number_format(($a['skor_permodalan']), 1) }}</td>
+                <td class="t l b r" align="center" rowspan="2" style="vertical-align: middle;"><b>{{ number_format(($a['skor_permodalan']), 1) }}</b></td>
                 <td class="t l b r" align="center">{{ $status_sol }}</td>
             </tr>
             <tr>
@@ -162,7 +162,6 @@
                 <td class="t l b r" align="center">12,5%</td>
                 <td class="t l b r" align="right"><b>{{ number_format($a['rasio_ekuitas'], 2) }}%</b></td>
                 <td class="t l b r" align="center">Min. 75%</td>
-                <td class="t l b r" align="center">-</td>
                 <td class="t l b r" align="center">{{ $status_ek }}</td>
             </tr>
             <tr>
@@ -172,7 +171,7 @@
                 <td class="t l b r" align="center">21%</td>
                 <td class="t l b r" align="right"><b>{{ number_format($a['rasio_npl_neto'], 2) }}%</b></td>
                 <td class="t l b r" align="center">Maks. 5%</td>
-                <td class="t l b r" align="center">{{ number_format($a['skor_kualitas_aset'], 1) }}</td>
+                <td class="t l b r" align="center" rowspan="2" style="vertical-align: middle;"><b>{{ number_format($a['skor_kualitas_aset'], 1) }}</b></td>
                 <td class="t l b r" align="center">{{ $status_npl }}</td>
             </tr>
             <tr>
@@ -180,7 +179,6 @@
                 <td class="t l b r" align="center">14%</td>
                 <td class="t l b r" align="right"><b>{{ number_format($a['ppap_coverage'], 2) }}%</b></td>
                 <td class="t l b r" align="center">Min. 100%</td>
-                <td class="t l b r" align="center">-</td>
                 <td class="t l b r" align="center">{{ $status_ppap }}</td>
             </tr>
             <tr>
@@ -343,22 +341,22 @@
                 @endphp
                 <tr>
                     <td class="t l b r">{{ $nama }} ({{ $prosentase }}%)</td>
-                    <td class="t l b r" align="right">{{ number_format($saldo, 0, ',', '.') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($saldo, 0, '.', ',') }}</td>
                     <td class="t l b r" align="center">{{ $prosentase }}%</td>
-                    <td class="t l b r" align="right">{{ number_format($ppap_wajib_row, 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($proporsi_ppap, 0, ',', '.') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($ppap_wajib_row, 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($proporsi_ppap, 0, '.', ',') }}</td>
                     <td class="t l b r" align="right" style="color: {{ $selisih < 0 ? '#dc3545' : '#198754' }};">
-                        {{ number_format($selisih, 0, ',', '.') }}
+                        {{ number_format($selisih, 0, '.', ',') }}
                     </td>
                 </tr>
             @endforeach
             <tr style="background: rgb(232,232,232); font-weight: bold;">
                 <td class="t l b r" align="right">TOTAL</td>
-                <td class="t l b r" align="right">{{ number_format(array_sum($a['sum_kolek_total']), 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format(array_sum($a['sum_kolek_total']), 0, '.', ',') }}</td>
                 <td class="t l b r" align="center">-</td>
-                <td class="t l b r" align="right">{{ number_format($a['ppap_wajib_minimum'], 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'], 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'] - $a['ppap_wajib_minimum'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['ppap_wajib_minimum'], 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'], 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['cadangan_ppap_terbentuk'] - $a['ppap_wajib_minimum'], 0, '.', ',') }}</td>
             </tr>
         </tbody>
     </table>
@@ -424,16 +422,16 @@
                     <td class="t l b r" align="center">{{ $i }}</td>
                     <td class="t l b r">{{ $row[0] }}</td>
                     <td class="t l b r" align="center">{{ $row[1] }}</td>
-                    <td class="t l b r" align="right">{{ number_format($saldo, 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($ppap_wajib_row, 0, ',', '.') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($saldo, 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($ppap_wajib_row, 0, '.', ',') }}</td>
                     <td class="t l b r" align="right">{{ number_format($pct_total, 2) }}%</td>
                     <td class="t l b r" align="center" style="{{ $color_bg }} font-weight: bold;">{{ $row[3] }}</td>
                 </tr>
             @endfor
             <tr style="background: rgb(232,232,232); font-weight: bold;">
                 <td class="t l b r" colspan="3" align="right">TOTAL</td>
-                <td class="t l b r" align="right">{{ number_format($total_g_saldo, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($a['ppap_wajib_minimum'], 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($total_g_saldo, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($a['ppap_wajib_minimum'], 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">100,00%</td>
                 <td class="t l b r" align="center">-</td>
             </tr>
