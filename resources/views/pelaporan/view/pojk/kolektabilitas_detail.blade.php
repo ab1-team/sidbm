@@ -103,48 +103,48 @@
                             <td class="t l b r" align="center">{{ $row['id'] }}</td>
                             <td class="t l b r" align="center">{{ Tanggal::tglLatin($row['tgl_cair']) }}</td>
                             <td class="t l b r">{{ $row['nama_kelompok'] }}</td>
-                            <td class="t l b r" align="right">{{ number_format($row['alokasi'], 0, ',', '.') }}</td>
-                            <td class="t l b r" align="right">{{ number_format($row['saldo_pokok'], 0, ',', '.') }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['alokasi'], 0, '.', ',') }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['saldo_pokok'], 0, '.', ',') }}</td>
                             <td class="t l b r" align="center">{{ number_format(floor($row['pross'] * 100), 0) }}</td>
-                            <td class="t l b r" align="right">{{ number_format($row['tunggakan_pokok'], 0, ',', '.') }}</td>
+                            <td class="t l b r" align="right">{{ number_format($row['tunggakan_pokok'], 0, '.', ',') }}</td>
                             <td class="t l b r" align="center">{{ $row['bulan_tunggak'] }}</td>
-                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 1 ? 'background: rgb(212,237,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 1 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 2 ? 'background: rgb(255,243,205); font-weight: bold;' : '' }}">{{ $row['kategori'] == 2 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 3 ? 'background: rgb(255,224,192); font-weight: bold;' : '' }}">{{ $row['kategori'] == 3 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 4 ? 'background: rgb(248,215,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 4 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
-                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 5 ? 'background: rgb(220,53,69); color: #fff; font-weight: bold;' : '' }}">{{ $row['kategori'] == 5 ? number_format($row['saldo_pokok'], 0, ',', '.') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 1 ? 'background: rgb(212,237,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 1 ? number_format($row['saldo_pokok'], 0, '.', ',') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 2 ? 'background: rgb(255,243,205); font-weight: bold;' : '' }}">{{ $row['kategori'] == 2 ? number_format($row['saldo_pokok'], 0, '.', ',') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 3 ? 'background: rgb(255,224,192); font-weight: bold;' : '' }}">{{ $row['kategori'] == 3 ? number_format($row['saldo_pokok'], 0, '.', ',') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 4 ? 'background: rgb(248,215,218); font-weight: bold;' : '' }}">{{ $row['kategori'] == 4 ? number_format($row['saldo_pokok'], 0, '.', ',') : '-' }}</td>
+                            <td class="t l b r" align="right" style="{{ $row['kategori'] == 5 ? 'background: rgb(220,53,69); color: #fff; font-weight: bold;' : '' }}">{{ $row['kategori'] == 5 ? number_format($row['saldo_pokok'], 0, '.', ',') : '-' }}</td>
                             <td class="t l b r" align="center">{{ $row['status_pinjaman'] }}</td>
                         </tr>
                     @endforeach
                     {{-- subtotal per desa --}}
                     <tr style="font-weight: bold; background: rgb(250,250,245);">
                         <td class="t l b r" colspan="4" align="right">Jumlah {{ $desa['sebutan_desa'] ?? 'Desa' }} {{ $desa['nama_desa'] }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['alokasi'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['saldo'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['alokasi'] ?? 0, 0, '.', ',') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['saldo'] ?? 0, 0, '.', ',') }}</td>
                         <td class="t l b r" align="center">-</td>
                         <td class="t l b r" align="right">-</td>
                         <td class="t l b r" align="center">-</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek1'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek2'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek3'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek4'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek5'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek1'] ?? 0, 0, '.', ',') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek2'] ?? 0, 0, '.', ',') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek3'] ?? 0, 0, '.', ',') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek4'] ?? 0, 0, '.', ',') }}</td>
+                        <td class="t l b r" align="right">{{ number_format($desa['tot']['kolek5'] ?? 0, 0, '.', ',') }}</td>
                         <td class="t l b r" align="center">-</td>
                     </tr>
                 @endforeach
                 {{-- total per JPP --}}
                 <tr style="background: rgb(232,232,232); font-weight: bold;">
                     <td class="t l b r" colspan="4" align="right">JUMLAH {{ strtoupper($jpp['nama_jpp'] ?? '-') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['alokasi'], 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['saldo'], 0, ',', '.') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['alokasi'], 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['saldo'], 0, '.', ',') }}</td>
                     <td class="t l b r" align="center">-</td>
                     <td class="t l b r" align="right">-</td>
                     <td class="t l b r" align="center">-</td>
-                    <td class="t l b r" align="right">{{ number_format($t['kolek1'], 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['kolek2'], 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['kolek3'], 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['kolek4'], 0, ',', '.') }}</td>
-                    <td class="t l b r" align="right">{{ number_format($t['kolek5'], 0, ',', '.') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['kolek1'], 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['kolek2'], 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['kolek3'], 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['kolek4'], 0, '.', ',') }}</td>
+                    <td class="t l b r" align="right">{{ number_format($t['kolek5'], 0, '.', ',') }}</td>
                     <td class="t l b r" align="center">-</td>
                 </tr>
             </tbody>
@@ -187,8 +187,8 @@
                 <td class="t l b r">Lancar</td>
                 <td class="t l b r" align="center">0 - 3 bulan</td>
                 <td class="t l b r" align="center">0%</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek1, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek1 * 0, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek1, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek1 * 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek1 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(212,237,218); font-weight: bold;">Sehat</td>
             </tr>
@@ -197,8 +197,8 @@
                 <td class="t l b r">Dalam Perhatian Khusus (DPK)</td>
                 <td class="t l b r" align="center">>3 - 6 bulan</td>
                 <td class="t l b r" align="center">5%</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek2, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek2 * 0.05, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek2, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek2 * 0.05, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek2 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(255,243,205); font-weight: bold;">Perlu Perhatian</td>
             </tr>
@@ -207,8 +207,8 @@
                 <td class="t l b r">Kurang Lancar</td>
                 <td class="t l b r" align="center">>6 - 9 bulan</td>
                 <td class="t l b r" align="center">15%</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek3, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek3 * 0.15, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek3, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek3 * 0.15, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek3 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(255,224,192); font-weight: bold;">Kurang Sehat</td>
             </tr>
@@ -217,8 +217,8 @@
                 <td class="t l b r">Diragukan</td>
                 <td class="t l b r" align="center">>9 - 12 bulan</td>
                 <td class="t l b r" align="center">50%</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek4, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek4 * 0.50, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek4, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_kolek4 * 0.50, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek4 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(248,215,218); font-weight: bold;">Tidak Sehat</td>
             </tr>
@@ -227,15 +227,15 @@
                 <td class="t l b r">Macet</td>
                 <td class="t l b r" align="center">&gt; 12 bulan</td>
                 <td class="t l b r" align="center">100%</td>
-                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5 * 1.00, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5 * 1.00, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ $global_saldo > 0 ? number_format(($global_kolek5 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">Tidak Sehat</td>
             </tr>
             <tr style="background: rgb(232,232,232); font-weight: bold;">
                 <td class="t l b r" colspan="4" align="right">TOTAL</td>
-                <td class="t l b r" align="right">{{ number_format($global_saldo, 0, ',', '.') }}</td>
-                <td class="t l b r" align="right">{{ number_format($ppap_wajib_minimum_total, 0, ',', '.') }}</td>
+                <td class="t l b r" align="right">{{ number_format($global_saldo, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($ppap_wajib_minimum_total, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">100,00%</td>
                 <td class="t l b r" align="center">-</td>
             </tr>
@@ -253,8 +253,8 @@
         </ul>
         <div style="margin-top: 6px;">
             <b>NPL Neto (Kurang Lancar + Diragukan + Macet):</b>
-            Rp {{ number_format($global_kolek3 + $global_kolek4 + $global_kolek5, 0, ',', '.') }}
-            ({{ number_format($npl_total_pinjaman, 2) }}% dari Total Outstanding {{ number_format($global_saldo, 0, ',', '.') }})
+            Rp {{ number_format($global_kolek3 + $global_kolek4 + $global_kolek5, 0, '.', ',') }}
+            ({{ number_format($npl_total_pinjaman, 2) }}% dari Total Outstanding {{ number_format($global_saldo, 0, '.', ',') }})
             @if ($npl_total_pinjaman >= 25)
                 <span style="color: #dc3545; font-weight: bold;">[TRIGGER PK 5]</span>
             @endif

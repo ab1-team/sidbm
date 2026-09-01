@@ -239,26 +239,26 @@
         <tr>
             <td class="t l b r" align="center">PK 2</td>
             <td class="t l b r">Sehat</td>
-            <td class="t l b r" align="center">66 - &lt;81</td>
+            <td class="t l b r" align="center">66 - < 81</td>
             <td class="t l b r">Lembaga sehat, seluruh rasio utama terpenuhi.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 3</td>
             <td class="t l b r">Cukup Sehat</td>
-            <td class="t l b r" align="center">51 - &lt;66</td>
+            <td class="t l b r" align="center">51 - < 66</td>
             <td class="t l b r">Lembaga cukup sehat, terdapat sebagian kecil rasio yang perlu perbaikan.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 4</td>
             <td class="t l b r">Kurang Sehat</td>
-            <td class="t l b r" align="center">&lt;51 (kecuali trigger PK 5)</td>
+            <td class="t l b r" align="center">< 51 (kecuali trigger PK 5)</td>
             <td class="t l b r">Lembaga kurang sehat, beberapa rasio tidak memenuhi batas.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">PK 5</td>
             <td class="t l b r">Tidak Sehat</td>
             <td class="t l b r" align="center">Trigger otomatis</td>
-            <td class="t l b r">NPL Neto &ge; 25% ATAU Rasio Ekuitas &lt; 50% ATAU Coverage PPAP &lt; 50%.</td>
+            <td class="t l b r">NPL Neto &ge; 25% ATAU Rasio Ekuitas <  50% ATAU Coverage PPAP <  50%.</td>
         </tr>
         <tr style="background: rgb(255,247,224); font-weight: bold;">
             <td class="t l b r" align="center" style="background: {{ $a['status_pengawasan_warna'] }}; color: #fff; font-size: 12px;">
@@ -283,12 +283,12 @@
         <tr>
             <td class="t l b r" align="center">1</td>
             <td class="t l b r">Pengawasan Intensif</td>
-            <td class="t l b r">PK 4 ATAU Rasio Ekuitas 50% s.d &lt;75% ATAU NPL Neto &gt;5% s.d &lt;25%.</td>
+            <td class="t l b r">PK 4 ATAU Rasio Ekuitas 50% s.d < 75% ATAU NPL Neto > 5% s.d < 25%.</td>
         </tr>
         <tr>
             <td class="t l b r" align="center">2</td>
             <td class="t l b r">Pengawasan Khusus</td>
-            <td class="t l b r">PK 5 ATAU Rasio Ekuitas &lt;50% ATAU NPL Neto &ge; 25%.</td>
+            <td class="t l b r">PK 5 ATAU Rasio Ekuitas <  50% ATAU NPL Neto > 25%.</td>
         </tr>
         <tr style="background: {{ $a['status_pengawasan_warna'] }}; color: #fff; font-weight: bold;">
             <td class="t l b r" align="center" colspan="2">
@@ -366,16 +366,54 @@
         F. REKOMENDASI PERBAIKAN
     </div>
     <table border="0" width="100%" cellspacing="0" cellpadding="5" style="font-size: 10px; border: 1px solid #000;">
-        <tr>
-            <td class="t l b r" width="3%" valign="top" align="center">1.</td>
-            <td class="t l b r" width="97%" valign="top">{{ $a['rekomendasi'][0] ?? 'Tidak ada rekomendasi tambahan.' }}</td>
-        </tr>
-        @for ($i = 1; $i < count($a['rekomendasi']); $i++)
-            <tr>
-                <td class="t l b r" valign="top" align="center">{{ $i + 1 }}.</td>
-                <td class="t l b r" valign="top">{{ $a['rekomendasi'][$i] }}</td>
+        <thead>
+            <tr style="background: rgb(245,245,245);">
+                <th class="t l b r" width="4%" align="center">No</th>
+                <th class="t l b r" width="33%" align="left">Aspek & Temuan</th>
+                <th class="t l b r" width="63%" align="left">Cara Perbaikan</th>
             </tr>
-        @endfor
+        </thead>
+        <tbody>
+            @php
+                $rek_items = $a['rekomendasi'] ?? [];
+            @endphp
+            @forelse ($rek_items as $idx => $rek)
+                @php
+                    $parts = explode('Cara perbaikan:', $rek, 2);
+                    $temuan = trim($parts[0]);
+                    $cara = isset($parts[1]) ? trim($parts[1]) : '';
+                    $cara_lines = $cara === '' ? [] : preg_split('/;\s*(?=[a-z]\)|\([a-z]\)|-\s|[A-Z])/i', $cara);
+                    if (empty($cara_lines) || (count($cara_lines) === 1 && trim($cara_lines[0]) === '')) {
+                        $cara_lines = $cara === '' ? [] : [$cara];
+                    }
+                @endphp
+                <tr>
+                    <td class="t l b r" valign="top" align="center">{{ $idx + 1 }}</td>
+                    <td class="t l b r" valign="top">
+                        <b>{{ $temuan }}</b>
+                    </td>
+                    <td class="t l b r" valign="top">
+                        @if (empty($cara))
+                            -
+                        @else
+                            <ol style="margin: 0; padding-left: 18px; line-height: 1.5;">
+                                @foreach ($cara_lines as $line)
+                                    @php $line = trim(rtrim($line, ';.')); @endphp
+                                    @if ($line !== '')
+                                        <li style="margin-bottom: 4px;">{{ $line }}</li>
+                                    @endif
+                                @endforeach
+                            </ol>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td class="t l b r" align="center">1</td>
+                    <td class="t l b r" colspan="2" align="center">Tidak ada rekomendasi tambahan.</td>
+                </tr>
+            @endforelse
+        </tbody>
     </table>
     <br>
 
