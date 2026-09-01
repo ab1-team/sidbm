@@ -379,33 +379,44 @@
             @endphp
             @forelse ($rek_items as $idx => $rek)
                 @php
-                    $parts = explode('Cara perbaikan:', $rek, 2);
-                    $temuan = trim($parts[0]);
-                    $cara = isset($parts[1]) ? trim($parts[1]) : '';
-                    $cara_lines = $cara === '' ? [] : preg_split('/;\s*(?=[a-z]\)|\([a-z]\)|-\s|[A-Z])/i', $cara);
-                    if (empty($cara_lines) || (count($cara_lines) === 1 && trim($cara_lines[0]) === '')) {
-                        $cara_lines = $cara === '' ? [] : [$cara];
+                    $temuan = $rek;
+                    $cara = '';
+                    if (preg_match('/^(.*?)(?:Cara perbaikan|Pertahankan praktik baik):\s*(.*)$/is', $rek, $m)) {
+                        $temuan = trim($m[1]);
+                        $cara = trim($m[2]);
                     }
+                    $cara_list = [];
+                    if ($cara !== '') {
+                        $raw = preg_split('/;\s*(?=[a-z]\)\s|\([a-z]\)\s|-\s|[A-Z])/i', $cara);
+                        foreach ($raw as $ln) {
+                            $ln = trim(rtrim($ln, ';.'));
+                            $ln = preg_replace('/^\([a-z]\)\s*/i', '', $ln);
+                            $ln = preg_replace('/^[a-z]\)\s*/i', '', $ln);
+                            if ($ln !== '') {
+                                $cara_list[] = $ln;
+                            }
+                        }
+                    }
+                    $has_cara = count($cara_list) > 0;
                 @endphp
                 <tr>
                     <td class="t l b r" valign="top" align="center">{{ $idx + 1 }}</td>
-                    <td class="t l b r" valign="top">
-                        <b>{{ $temuan }}</b>
-                    </td>
-                    <td class="t l b r" valign="top">
-                        @if (empty($cara))
-                            -
-                        @else
-                            <ol style="margin: 0; padding-left: 18px; line-height: 1.5;">
-                                @foreach ($cara_lines as $line)
-                                    @php $line = trim(rtrim($line, ';.')); @endphp
-                                    @if ($line !== '')
-                                        <li style="margin-bottom: 4px;">{{ $line }}</li>
-                                    @endif
+                    @if ($has_cara)
+                        <td class="t l b r" valign="top">
+                            <b>{{ $temuan }}</b>
+                        </td>
+                        <td class="t l b r" valign="top">
+                            <ol style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                                @foreach ($cara_list as $line)
+                                    <li style="margin-bottom: 5px;">{{ $line }}</li>
                                 @endforeach
                             </ol>
-                        @endif
-                    </td>
+                        </td>
+                    @else
+                        <td class="t l b r" valign="top" colspan="2">
+                            {{ $rek }}
+                        </td>
+                    @endif
                 </tr>
             @empty
                 <tr>
