@@ -108,6 +108,7 @@ Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => ['tenant', 'kab
     Route::post('/tanda_tangan/simpan', [KabupatenController::class, 'simpanTandaTangan']);
     Route::get('/profil', [KabupatenController::class, 'profil']);
     Route::post('/profil/simpan', [KabupatenController::class, 'simpanProfil']);
+    Route::post('/profil/logo', [KabupatenController::class, 'simpanLogo']);
 
     Route::get('/simpan_saldo', [DashboardController::class, 'simpanSaldo']);
     Route::get('/kecamatan/{kd_kec}', [KabupatenController::class, 'kecamatan']);

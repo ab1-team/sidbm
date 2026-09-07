@@ -10,6 +10,7 @@ use App\Models\Rekening;
 use App\Models\Wilayah;
 use App\Utils\Keuangan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Session;
 
@@ -194,5 +195,72 @@ class KabupatenController extends Controller
         $title = 'Pelaporan '.$kec->sebutan_kec.' '.$kec->nama_kec;
 
         return view('kabupaten.kecamatan')->with(compact('title', 'kec', 'laporan', 'nama_kec'));
+    }
+
+    public function simpanLogo(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'logo' => 'required|image|mimes:jpg,jpeg,png|max:4096',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'msg' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $kab = Kabupaten::where('kd_kab', Session::get('kd_kab'))->first();
+
+        if (! $kab) {
+            abort(404);
+        }
+
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            $source = file_get_contents($request->file('logo')->getRealPath());
+            $image = imagecreatefromstring($source);
+
+            if ($image === false) {
+                return response()->json([
+                    'success' => false,
+                    'msg' => 'File logo tidak dapat dibaca',
+                ], 422);
+            }
+
+            if (imagesx($image) > 1000) {
+                $height = imagesy($image) * 1000 / imagesx($image);
+                $resizedImage = imagecreatetruecolor(1000, (int) round($height));
+                $transparent = imagecolorallocatealpha($resizedImage, 0, 0, 0, 127);
+
+                imagealphablending($resizedImage, false);
+                imagesavealpha($resizedImage, true);
+                imagefill($resizedImage, 0, 0, $transparent);
+                imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, 1000, (int) round($height), imagesx($image), imagesy($image));
+                imagedestroy($image);
+                $image = $resizedImage;
+            }
+
+            imagealphablending($image, false);
+            imagesavealpha($image, true);
+
+            ob_start();
+            imagepng($image);
+            $binary = ob_get_clean();
+            imagedestroy($image);
+
+            foreach (['jpg', 'jpeg', 'png'] as $extension) {
+                if ($extension != 'png') {
+                    Storage::disk('public')->delete("logo_kab/{$kab->id}.{$extension}");
+                }
+            }
+
+            Storage::disk('public')->put('logo_kab/'.$kab->id.'.png', $binary);
+
+            return response()->json([
+                'success' => true,
+                'msg' => 'Logo Berhasil diperbarui',
+                'path' => '/storage/logo_kab/'.$kab->id.'.png?t='.time(),
+            ]);
+        }
     }
 }

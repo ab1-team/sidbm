@@ -90,6 +90,26 @@
             </div>
         </div>
     </div>
+
+    <div class="card mt-4">
+        <div class="card-header pb-0">
+            <h5>Logo Laporan</h5>
+        </div>
+        <div class="card-body pt-0">
+            <img id="logoPreview"
+                src="{{ file_exists(storage_path('app/public/logo_kab/'.$kab->id.'.png')) ? asset('storage/logo_kab/'.$kab->id.'.png').'?t='.time() : asset('assets/img/no_image.png') }}"
+                class="border rounded" style="max-width:180px; max-height:120px; object-fit:contain;" alt="Logo Laporan">
+
+            <small class="text-muted d-block mt-2">PNG/JPG maksimal 4 MB. Tampil pada header laporan keuangan kabupaten.</small>
+
+            <form action="/kab/profil/logo" method="post" id="formLogo" enctype="multipart/form-data">
+                @csrf
+                <input type="file" name="logo" id="logoInput" class="d-none" accept=".jpg,.jpeg,.png">
+            </form>
+
+            <button type="button" id="gantiLogo" class="btn btn-github btn-sm ms-2">Ganti Logo</button>
+        </div>
+    </div>
 @endsection
 
 @section('script')
@@ -111,6 +131,35 @@
                     Toastr('error', result.responseJSON.msg)
                 }
             })
+        })
+
+        $(document).on('click', '#gantiLogo', function(e) {
+            e.preventDefault()
+
+            $('#logoInput').click()
+        })
+
+        $(document).on('change', '#logoInput', function(e) {
+            if (this.files[0]) {
+                var fd = new FormData($('#formLogo')[0])
+
+                $.ajax({
+                    type: 'POST',
+                    url: $('#formLogo').attr('action'),
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                    success: function(result) {
+                        if (result.success) {
+                            Toastr('success', result.msg)
+                            $('#logoPreview').attr('src', result.path)
+                        }
+                    },
+                    error: function(result) {
+                        Toastr('error', result.responseJSON.msg)
+                    }
+                })
+            }
         })
     </script>
 @endsection
