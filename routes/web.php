@@ -26,9 +26,9 @@ use App\Http\Controllers\ServiceWorkerController;
 use App\Http\Controllers\SopController;
 use App\Http\Controllers\TandaTanganController;
 use App\Http\Controllers\TransaksiController;
-use App\Http\Controllers\WhatsappController;
 use App\Http\Controllers\UploadAplikasiController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WhatsappController;
 use App\Models\Kecamatan;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -106,6 +106,8 @@ Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => ['tenant', 'kab
     Route::get('/dashboard', [KabupatenController::class, 'index']);
     Route::get('/tanda_tangan', [KabupatenController::class, 'tandaTangan']);
     Route::post('/tanda_tangan/simpan', [KabupatenController::class, 'simpanTandaTangan']);
+    Route::get('/profil', [KabupatenController::class, 'profil']);
+    Route::post('/profil/simpan', [KabupatenController::class, 'simpanProfil']);
 
     Route::get('/simpan_saldo', [DashboardController::class, 'simpanSaldo']);
     Route::get('/kecamatan/{kd_kec}', [KabupatenController::class, 'kecamatan']);
@@ -118,14 +120,13 @@ Route::group(['prefix' => 'kab', 'as' => 'kab.', 'middleware' => ['tenant', 'kab
     Route::post('/logout', [KabupatenAuthController::class, 'logout']);
 });
 
-
 Route::group(['middleware' => 'tenant'], function () {
     Route::get('/', [AuthController::class, 'index'])->middleware('guest')->name('/');
     Route::get('/login', [AuthController::class, 'index'])->middleware('guest');
     Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
     Route::get('/app', [AuthController::class, 'app']);
     Route::get('/download-app', [AuthController::class, 'downloadApp']);
-    
+
     Route::get('/pelaporan', [PelaporanController::class, 'index'])->middleware('basic');
     Route::get('/pelaporan/sub_laporan/{file}', [PelaporanController::class, 'subLaporan'])->middleware('basic');
     Route::post('/pelaporan/preview', [PelaporanController::class, 'preview'])->middleware('basic');
@@ -172,8 +173,8 @@ Route::group(['middleware' => 'tenant'], function () {
     Route::post('/pengaturan/whatsapp/delete_session', [SopController::class, 'delete_whatsapp_session'])->middleware('auth');
     Route::get('/pengaturan/whatsapp/instance_state', [WhatsappController::class, 'instanceState'])->middleware('auth');
     Route::post('/wa/send', [WhatsappController::class, 'sendMessage'])->middleware('auth');
-Route::post('/wa/send-bulk', [WhatsappController::class, 'sendMessages'])->middleware('auth');
-Route::get('/wa/history', [WhatsappController::class, 'historyMessage'])->middleware('auth');
+    Route::post('/wa/send-bulk', [WhatsappController::class, 'sendMessages'])->middleware('auth');
+    Route::get('/wa/history', [WhatsappController::class, 'historyMessage'])->middleware('auth');
 
     Route::get('/pengaturan/invoice', [SopController::class, 'invoice'])->middleware('auth');
     Route::get('/pengaturan/{inv}/invoice', [SopController::class, 'detailInvoice'])->middleware('auth');

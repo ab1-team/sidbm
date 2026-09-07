@@ -63,6 +63,15 @@
                 </a>
             </li>
 
+            <li class="nav-item nav-item-link {{ active('profil') }}">
+                <a class="nav-link text-white {{ active('profil') }}" href="/kab/profil">
+                    <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+                        <i class="material-icons opacity-10">manage_accounts</i>
+                    </div>
+                    <span class="nav-link-text ms-1">Profil Kabupaten</span>
+                </a>
+            </li>
+
             @php
                 $path = Request::path();
                 $path = explode('/', $path);

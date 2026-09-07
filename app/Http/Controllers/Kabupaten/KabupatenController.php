@@ -10,6 +10,7 @@ use App\Models\Rekening;
 use App\Models\Wilayah;
 use App\Utils\Keuangan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Session;
 
 class KabupatenController extends Controller
@@ -24,7 +25,7 @@ class KabupatenController extends Controller
         $kd_kab = Session::get('kd_kab');
 
         $saldo_kec = [];
-        $wilayah = Wilayah::where('kode', 'like', $kd_kab . '%')->whereRaw('LENGTH(kode)=8')->with('kec')->orderBy('nama')->get();
+        $wilayah = Wilayah::where('kode', 'like', $kd_kab.'%')->whereRaw('LENGTH(kode)=8')->with('kec')->orderBy('nama')->get();
         foreach ($wilayah as $wl) {
             $saldo_kec[$wl->kode] = [
                 'nama' => $wl->nama,
@@ -34,7 +35,7 @@ class KabupatenController extends Controller
                     'biaya' => 0,
                 ],
                 'surplus' => 0,
-                'used_dbm' => false
+                'used_dbm' => false,
             ];
 
             if ($wl->kec) {
@@ -51,9 +52,9 @@ class KabupatenController extends Controller
                     'saldo' => function ($query) use ($tahun, $bulan) {
                         $query->where([
                             ['tahun', $tahun],
-                            ['bulan', ($bulan - 1)]
+                            ['bulan', ($bulan - 1)],
                         ]);
-                    }
+                    },
                 ])->orderBy('kode_akun', 'ASC')->get();
 
                 $pendapatan = 0;
@@ -77,7 +78,8 @@ class KabupatenController extends Controller
             }
         }
 
-        $title = Session::get('nama_kab') . ' Page';
+        $title = Session::get('nama_kab').' Page';
+
         return view('kabupaten.index')->with(compact('title', 'saldo_kec', 'keuangan'));
     }
 
@@ -87,13 +89,14 @@ class KabupatenController extends Controller
         $kab = Kabupaten::where('kd_kab', $kd_kab)->first();
 
         $title = 'Pengaturan Tanda Tangan Laporan';
+
         return view('kabupaten.tanda_tangan')->with(compact('title', 'kab'));
     }
 
     public function simpanTandaTangan(Request $request)
     {
         $data = $request->only([
-            'tanda_tangan'
+            'tanda_tangan',
         ]);
 
         $data['tanda_tangan'] = preg_replace('/<table[^>]*>/', '<table class="p0" border="0" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">', $data['tanda_tangan'], 1);
@@ -104,12 +107,59 @@ class KabupatenController extends Controller
 
         $kd_kab = Session::get('kd_kab');
         $tanda_tangan = Kabupaten::where('kd_kab', $kd_kab)->update([
-            'tanda_tangan' => json_encode($data['tanda_tangan'])
+            'tanda_tangan' => json_encode($data['tanda_tangan']),
         ]);
 
         return response()->json([
             'success' => true,
-            'msg' => 'Tanda Tangan Berhasil diperbarui'
+            'msg' => 'Tanda Tangan Berhasil diperbarui',
+        ]);
+    }
+
+    public function profil()
+    {
+        $kd_kab = Session::get('kd_kab');
+        $kab = Kabupaten::where('kd_kab', $kd_kab)->first();
+
+        $title = 'Profil Kabupaten';
+
+        return view('kabupaten.profil')->with(compact('title', 'kab'));
+    }
+
+    public function simpanProfil(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nama_lembaga' => 'nullable|max:50',
+            'alamat_kab' => 'nullable|max:100',
+            'telpon_kab' => 'nullable|max:20',
+            'email_kab' => 'nullable|email|max:50',
+            'password' => 'nullable|min:6|max:50',
+            'password_konfirmasi' => 'nullable|min:6|max:50|same:password',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'msg' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $data = $request->only([
+            'nama_lembaga',
+            'alamat_kab',
+            'telpon_kab',
+            'email_kab',
+        ]);
+
+        if ($request->filled('password')) {
+            $data['pass'] = $request->password;
+        }
+
+        Kabupaten::where('kd_kab', Session::get('kd_kab'))->update($data);
+
+        return response()->json([
+            'success' => true,
+            'msg' => 'Profil Berhasil diperbarui',
         ]);
     }
 
@@ -122,25 +172,27 @@ class KabupatenController extends Controller
         }
         $laporan = $laporan->orderBy('urut', 'ASC')->get();
 
-        if (!$kec) {
+        if (! $kec) {
             $kec = Wilayah::where('kode', $kd_kec)->first();
 
             $title = 'Kecamatan Belum Terdaftar';
+
             return view('kabupaten._kecamatan')->with(compact('title', 'kec'));
         }
 
         $kab = $kec->kabupaten;
-        $nama_kec = $kec->sebutan_kec . ' ' . $kec->nama_kec;
+        $nama_kec = $kec->sebutan_kec.' '.$kec->nama_kec;
         if (Keuangan::startWith($kab->nama_kab, 'KOTA') || Keuangan::startWith($kab->nama_kab, 'KAB')) {
-            $nama_kec .= ' ' . ucwords(strtolower($kab->nama_kab));
+            $nama_kec .= ' '.ucwords(strtolower($kab->nama_kab));
         } else {
-            $nama_kec .= ' Kabupaten ' . ucwords(strtolower($kab->nama_kab));
+            $nama_kec .= ' Kabupaten '.ucwords(strtolower($kab->nama_kab));
         }
 
         Session::put('lokasi', $kec->id);
         config(['tenant.suffix' => "_{$kec->id}"]);
 
-        $title = 'Pelaporan ' . $kec->sebutan_kec . ' ' . $kec->nama_kec;
+        $title = 'Pelaporan '.$kec->sebutan_kec.' '.$kec->nama_kec;
+
         return view('kabupaten.kecamatan')->with(compact('title', 'kec', 'laporan', 'nama_kec'));
     }
 }
