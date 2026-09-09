@@ -12,9 +12,9 @@ use App\Models\Rekening;
 use App\Models\Transaksi;
 use App\Utils\Keuangan;
 use App\Utils\Tanggal;
-use Dompdf\Dompdf;
-use PDF;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use PDF;
 use Session;
 
 class KabupatenController extends Controller
@@ -27,19 +27,20 @@ class KabupatenController extends Controller
 
         $laporan = JenisLaporan::where([
             ['file', '!=', '0'],
-            ['kab', '!=', '0']
+            ['kab', '!=', '0'],
         ])->orderBy('urut', 'ASC')->get();
         $kab = Kabupaten::where([
             ['kd_prov', $kd_prov],
-            ['kd_kab', $kd_kab]
+            ['kd_kab', $kd_kab],
         ])->with([
             'wilayah',
             'kec' => function ($query) {
                 $query->orderBy('kd_kec', 'ASC');
-            }
+            },
         ])->first();
 
-        $title = 'Pelaporan Kabupaten ' . ucwords(strtolower($kab->nama_kab));
+        $title = 'Pelaporan Kabupaten '.ucwords(strtolower($kab->nama_kab));
+
         return view('admin.kabupaten.index')->with(compact('title', 'laporan', 'kab'));
     }
 
@@ -47,6 +48,7 @@ class KabupatenController extends Controller
     {
         if ($file == 3) {
             $rekening = Rekening::orderBy('kode_akun', 'ASC')->get();
+
             return view('admin.kabupaten.sub_laporan')->with(compact('file', 'rekening'));
         }
 
@@ -54,20 +56,20 @@ class KabupatenController extends Controller
             $data = [
                 0 => [
                     'title' => '01. Januari - Maret',
-                    'id' => '1,2,3'
+                    'id' => '1,2,3',
                 ],
                 1 => [
                     'title' => '02. April - Juni',
-                    'id' => '4,5,6'
+                    'id' => '4,5,6',
                 ],
                 2 => [
                     'title' => '03. Juli - September',
-                    'id' => '7,8,9'
+                    'id' => '7,8,9',
                 ],
                 3 => [
                     'title' => '04. Oktober - Desember',
-                    'id' => '10,11,12'
-                ]
+                    'id' => '10,11,12',
+                ],
             ];
 
             return view('admin.kabupaten.sub_laporan')->with(compact('file', 'data'));
@@ -85,44 +87,45 @@ class KabupatenController extends Controller
 
         if ($lokasi && $tahun && $bulan) {
             Session::put('lokasi', $lokasi);
-            config(['tenant.suffix' => '_' . $lokasi]);
+            config(['tenant.suffix' => '_'.$lokasi]);
 
             $kec = Kecamatan::where('id', $lokasi)->first();
 
             if ($laporan == 'arus_kas') {
                 $data_saldo = (Session::get('data_saldo')) ? Session::get('data_saldo') : [];
-                $awal_bulan = date('Y-m-d', strtotime($tahun . '-' . $bulan . '-01'));
+                $awal_bulan = date('Y-m-d', strtotime($tahun.'-'.$bulan.'-01'));
                 $akhir_bulan = date('Y-m-t', strtotime($awal_bulan));
                 $akhir_bulan_lalu = date('Y-m-d', strtotime('-1 days', strtotime($awal_bulan)));
 
                 $trx = Transaksi::where([
                     ['tgl_transaksi', '>=', $awal_bulan],
-                    ['tgl_transaksi', '<=', $akhir_bulan]
+                    ['tgl_transaksi', '<=', $akhir_bulan],
                 ])->get()->toArray();
                 $saldo_bulan_lalu = $keuangan->saldoKas($akhir_bulan_lalu);
 
                 $data_saldo[$kec->kd_kec] = [
                     'transaksi' => $trx,
-                    'saldo_bulan_lalu' => $saldo_bulan_lalu
+                    'saldo_bulan_lalu' => $saldo_bulan_lalu,
                 ];
 
                 Session::put('data_saldo', $data_saldo);
+
                 return response()->json([
                     'success' => true,
                     'lokasi' => Session::get('lokasi'),
                     'kd_kec' => $kec->kd_kec,
-                    'msg' => 'Transaksi ' . $kec->sebutan_kec . ' ' . $kec->nama_kec . ' berhasil disimpan'
+                    'msg' => 'Transaksi '.$kec->sebutan_kec.' '.$kec->nama_kec.' berhasil disimpan',
                 ]);
             }
 
             $data_saldo = (Session::get('data_saldo')) ? Session::get('data_saldo') : [];
-            $tgl_kondisi = $tahun . '-' . $bulan . '-01';
+            $tgl_kondisi = $tahun.'-'.$bulan.'-01';
             $rekening = Rekening::where('lev1', '<=', '3')->with([
                 'kom_saldo' => function ($query) use ($tahun, $bulan) {
                     $query->where('tahun', $tahun)->where(function ($query) use ($bulan) {
                         $query->where('bulan', '0')->orwhere('bulan', $bulan);
                     });
-                }
+                },
             ])->orderBy('kode_akun', 'ASC')->get();
 
             $laba_rugi = Rekening::where('lev1', '>=', '4')->with([
@@ -134,9 +137,9 @@ class KabupatenController extends Controller
                 'saldo' => function ($query) use ($tahun, $bulan) {
                     $query->where([
                         ['tahun', $tahun],
-                        ['bulan', ($bulan - 1)]
+                        ['bulan', ($bulan - 1)],
                     ]);
-                }
+                },
             ])->orderBy('kode_akun', 'ASC')->get();
             $jumlah_rekening = (count($rekening) + count($laba_rugi));
 
@@ -146,15 +149,16 @@ class KabupatenController extends Controller
             }
             $data_saldo[$kec->kd_kec] = [
                 'saldo' => $rekening,
-                'laba_rugi' => $laba_rugi
+                'laba_rugi' => $laba_rugi,
             ];
 
             Session::put('data_saldo', $data_saldo);
+
             return response()->json([
                 'success' => true,
                 'lokasi' => Session::get('lokasi'),
                 'kd_kec' => $kec->kd_kec,
-                'msg' => 'Saldo ' . $kec->sebutan_kec . ' ' . $kec->nama_kec . ' berhasil disimpan'
+                'msg' => 'Saldo '.$kec->sebutan_kec.' '.$kec->nama_kec.' berhasil disimpan',
             ]);
         }
 
@@ -168,19 +172,19 @@ class KabupatenController extends Controller
             'bulan',
             'laporan',
             'sub_laporan',
-            'type'
+            'type',
         ]);
 
         Session::put('lokasi', Session::get('lokasi_terpilih'));
-        config(['tenant.suffix' => '_' . Session::get('lokasi_terpilih')]);
+        config(['tenant.suffix' => '_'.Session::get('lokasi_terpilih')]);
 
         $data['kab'] = Kabupaten::where([
-            ['kd_kab', $kd_kab]
+            ['kd_kab', $kd_kab],
         ])->with([
             'wilayah',
             'kec' => function ($query) {
                 $query->orderBy('kd_kec', 'ASC');
-            }
+            },
         ])->first();
 
         if ($data['tahun'] == null) {
@@ -193,12 +197,36 @@ class KabupatenController extends Controller
             $data['bulan'] = '12';
         }
 
-        $data['logo'] = '1.png';
-        $data['hari'] = date('t', strtotime($data['tahun'] . '-' . $data['bulan'] . '-01'));
-        $data['tgl_kondisi'] = $data['tahun'] . '-' . $data['bulan'] . '-' . $data['hari'];
+        $data['logo'] = $data['kab']->logo ? $this->supabaseToBase64($data['kab']->logo) : null;
+        $data['hari'] = date('t', strtotime($data['tahun'].'-'.$data['bulan'].'-01'));
+        $data['tgl_kondisi'] = $data['tahun'].'-'.$data['bulan'].'-'.$data['hari'];
 
         $file = $request->laporan;
+
         return $this->$file($data);
+    }
+
+    private function supabaseToBase64($url)
+    {
+        $response = Http::withOptions([
+            'verify' => false,
+        ])->get($url);
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $binary = $response->body();
+
+        $extension = pathinfo($url, PATHINFO_EXTENSION);
+        $mime = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+        ][$extension] ?? 'application/octet-stream';
+
+        return "data:$mime;base64,".base64_encode($binary);
     }
 
     public function neraca($data)
@@ -227,7 +255,7 @@ class KabupatenController extends Controller
                     $neraca[$lev1->kode_akun]['child'][$lev2->kode_akun]['child'][$lev3->kode_akun] = [
                         'kode_akun' => $lev3->kode_akun,
                         'nama_akun' => $lev3->nama_akun,
-                        'child' => []
+                        'child' => [],
                     ];
                 }
             }
@@ -253,15 +281,15 @@ class KabupatenController extends Controller
                 $lev2 = $kode_akun[1];
                 $lev3 = $kode_akun[2];
 
-                $akun_level1 = $lev1 . '.0.00.00';
-                $akun_level2 = $lev1 . '.' . $lev2 . '.00.00';
-                $akun_level3 = $lev1 . '.' . $lev2 . '.' . $lev3 . '.00';
+                $akun_level1 = $lev1.'.0.00.00';
+                $akun_level2 = $lev1.'.'.$lev2.'.00.00';
+                $akun_level3 = $lev1.'.'.$lev2.'.'.$lev3.'.00';
 
-                if (!array_key_exists($rek->kode_akun, $neraca[$akun_level1]['child'][$akun_level2]['child'][$akun_level3]['child'])) {
+                if (! array_key_exists($rek->kode_akun, $neraca[$akun_level1]['child'][$akun_level2]['child'][$akun_level3]['child'])) {
                     $neraca[$akun_level1]['child'][$akun_level2]['child'][$akun_level3]['child'][$rek->kode_akun] = [
                         'kode_akun' => $rek->kode_akun,
                         'nama_akun' => $rek->nama_akun,
-                        'saldo' => $saldo
+                        'saldo' => $saldo,
                     ];
                 } else {
                     $neraca[$akun_level1]['child'][$akun_level2]['child'][$akun_level3]['child'][$rek->kode_akun]['saldo'] += $saldo;
@@ -270,11 +298,12 @@ class KabupatenController extends Controller
         }
 
         $data['neraca'] = $neraca;
-        $data['sub_judul'] = 'Per ' . date('t', strtotime($data['tgl_kondisi'])) . ' ' . Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
-        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
+        $data['sub_judul'] = 'Per '.date('t', strtotime($data['tgl_kondisi'])).' '.Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
+        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
 
         $view = view('admin.kabupaten.laporan.views.neraca', $data)->render();
         $pdf = PDF::loadHTML($view);
+
         return $pdf->stream();
     }
 
@@ -283,7 +312,7 @@ class KabupatenController extends Controller
         $data_laba_rugi = [];
         $pph = [
             'saldo' => 0,
-            'saldo_bln_lalu' => 0
+            'saldo_bln_lalu' => 0,
         ];
         $akun1 = AkunLevel1::where('lev1', '>', '3')->with([
             'akun2',
@@ -296,7 +325,7 @@ class KabupatenController extends Controller
                     $data_laba_rugi['pendapatan'][$lev2->kode_akun] = [
                         'kode_akun' => $lev2->kode_akun,
                         'nama_akun' => $lev2->nama_akun,
-                        'rek'       => []
+                        'rek' => [],
                     ];
                 }
 
@@ -305,7 +334,7 @@ class KabupatenController extends Controller
                     $data_laba_rugi['beban'][$lev2->kode_akun] = [
                         'kode_akun' => $lev2->kode_akun,
                         'nama_akun' => $lev2->nama_akun,
-                        'rek'       => []
+                        'rek' => [],
                     ];
                 }
 
@@ -314,7 +343,7 @@ class KabupatenController extends Controller
                     $data_laba_rugi['pendapatan_non_ops'][$lev2->kode_akun] = [
                         'kode_akun' => $lev2->kode_akun,
                         'nama_akun' => $lev2->nama_akun,
-                        'rek'       => []
+                        'rek' => [],
                     ];
                 }
 
@@ -323,7 +352,7 @@ class KabupatenController extends Controller
                     $data_laba_rugi['beban_non_ops'][$lev2->kode_akun] = [
                         'kode_akun' => $lev2->kode_akun,
                         'nama_akun' => $lev2->nama_akun,
-                        'rek'       => []
+                        'rek' => [],
                     ];
                 }
             }
@@ -376,9 +405,9 @@ class KabupatenController extends Controller
                 $lev2 = $kode_akun[1];
                 $lev3 = $kode_akun[2];
 
-                $akun_level1 = $lev1 . '.0.00.00';
-                $akun_level2 = $lev1 . '.' . $lev2 . '.00.00';
-                $akun_level3 = $lev1 . '.' . $lev2 . '.' . $lev3 . '.00';
+                $akun_level1 = $lev1.'.0.00.00';
+                $akun_level2 = $lev1.'.'.$lev2.'.00.00';
+                $akun_level3 = $lev1.'.'.$lev2.'.'.$lev3.'.00';
 
                 // Pendapatan
                 if ($lev1 == '4' && $lev2 == '1') {
@@ -405,18 +434,18 @@ class KabupatenController extends Controller
                         'kode_akun' => $rek->kode_akun,
                         'nama_akun' => $rek->nama_akun,
                         'saldo' => $saldo_sd_bulan_ini,
-                        'saldo_bln_lalu' => $saldo_bulan_lalu
+                        'saldo_bln_lalu' => $saldo_bulan_lalu,
                     ];
 
                     $pph['saldo'] += $saldo_sd_bulan_ini;
                     $pph['saldo_bln_lalu'] += $saldo_bulan_lalu;
                 } else {
-                    if (!array_key_exists($rek->kode_akun, $data_laba_rugi[$laba_rugi][$akun_level2]['rek'])) {
+                    if (! array_key_exists($rek->kode_akun, $data_laba_rugi[$laba_rugi][$akun_level2]['rek'])) {
                         $data_laba_rugi[$laba_rugi][$akun_level2]['rek'][$rek->kode_akun] = [
                             'kode_akun' => $rek->kode_akun,
                             'nama_akun' => $rek->nama_akun,
                             'saldo' => $saldo_sd_bulan_ini,
-                            'saldo_bln_lalu' => $saldo_bulan_lalu
+                            'saldo_bln_lalu' => $saldo_bulan_lalu,
                         ];
                     } else {
                         $data_laba_rugi[$laba_rugi][$akun_level2]['rek'][$rek->kode_akun]['saldo'] += $saldo_sd_bulan_ini;
@@ -430,18 +459,19 @@ class KabupatenController extends Controller
             'pendapatan' => $data_laba_rugi['pendapatan'],
             'beban' => $data_laba_rugi['beban'],
             'pendapatan_non_ops' => $data_laba_rugi['pendapatan_non_ops'],
-            'beban_non_ops' => $data_laba_rugi['beban_non_ops']
+            'beban_non_ops' => $data_laba_rugi['beban_non_ops'],
         ];
 
         $data['pph'] = $pph;
-        $data['sub_judul'] = 'Periode ' . Tanggal::tglLatin($data['tahun'] . '-01-01') . ' S.D ' . Tanggal::tglLatin($data['tgl_kondisi']);
-        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
-        $data['bulan_lalu'] = date('Y-m-t', strtotime('-1 month', strtotime($data['tahun'] . '-' . $data['bulan'] . '-10')));
+        $data['sub_judul'] = 'Periode '.Tanggal::tglLatin($data['tahun'].'-01-01').' S.D '.Tanggal::tglLatin($data['tgl_kondisi']);
+        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
+        $data['bulan_lalu'] = date('Y-m-t', strtotime('-1 month', strtotime($data['tahun'].'-'.$data['bulan'].'-10')));
         $data['header_lalu'] = 'Bulan Lalu';
         $data['header_sekarang'] = 'Bulan Ini';
 
         $view = view('admin.kabupaten.laporan.views.laba_rugi', $data)->render();
         $pdf = PDF::loadHTML($view);
+
         return $pdf->stream();
     }
 
@@ -456,12 +486,12 @@ class KabupatenController extends Controller
         foreach ($data['kab']->kec as $kec) {
             foreach ($data_saldo[$kec->kd_kec]['transaksi'] as $trx) {
 
-                $key = $trx['rekening_debit'] . '#' . $trx['rekening_kredit'];
-                if (!array_key_exists($key, $data_transaksi)) {
+                $key = $trx['rekening_debit'].'#'.$trx['rekening_kredit'];
+                if (! array_key_exists($key, $data_transaksi)) {
                     $data_transaksi[$key] = [
                         'rekening_debit' => $trx['rekening_debit'],
                         'rekening_kredit' => $trx['rekening_kredit'],
-                        'jumlah' => floatval($trx['jumlah'])
+                        'jumlah' => floatval($trx['jumlah']),
                     ];
                 } else {
                     $data_transaksi[$key]['jumlah'] += floatval($trx['jumlah']);
@@ -475,9 +505,9 @@ class KabupatenController extends Controller
         foreach ($arus_kas as $ak) {
             $rekening = explode('#', $ak->rekening);
 
-            if (!array_key_exists($ak->id, $data_arus_kas)) {
+            if (! array_key_exists($ak->id, $data_arus_kas)) {
                 $data_arus_kas[$ak->id] = [
-                    'jumlah' => 0
+                    'jumlah' => 0,
                 ];
             }
 
@@ -494,8 +524,8 @@ class KabupatenController extends Controller
             }
         }
 
-        $data['sub_judul'] = 'Bulan ' . Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
-        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
+        $data['sub_judul'] = 'Bulan '.Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
+        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
 
         $data['data_arus_kas'] = $data_arus_kas;
         $data['arus_kas'] = ArusKas::where('sub', '0')->with('child')->orderBy('id', 'ASC')->get();
@@ -504,6 +534,7 @@ class KabupatenController extends Controller
         $data['keuangan'] = $keuangan;
         $view = view('admin.kabupaten.laporan.views.arus_kas', $data)->render();
         $pdf = PDF::loadHTML($view);
+
         return $pdf->stream();
     }
 
@@ -515,7 +546,9 @@ class KabupatenController extends Controller
         $data_saldo = Session::get('data_saldo');
         foreach ($data['kab']->kec as $kec) {
             foreach ($data_saldo[$kec->kd_kec]['saldo'] as $rek) {
-                if ($rek->lev1 != '3') continue;
+                if ($rek->lev1 != '3') {
+                    continue;
+                }
 
                 $saldo = $keuangan->komSaldo($rek);
                 if ($rek->kode_akun == '3.2.02.01') {
@@ -529,11 +562,11 @@ class KabupatenController extends Controller
                     }
                 }
 
-                if (!array_key_exists($rek->kode_akun, $lpm)) {
+                if (! array_key_exists($rek->kode_akun, $lpm)) {
                     $lpm[$rek->kode_akun] = [
                         'kode_akun' => $rek->kode_akun,
                         'nama_akun' => $rek->nama_akun,
-                        'saldo' => $saldo
+                        'saldo' => $saldo,
                     ];
                 } else {
                     $lpm[$rek->kode_akun]['saldo'] += $saldo;
@@ -542,12 +575,13 @@ class KabupatenController extends Controller
         }
 
         $data['perubahan_modal'] = $lpm;
-        $data['sub_judul'] = 'Bulan ' . Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
-        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']) . ' ' . Tanggal::tahun($data['tgl_kondisi']);
+        $data['sub_judul'] = 'Bulan '.Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
+        $data['tgl'] = Tanggal::namaBulan($data['tgl_kondisi']).' '.Tanggal::tahun($data['tgl_kondisi']);
 
         $data['keuangan'] = $keuangan;
         $view = view('admin.kabupaten.laporan.views.perubahan_modal', $data)->render();
         $pdf = PDF::loadHTML($view);
+
         return $pdf->stream();
     }
 }

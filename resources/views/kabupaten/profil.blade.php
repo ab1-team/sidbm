@@ -97,7 +97,7 @@
         </div>
         <div class="card-body pt-0">
             <img id="logoPreview"
-                src="{{ file_exists(storage_path('app/public/logo_kab/'.$kab->id.'.png')) ? asset('storage/logo_kab/'.$kab->id.'.png').'?t='.time() : asset('assets/img/no_image.png') }}"
+                src="{{ $kab->logo ?? asset('assets/img/no_image.png') }}"
                 class="border rounded" style="max-width:180px; max-height:120px; object-fit:contain;" alt="Logo Laporan">
 
             <small class="text-muted d-block mt-2">PNG/JPG maksimal 4 MB. Tampil pada header laporan keuangan kabupaten.</small>
