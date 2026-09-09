@@ -2,70 +2,71 @@
 
 namespace Tests\Feature;
 
+use App\Models\Kecamatan;
 use App\Models\User;
 use Illuminate\Http\Testing\File as TestFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
-use Mockery;
-use Illuminate\Support\Facades\Http;
-use App\Support\TenantResolver;
-use App\Models\AdminInvoice;
-use App\Models\Kecamatan;
-use Session;
 use Tests\TestCase;
 
 class TtdTagihanUploadTest extends TestCase
 {
     public function test_upload_stores_file_and_updates_kecamatan_url(): void
     {
-        fwrite(STDERR, "BEFORE RESOLVER\n");
-        $resolver = Mockery::mock('alias:'.TenantResolver::class);
-        $resolver->shouldReceive('resolveByDomain')->andReturn(null);
-        $resolver->shouldReceive('markAsKabupaten');
-        fwrite(STDERR, "AFTER RESOLVER\n");
+        putenv('SUPABASE_PUBLIC_URL=http://supabase.test');
 
-        $invoice = Mockery::mock('alias:'.AdminInvoice::class);
-        $invoice->shouldReceive('on')->andReturnSelf();
-        $invoice->shouldReceive('where')->andReturnSelf();
-        $invoice->shouldReceive('orderBy')->andReturnSelf();
-        $invoice->shouldReceive('first')->andReturn(null);
-        fwrite(STDERR, "AFTER INVOICE\n");
+        foreach (['mysql', 'mysql_b'] as $connection) {
+            config(["database.connections.{$connection}.driver" => 'sqlite']);
+            config(["database.connections.{$connection}.database" => ':memory:']);
+            DB::purge($connection);
 
-        $instance = new Kecamatan;
-        $kecamatan = Mockery::mock(Kecamatan::class.'[update]');
-        $kecamatan->where = function () use ($kecamatan) {
-            return $kecamatan;
-        };
-        $kecamatan->shouldReceive('update')->with(['ttd_tagihan' => 'http://supabase.test/ttd_tagihan/301.png'])->once();
-        fwrite(STDERR, "AFTER KECAMATAN\n");
+            DB::connection($connection)->statement(
+                'CREATE TABLE kecamatan (id INTEGER PRIMARY KEY, ttd_tagihan TEXT NULL)'
+            );
+            DB::connection($connection)->statement(
+                'CREATE TABLE kabupaten (id INTEGER PRIMARY KEY)'
+            );
+            DB::connection($connection)->statement(
+                'CREATE TABLE admin_invoice (id INTEGER PRIMARY KEY, lokasi INTEGER NULL, status TEXT NULL, tgl_invoice TEXT NULL, tgl_lunas TEXT NULL)'
+            );
 
-        $image = TestFile::create('ttd.png', 100, 100, 'image/png');
+            DB::connection($connection)->table('kecamatan')->insert(['id' => 301]);
+        }
+
         Storage::fake('supabase');
-        $_ENV['SUPABASE_PUBLIC_URL'] = 'http://supabase.test';
-        fwrite(STDERR, "AFTER STORAGE\n");
-        Http::fake([
-            'http://supabase.test/ttd_tagihan/301.png' => Http::response($image->getContent(), 200),
-        ]);
-        fwrite(STDERR, "AFTER HTTP\n");
+        $image = TestFile::fake()->image('ttd.png');
 
         $user = User::factory()->make(['id' => 1, 'lokasi' => 301]);
-        $this->actingAs($user, 'web');
+        $this->app['auth']->guard('web')->setUser($user);
+        $this->app['auth']->shouldUse('web');
         Session::put('lokasi', 301);
-        fwrite(STDERR, "AFTER SESSION\n");
 
         $response = $this->post('/pengaturan/tanda_tangan/tagihan', [
             'ttd_tagihan' => $image,
         ]);
-        fwrite(STDERR, "AFTER POST\n");
+
+        $this->assertSame(301, Kecamatan::where('id', 301)->first()?->id);
+        $this->assertSame('mysql', Kecamatan::where('id', 301)->first()->getConnectionName());
+        $this->assertSame(1, DB::connection('mysql')->table('kecamatan')->where('id', 301)->update(['ttd_tagihan' => 'probe']));
+        $this->assertSame('probe', DB::connection('mysql')->table('kecamatan')->where('id', 301)->value('ttd_tagihan'));
+        DB::connection('mysql')->table('kecamatan')->where('id', 301)->update(['ttd_tagihan' => null]);
 
         $response->assertOk();
-        fwrite(STDERR, "AFTER STATUS\n");
         $response->assertJson([
             'success' => true,
             'msg' => 'Tanda tangan & stempel surat tagihan berhasil disimpan.',
             'path' => 'http://supabase.test/ttd_tagihan/301.png',
         ]);
-        fwrite(STDERR, "AFTER JSON\n");
         Storage::disk('supabase')->assertExists('ttd_tagihan/301.png');
-        fwrite(STDERR, "AFTER STORAGE ASSERT\n");
+
+        $this->assertTrue(DB::connection('mysql')->table('kecamatan')->where('id', 301)->exists());
+
+        foreach (['mysql', 'mysql_b'] as $connection) {
+            $this->assertSame(
+                'http://supabase.test/ttd_tagihan/301.png',
+                DB::connection($connection)->table('kecamatan')->where('id', 301)->value('ttd_tagihan')
+            );
+        }
     }
 }

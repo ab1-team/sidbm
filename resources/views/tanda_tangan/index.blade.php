@@ -263,7 +263,7 @@
             var form = $('#formTtdTagihan');
             var formData = new FormData(form[0]);
 
-            if (! file) {
+            if ($('#ttd_tagihan')[0].files.length === 0) {
                 $('#msg_ttd_tagihan').html('Gambar TTD & stempel wajib diisi.');
                 return;
             }
@@ -278,7 +278,13 @@
                     if (result.success) {
                         $('#msg_ttd_tagihan').html('');
                         $('#emptyTtdTagihan').remove();
-                        $('#previewTtdTagihan').attr('src', result.path + '?t=' + Date.now());
+                        $('#previewTtdTagihan').remove();
+                        $('<img>', {
+                            id: 'previewTtdTagihan',
+                            src: result.path + '?t=' + Date.now(),
+                            height: 120,
+                            alt: 'Tanda tangan & stempel surat tagihan'
+                        }).insertAfter('#emptyTtdTagihan');
                         Toastr('success', result.msg)
                     }
                 },

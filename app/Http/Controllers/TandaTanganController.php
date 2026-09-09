@@ -18,6 +18,7 @@ class TandaTanganController extends Controller
         $data['dokumenPinjaman'] = DokumenPinjaman::where('custom_ttd', '1')->get();
         $data['tandaTangan'] = TandaTanganDokumen::where('lokasi', Session::get('lokasi'))->pluck('tanda_tangan', 'dokumen_pinjaman_id')->toArray();
         $data['keyword'] = Pinjaman::keyword();
+        $data['kec'] = Kecamatan::where('id', Session::get('lokasi'))->first();
 
         $data['title'] = "Pengaturan Tanda Tangan";
         return view('tanda_tangan.index')->with($data);
@@ -86,7 +87,9 @@ class TandaTanganController extends Controller
             $path = $request->file('ttd_tagihan')->storeAs('ttd_tagihan', $filename, 'supabase');
             $publicUrl = env('SUPABASE_PUBLIC_URL').'/'.$path;
 
-            $kecamatan->update(['ttd_tagihan' => $publicUrl]);
+            Kecamatan::where('id', $kecamatan->id)
+                ->toBase()
+                ->update(['ttd_tagihan' => $publicUrl]);
 
             return response()->json([
                 'success' => true,
