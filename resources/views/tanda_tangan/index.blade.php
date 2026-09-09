@@ -20,7 +20,7 @@
                 <h5 class="card-title">Tanda Tangan & Stempel — Surat Tagihan</h5>
                 <div class="row align-items-end">
                     <div class="col-md-8">
-                        <div class="d-flex align-items-center justify-content-center border rounded bg-light p-2" style="min-height: 140px;">
+                        <div id="ttdTagihanPreviewBox" class="d-flex align-items-center justify-content-center border rounded bg-light p-2" style="min-height: 140px;">
                             @if (! empty($kec->ttd_tagihan))
                                 <img src="{{ $kec->ttd_tagihan }}" id="previewTtdTagihan" height="120" alt="Tanda tangan & stempel surat tagihan">
                             @else
@@ -279,12 +279,12 @@
                         $('#msg_ttd_tagihan').html('');
                         $('#emptyTtdTagihan').remove();
                         $('#previewTtdTagihan').remove();
-                        $('<img>', {
+                        $('#ttdTagihanPreviewBox').append($('<img>', {
                             id: 'previewTtdTagihan',
                             src: result.path + '?t=' + Date.now(),
                             height: 120,
                             alt: 'Tanda tangan & stempel surat tagihan'
-                        }).insertAfter('#emptyTtdTagihan');
+                        }));
                         Toastr('success', result.msg)
                     }
                 },
