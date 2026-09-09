@@ -143,7 +143,7 @@
     <div>
         <b>DATA PIUTANG KELOMPOK :</b>
     </div>
-    <table border="1" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">
+    <table class="gp" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">
         <tr style="background: rgb(232,232,232)">
             <th width="10" height="15" align="center">ID.Reg. #{{ $pinkel->id }}</th>
             <th width="30" align="center">Tanggal</th>
@@ -195,7 +195,7 @@
     <div style="margin-top: 12px;">
         <b>DATA PIUTANG ANGGOTA :</b>
     </div>
-    <table border="1" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">
+    <table class="gp" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px;">
         <tr>
             <th width="5%" align="center">No</th>
             <th width="20%" align="center">Nama Anggota</th>

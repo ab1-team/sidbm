@@ -132,19 +132,19 @@
                 </tr>
 
                 <tr style="font-weight: bold;">
-                    <td class="t l b" align="center">B.</td>
-                    <td class="t b" colspan="4">INFORMASI DALAM KELOMPOK</td>
-                    <td class="t l b" width="7%" align="center">YA</td>
-                    <td class="t l b r" width="7%" align="center">TIDAK</td>
+                    <td class="gp-t gp-l gp-b" align="center">B.</td>
+                    <td class="gp-t gp-b" colspan="4">INFORMASI DALAM KELOMPOK</td>
+                    <td class="gp-t gp-l gp-b" width="7%" align="center">YA</td>
+                    <td class="gp-t gp-l gp-b gp-r" width="7%" align="center">TIDAK</td>
                 </tr>
 
                 @foreach ($informasi_dalam_kelompok as $idk => $val)
                     <tr>
-                        <td class="t l b">&nbsp;</td>
-                        <td class="t b" align="center" width="3%">{{ $loop->iteration }}.</td>
-                        <td class="t b" colspan="3">{{ $val }}</td>
-                        <td class="t l b" align="center">&nbsp;</td>
-                        <td class="t l b r" align="center">&nbsp;</td>
+                        <td class="gp-t gp-l gp-b">&nbsp;</td>
+                        <td class="gp-t gp-b" align="center" width="3%">{{ $loop->iteration }}.</td>
+                        <td class="gp-t gp-b" colspan="3">{{ $val }}</td>
+                        <td class="gp-t gp-l gp-b" align="center">&nbsp;</td>
+                        <td class="gp-t gp-l gp-b gp-r" align="center">&nbsp;</td>
                     </tr>
                 @endforeach
 

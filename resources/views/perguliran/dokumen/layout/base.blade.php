@@ -98,6 +98,31 @@
         .b {
             border-bottom: 1px solid #000;
         }
+
+        table.gp {
+            border-collapse: collapse;
+        }
+
+        table.gp th,
+        table.gp td {
+            border: 1.5px solid #000;
+        }
+
+        .gp-t {
+            border-top: 1.5px solid #000;
+        }
+
+        .gp-b {
+            border-bottom: 1.5px solid #000;
+        }
+
+        .gp-l {
+            border-left: 1.5px solid #000;
+        }
+
+        .gp-r {
+            border-right: 1.5px solid #000;
+        }
     </style>
 </head>
 
