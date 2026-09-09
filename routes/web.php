@@ -189,6 +189,7 @@ Route::group(['middleware' => 'tenant'], function () {
 
     Route::get('/pengaturan/tanda_tangan', [TandaTanganController::class, 'index'])->middleware('auth');
     Route::post('/pengaturan/simpan_tanda_tangan', [TandaTanganController::class, 'store'])->middleware('auth');
+    Route::post('/pengaturan/tanda_tangan/tagihan', [TandaTanganController::class, 'storeTtdTagihan'])->name('ttd-tagihan.store')->middleware('auth');
 
     Route::resource('/database/desa', DesaController::class)->middleware('auth');
 

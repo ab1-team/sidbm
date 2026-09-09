@@ -2305,6 +2305,9 @@ class PinjamanKelompokController extends Controller
             ['lokasi', Session::get('lokasi')],
         ])->aktif()->first();
 
+        $data['ttd_tagihan_img'] = ! empty($data['kec']->ttd_tagihan)
+            ? $this->supabaseToBase64($data['kec']->ttd_tagihan)
+            : null;
         $data['keuangan'] = $keuangan;
 
         $data['judul'] = 'Surat Kelayakan ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';
@@ -2795,6 +2798,7 @@ class PinjamanKelompokController extends Controller
     public function suratTagihan($id, $data)
     {
         $keuangan = new Keuangan;
+        $data['kec'] = Kecamatan::where('id', Session::get('lokasi'))->first();
         $data['pinkel'] = PinjamanKelompok::where('id', $id)->with([
             'jpp',
             'kelompok',
@@ -2816,6 +2820,9 @@ class PinjamanKelompokController extends Controller
         ])->aktif()->first();
 
         $data['keuangan'] = $keuangan;
+        $data['ttd_tagihan_img'] = ! empty($data['kec']->ttd_tagihan)
+            ? $this->supabaseToBase64($data['kec']->ttd_tagihan)
+            : null;
 
         $data['judul'] = 'Surat Tagihan ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';
         $view = view('perguliran.dokumen.tagihan', $data)->render();

@@ -225,7 +225,9 @@
         <tr>
             <td>&nbsp;</td>
             <td align="center" valign="bottom" height="60">
-                @if (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
+                @if (! empty($ttd_tagihan_img))
+                    <img src="{{ $ttd_tagihan_img }}" height="120" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
+                @elseif (file_exists(public_path('assets/img/tagihan/' . $kec->id . '.png')))
                     <img src="{{ public_path('assets/img/tagihan/' . $kec->id . '.png') }}" height="120" alt="Tanda tangan {{ $dir->namadepan }} {{ $dir->namabelakang }}">
                 @endif
             </td>
