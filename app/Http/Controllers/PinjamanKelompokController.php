@@ -2816,6 +2816,9 @@ class PinjamanKelompokController extends Controller
         ])->aktif()->first();
 
         $data['keuangan'] = $keuangan;
+        $data['ttd_tagihan_img'] = ! empty($data['kec']->ttd_tagihan)
+            ? $this->supabaseToBase64($data['kec']->ttd_tagihan)
+            : null;
 
         $data['judul'] = 'Surat Tagihan ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';
         $view = view('perguliran.dokumen.tagihan', $data)->render();

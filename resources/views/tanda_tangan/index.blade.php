@@ -13,6 +13,38 @@
 @extends('layouts.base')
 
 @section('content')
+    <form action="{{ route('ttd-tagihan.store') }}" method="post" enctype="multipart/form-data" id="formTtdTagihan">
+        @csrf
+        <div class="card">
+            <div class="card-body p-3">
+                <h5 class="card-title">Tanda Tangan & Stempel — Surat Tagihan</h5>
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <div id="ttdTagihanPreviewBox" class="d-flex align-items-center justify-content-center border rounded bg-light p-2" style="min-height: 140px;">
+                            @if (! empty($kec->ttd_tagihan))
+                                <img src="{{ $kec->ttd_tagihan }}" id="previewTtdTagihan" height="120" alt="Tanda tangan & stempel surat tagihan">
+                            @else
+                                <span id="emptyTtdTagihan">Belum ada gambar TTD/stempel</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="my-2">
+                            <label class="form-label" for="ttd_tagihan">Gambar TTD & Stempel</label>
+                            <input type="file" class="form-control" name="ttd_tagihan" id="ttd_tagihan" accept=".jpg,.jpeg,.png">
+                            <small class="text-danger" id="msg_ttd_tagihan"></small>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" id="simpanTtdTagihan" class="btn btn-github btn-sm">
+                                Simpan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
     <form action="/pengaturan/simpan_tanda_tangan" method="post" id="formTandaTangan">
         @csrf
         <div class="card">
@@ -223,6 +255,41 @@
                     $.each(xhr.responseJSON.errors, function(key, value) {
                         $('#msg_' + key).html(value);
                     });
+                }
+            })
+        });
+
+        $(document).on('click', '#simpanTtdTagihan', function() {
+            var form = $('#formTtdTagihan');
+            var formData = new FormData(form[0]);
+
+            if ($('#ttd_tagihan')[0].files.length === 0) {
+                $('#msg_ttd_tagihan').html('Gambar TTD & stempel wajib diisi.');
+                return;
+            }
+
+            $.ajax({
+                type: form.attr('method'),
+                url: form.attr('action'),
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(result) {
+                    if (result.success) {
+                        $('#msg_ttd_tagihan').html('');
+                        $('#emptyTtdTagihan').remove();
+                        $('#previewTtdTagihan').remove();
+                        $('#ttdTagihanPreviewBox').append($('<img>', {
+                            id: 'previewTtdTagihan',
+                            src: result.path + '?t=' + Date.now(),
+                            height: 120,
+                            alt: 'Tanda tangan & stempel surat tagihan'
+                        }));
+                        Toastr('success', result.msg)
+                    }
+                },
+                error: function(xhr) {
+                    $('#msg_ttd_tagihan').html(xhr.responseJSON.msg);
                 }
             })
         });
