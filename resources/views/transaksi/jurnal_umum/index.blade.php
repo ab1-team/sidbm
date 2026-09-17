@@ -491,11 +491,14 @@
             // Nominal minus (koreksi/penyesuaian): ijinkan TANPA cek saldo
             // apapun — nilainya sudah signed dan server-side menerima nilai
             // minus di kolom jumlah.
+            var saldo_sen = Math.round(saldo_rek * 100)
+            var nominal_sen = Math.round(nominal * 100)
+
             var saldo_cukup = skipCek
                 || (nominal < 0)
                 || (nominal >= 0
-                    ? (saldo_rek >= nominal)
-                    : (saldo_rek <= nominal));
+                    ? (saldo_sen >= nominal_sen)
+                    : (saldo_sen <= nominal_sen));
 
             if (saldo_cukup) {
                 var form = $('#FormTransaksi')
@@ -770,8 +773,12 @@
 
             $.get('/trasaksi/saldo/' + sumber_dana + '?tahun=' + tahun + '&bulan=' + bulan + '&hari=' + hari,
                 function(result) {
-                    $('#saldo').html(formatter.format(result.saldo))
-                    $('#saldo_trx').val(result.saldo)
+                    var parsedSaldo = parseFloat(result.saldo);
+                    if (isNaN(parsedSaldo)) {
+                        parsedSaldo = 0;
+                    }
+                    $('#saldo').html(formatter.format(parsedSaldo))
+                    $('#saldo_trx').val(parsedSaldo.toFixed(2))
                 })
         }
     </script>

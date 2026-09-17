@@ -2622,7 +2622,7 @@ class TransaksiController extends Controller
         }
 
         return response()->json([
-            'saldo' => $total_saldo,
+            'saldo' => round(floatval($total_saldo), 2),
         ]);
     }
 
