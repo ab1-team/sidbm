@@ -9,7 +9,6 @@ use App\Models\Penghapusan;
 use App\Models\PinjamanAnggota;
 use App\Models\PinjamanKelompok;
 use App\Models\RencanaAngsuran;
-use App\Models\StatusPinjaman;
 use App\Models\Transaksi;
 use App\Utils\Keuangan;
 use App\Utils\Tanggal;
@@ -55,7 +54,7 @@ class PinjamanAnggotaController extends Controller
 
             $data_pemanfaat = DataPemanfaat::where([
                 ['nik', request()->get('value')],
-                ['lokasi', '!=', Session::get('lokasi')]
+                ['lokasi', '!=', Session::get('lokasi')],
             ])->where(function (Builder $query) {
                 $query->where('status', 'P')->orwhere('status', 'V')->orwhere('status', 'W');
             });
@@ -64,19 +63,23 @@ class PinjamanAnggotaController extends Controller
 
             $data_pemanfaat_a = DataPemanfaat::where([
                 ['nik', request()->get('value')],
-                ['lokasi', '!=', Session::get('lokasi')]
+                ['lokasi', '!=', Session::get('lokasi')],
             ])->where('status', 'A');
             $jumlah_data_pemanfaat_a = $data_pemanfaat_a->count();
             $data_pemanfaat_a = $data_pemanfaat_a->with('sts', 'kec')->first();
 
             $catatan = '';
             $enable_alokasi = true;
-            if ($jumlah_pinjaman_anggota > 0 || $jumlah_data_pemanfaat > 0) $enable_alokasi = false;
+            if ($jumlah_pinjaman_anggota > 0 || $jumlah_data_pemanfaat > 0) {
+                $enable_alokasi = false;
+            }
 
             if ($jumlah_pinjaman_anggota_a > 0) {
-                $catatan = 'Memiliki pinjaman aktif dengan Loan ID. ' . $pinjaman_anggota_a->id_pinkel;
+                $catatan = 'Memiliki pinjaman aktif dengan Loan ID. '.$pinjaman_anggota_a->id_pinkel;
 
-                if ($pinkel->id == $pinjaman_anggota_a->id_pinkel) $enable_alokasi = false;
+                if ($pinkel->id == $pinjaman_anggota_a->id_pinkel) {
+                    $enable_alokasi = false;
+                }
             }
 
             if ($anggota->status == '0') {
@@ -84,11 +87,12 @@ class PinjamanAnggotaController extends Controller
             }
 
             $view = view('pinjaman.anggota.register')->with(compact('anggota', 'pinjaman_anggota', 'jumlah_pinjaman_anggota', 'pinjaman_anggota_a', 'jumlah_pinjaman_anggota_a', 'data_pemanfaat', 'jumlah_data_pemanfaat', 'data_pemanfaat_a', 'jumlah_data_pemanfaat_a'))->render();
+
             return [
                 'nia' => $nia,
                 'enable_alokasi' => $enable_alokasi,
                 'html' => $view,
-                'catatan' => $catatan
+                'catatan' => $catatan,
             ];
         }
     }
@@ -109,11 +113,12 @@ class PinjamanAnggotaController extends Controller
         $anggota = Anggota::whereIn('id', $idAnggota)->with([
             'pinjaman_anggota' => function ($query) use ($idPinkel) {
                 $query->where('id_pinkel', '!=', $idPinkel)->orderBy('tgl_cair', 'desc');
-            }
+            },
         ])->get();
+
         return response()->json([
             'success' => true,
-            'view' => view('pinjaman.anggota.daftar_pemanfaat_lalu')->with(compact('anggota'))->render()
+            'view' => view('pinjaman.anggota.daftar_pemanfaat_lalu')->with(compact('anggota'))->render(),
         ]);
     }
 
@@ -126,13 +131,13 @@ class PinjamanAnggotaController extends Controller
             'id_pinkel',
             'nia_pemanfaat',
             'alokasi_pengajuan',
-            'catatan_pinjaman'
+            'catatan_pinjaman',
         ]);
 
         $validate = Validator::make($data, [
             'id_pinkel' => 'required',
             'nia_pemanfaat' => 'required',
-            'alokasi_pengajuan' => 'required'
+            'alokasi_pengajuan' => 'required',
         ]);
 
         if ($validate->fails()) {
@@ -195,20 +200,19 @@ class PinjamanAnggotaController extends Controller
             'nik' => $anggota->nik,
             'id_pinkel' => $insert['id_pinkel'],
             'idpa' => $pinjaman_anggota->id,
-            'status' => $insert['status']
+            'status' => $insert['status'],
         ]);
 
         return response()->json([
-            'msg' => 'Pemanfaat atas nama ' . $anggota->namadepan . ' berhasil ditambahkan'
+            'msg' => 'Pemanfaat atas nama '.$anggota->namadepan.' berhasil ditambahkan',
         ]);
     }
-
 
     public function import(Request $request)
     {
         $data = $request->only([
             'id_pinkel',
-            'alokasi_pengajuan_anggota'
+            'alokasi_pengajuan_anggota',
         ]);
 
         $id = $data['id_pinkel'];
@@ -275,7 +279,7 @@ class PinjamanAnggotaController extends Controller
         if ($totalAlokasi > $alokasiKelompok) {
             return response()->json([
                 'success' => false,
-                'msg' => 'Alokasi pengajuan anggota melebihi alokasi kelompok'
+                'msg' => 'Alokasi pengajuan anggota melebihi alokasi kelompok',
             ]);
         }
 
@@ -296,7 +300,7 @@ class PinjamanAnggotaController extends Controller
 
         return response()->json([
             'success' => true,
-            'msg' => 'Import data pemanfaat berhasil'
+            'msg' => 'Import data pemanfaat berhasil',
         ]);
     }
 
@@ -307,24 +311,24 @@ class PinjamanAnggotaController extends Controller
     {
         $pinj = PinjamanAnggota::where('id', $pinjaman_anggotum->id)->with([
             'anggota',
-            'pinkel'
+            'pinkel',
         ])->first();
 
         return response()->json([
             'success' => true,
-            'view' => view('pinjaman.anggota.detail')->with(compact('pinj'))->render()
+            'view' => view('pinjaman.anggota.detail')->with(compact('pinj'))->render(),
         ]);
     }
 
     public function form_penghapusan(PinjamanAnggota $pinj)
     {
         $pinj = PinjamanAnggota::where('id', $pinj->id)->with([
-            'anggota'
+            'anggota',
         ])->first();
 
         return response()->json([
             'success' => true,
-            'view' => view('pinjaman.anggota.penghapusan')->with(compact('pinj'))->render()
+            'view' => view('pinjaman.anggota.penghapusan')->with(compact('pinj'))->render(),
         ]);
     }
 
@@ -336,8 +340,8 @@ class PinjamanAnggotaController extends Controller
             $kel = Kelompok::where('id', $pinkel->id_kel)->first();
 
             $anggota = Anggota::where(function (Builder $query) {
-                $query->where('namadepan', 'like', '%' . request()->get('query') . '%')
-                    ->orwhere('nik', 'like', '%' . request()->get('query') . '%');
+                $query->where('namadepan', 'like', '%'.request()->get('query').'%')
+                    ->orwhere('nik', 'like', '%'.request()->get('query').'%');
             });
 
             if ($pinkel->jenis_pp != '3') {
@@ -381,14 +385,15 @@ class PinjamanAnggotaController extends Controller
             'status',
         ]);
 
-        $nominal =  ($data[$jumlah] == '') ? 0 : str_replace(',', '', str_replace('.00', '', $data[$jumlah]));
+        $nominal = ($data[$jumlah] == '') ? 0 : str_replace(',', '', str_replace('.00', '', $data[$jumlah]));
         PinjamanAnggota::where('id', $pinjaman_anggotum->id)->update([
             $jumlah => $nominal,
         ]);
 
         $jumlah = PinjamanAnggota::where('id_pinkel', $pinjaman_anggotum->id_pinkel)->sum($jumlah);
+
         return response()->json([
-            'jumlah' => number_format($jumlah, 2)
+            'jumlah' => number_format($jumlah, 2),
         ], Response::HTTP_ACCEPTED);
     }
 
@@ -399,7 +404,7 @@ class PinjamanAnggotaController extends Controller
             'tgl_penghapusan',
             'jasa_pinjaman',
             'jumlah_penghapusan_pokok',
-            'jumlah_penghapusan_jasa'
+            'jumlah_penghapusan_jasa',
         ]);
 
         $validate = Validator::make($data, [
@@ -421,14 +426,14 @@ class PinjamanAnggotaController extends Controller
         if ($hapus_pokok + $hapus_jasa <= 0) {
             return response()->json([
                 'success' => false,
-                'msg' => 'Jumlah Penghapusan pokok dan jasa tidak boleh nol (0)'
+                'msg' => 'Jumlah Penghapusan pokok dan jasa tidak boleh nol (0)',
             ]);
         }
 
         if ($hapus_pokok <= 0) {
             return response()->json([
                 'success' => false,
-                'msg' => 'Jumlah Penghapusan pokok tidak boleh nol (0)'
+                'msg' => 'Jumlah Penghapusan pokok tidak boleh nol (0)',
             ]);
         }
 
@@ -441,7 +446,7 @@ class PinjamanAnggotaController extends Controller
 
         $penghapusan = Penghapusan::where([
             'lokasi' => Session::get('lokasi'),
-            'id_pinj' => $pinjaman->id_pinkel
+            'id_pinj' => $pinjaman->id_pinkel,
         ])->orderBy('tanggal', 'DESC')->first();
 
         $alokasi = $pinjaman->pinkel->alokasi;
@@ -482,11 +487,11 @@ class PinjamanAnggotaController extends Controller
                 'idtp' => $idtp,
                 'id_pinj' => $pinjaman->id_pinkel,
                 'id_pinj_i' => $pinjaman->id,
-                'keterangan_transaksi' => (string) 'Penghapusan (P) Pinjaman ' . $pinjaman->anggota->namadepan . ' (' . $pinjaman->nia . ')' . ' [' . $pinjaman->kelompok->nama_kelompok . ']',
+                'keterangan_transaksi' => (string) 'Penghapusan (P) Pinjaman '.$pinjaman->anggota->namadepan.' ('.$pinjaman->nia.')'.' ['.$pinjaman->kelompok->nama_kelompok.']',
                 'relasi' => (string) $pinjaman->anggota->namadepan,
                 'jumlah' => $hapus_pokok,
                 'urutan' => '0',
-                'id_user' => auth()->user()->id
+                'id_user' => auth()->user()->id,
             ];
 
             $pokok_anggota = $hapus_pokok;
@@ -501,11 +506,11 @@ class PinjamanAnggotaController extends Controller
                 'idtp' => $idtp,
                 'id_pinj' => $pinjaman->id_pinkel,
                 'id_pinj_i' => $pinjaman->id,
-                'keterangan_transaksi' => (string) 'Penghapusan (J) Pinjaman ' . $pinjaman->anggota->namadepan . ' (' . $pinjaman->nia . ')' . ' [' . $pinjaman->kelompok->nama_kelompok . ']',
+                'keterangan_transaksi' => (string) 'Penghapusan (J) Pinjaman '.$pinjaman->anggota->namadepan.' ('.$pinjaman->nia.')'.' ['.$pinjaman->kelompok->nama_kelompok.']',
                 'relasi' => (string) $pinjaman->anggota->namadepan,
                 'jumlah' => $hapus_jasa,
                 'urutan' => '0',
-                'id_user' => auth()->user()->id
+                'id_user' => auth()->user()->id,
             ];
 
             $jasa_anggota = $hapus_jasa;
@@ -518,7 +523,7 @@ class PinjamanAnggotaController extends Controller
             'id_pinj_i' => $pinjaman->id,
             'nia' => $pinjaman->nia,
             'saldo_pinjaman' => $alokasi - $hapus_pokok,
-            'tanggal' => date('Y-m-d H:i:s', strtotime($tgl_penghapusan))
+            'tanggal' => date('Y-m-d H:i:s', strtotime($tgl_penghapusan)),
         ]);
 
         $kom_pokok = json_decode($pinjaman->kom_pokok, true);
@@ -544,13 +549,13 @@ class PinjamanAnggotaController extends Controller
             'status' => 'H',
             'kom_pokok' => json_encode($kom_pokok),
             'kom_jasa' => json_encode($kom_jasa),
-            'tgl_lunas' => $tgl_penghapusan
+            'tgl_lunas' => $tgl_penghapusan,
         ]);
 
         return response()->json([
             'success' => true,
-            'msg' => 'Pemanfaat atas nama ' . $pinjaman->anggota->namadepan . ' berhasil dihapus dari pinjaman.',
-            'id_pinkel' => $pinjaman->id_pinkel
+            'msg' => 'Pemanfaat atas nama '.$pinjaman->anggota->namadepan.' berhasil dihapus dari pinjaman.',
+            'id_pinkel' => $pinjaman->id_pinkel,
         ]);
     }
 
@@ -559,12 +564,12 @@ class PinjamanAnggotaController extends Controller
         $data = $request->only(['id_pinkel']);
 
         $pinj = PinjamanAnggota::where('id', $pinjaman->id)->update([
-            'status' => 'L'
+            'status' => 'L',
         ]);
 
         return response()->json([
             'success' => true,
-            'msg' => 'Sekarang pemanfaat atas nama ' . $pinjaman->anggota->namadepan . ' telah berstatus L (Lunas) dan dapat melakukan pencairan pinjaman lagi.'
+            'msg' => 'Sekarang pemanfaat atas nama '.$pinjaman->anggota->namadepan.' telah berstatus L (Lunas) dan dapat melakukan pencairan pinjaman lagi.',
         ]);
     }
 
@@ -583,18 +588,18 @@ class PinjamanAnggotaController extends Controller
             PinjamanAnggota::where('id', $id)->delete();
             DataPemanfaat::where([
                 ['idpa', $id],
-                ['lokasi', Session::get('lokasi')]
+                ['lokasi', Session::get('lokasi')],
             ])->delete();
 
             return response()->json([
                 'hapus' => true,
-                'msg' => 'Pemanfaat atas nama ' . $pinjaman_anggota->anggota->namadepan . ' berhasil dihapus'
+                'msg' => 'Pemanfaat atas nama '.$pinjaman_anggota->anggota->namadepan.' berhasil dihapus',
             ]);
         }
 
         return response()->json([
             'hapus' => false,
-            'msg' => 'Pemanfaat atas nama ' . $pinjaman_anggota->anggota->namadepan . ' gagal dihapus'
+            'msg' => 'Pemanfaat atas nama '.$pinjaman_anggota->anggota->namadepan.' gagal dihapus',
         ]);
     }
 
@@ -605,7 +610,7 @@ class PinjamanAnggotaController extends Controller
             'kelompok.d',
             'saldo_pinjaman' => function ($query) {
                 $query->where('lokasi', Session::get('lokasi'))->orderBy('tanggal', 'DESC');
-            }
+            },
         ])->firstOrFail();
 
         $jangka = $pinkel->jangka;
@@ -647,48 +652,77 @@ class PinjamanAnggotaController extends Controller
             }
 
             $tgl_pinjaman = date('Y-m', mktime(0, 0, 0, $m, 1, $y));
-            $max_d = (int) date('t', strtotime($tgl_pinjaman . '-01'));
-            $tgl = $tgl_pinjaman . '-' . sprintf('%02d', min($d_jadwal, $max_d));
+            $max_d = (int) date('t', strtotime($tgl_pinjaman.'-01'));
+            $tgl = $tgl_pinjaman.'-'.sprintf('%02d', min($d_jadwal, $max_d));
         }
 
         $sistem_pokok = $pinkel->sis_pokok->sistem;
         $sistem_jasa = $pinkel->sis_jasa->sistem;
 
+        // Grace = masa tunda pokok/jasa (bulan) sejak cair. Tempo = JUMLAH
+        // cicilan setelah grace. Kurung eksplisit WAJIB: tanpa itu PHP
+        // menghitung grace/interval lebih dulu (bug precedence lama).
+        $grace_pokok = 0;
         if ($sa_pokok == 11) {
-            $tempo_pokok = ($jangka) - 24 / $sistem_pokok;
-        } else if ($sa_pokok == 14) {
-            $tempo_pokok = ($jangka) - 3 / $sistem_pokok;
-        } else if ($sa_pokok == 26) {
-            $tempo_pokok = ($jangka) - 6 / $sistem_pokok;
-        } else if ($sa_pokok == 15) {
-            $tempo_pokok = ($jangka) - 2 / $sistem_pokok;
-        } else if ($sa_pokok == 20) {
-            $tempo_pokok = ($jangka) - 12 / $sistem_pokok;
+            $grace_pokok = 24;
+            $tempo_pokok = floor(($jangka - 24) / $sistem_pokok);
+        } elseif ($sa_pokok == 14) {
+            $grace_pokok = 3;
+            $tempo_pokok = floor(($jangka - 3) / $sistem_pokok);
+        } elseif ($sa_pokok == 26) {
+            $grace_pokok = 6;
+            $tempo_pokok = floor(($jangka - 6) / $sistem_pokok);
+        } elseif ($sa_pokok == 15) {
+            $grace_pokok = 2;
+            $tempo_pokok = floor(($jangka - 2) / $sistem_pokok);
+        } elseif ($sa_pokok == 20) {
+            $grace_pokok = 12;
+            $tempo_pokok = floor(($jangka - 12) / $sistem_pokok);
+        } elseif ($sa_pokok == 25) {
+            // M1: angsuran ditunda 1 bulan → grace 1, tempo = floor((jangka-1)/interval).
+            $grace_pokok = 1;
+            $tempo_pokok = floor(($jangka - 1) / $sistem_pokok);
         } else {
             $tempo_pokok = floor($jangka / $sistem_pokok);
         }
+        if ($tempo_pokok < 0) {
+            $tempo_pokok = 0;
+        }
 
+        $grace_jasa = 0;
         if ($sa_jasa == 11) {
-            $tempo_jasa = ($jangka) - 24 / $sistem_jasa;
-        } else if ($sa_jasa == 14) {
-            $tempo_jasa = ($jangka) - 3 / $sistem_jasa;
-        } else if ($sa_jasa == 26) {
-            $tempo_jasa = ($jangka) - 6 / $sistem_jasa;
-        } else if ($sa_jasa == 15) {
-            $tempo_jasa = ($jangka) - 2 / $sistem_jasa;
-        } else if ($sa_jasa == 20) {
-            $tempo_jasa = ($jangka) - 12 / $sistem_jasa;
+            $grace_jasa = 24;
+            $tempo_jasa = floor(($jangka - 24) / $sistem_jasa);
+        } elseif ($sa_jasa == 14) {
+            $grace_jasa = 3;
+            $tempo_jasa = floor(($jangka - 3) / $sistem_jasa);
+        } elseif ($sa_jasa == 26) {
+            $grace_jasa = 6;
+            $tempo_jasa = floor(($jangka - 6) / $sistem_jasa);
+        } elseif ($sa_jasa == 15) {
+            $grace_jasa = 2;
+            $tempo_jasa = floor(($jangka - 2) / $sistem_jasa);
+        } elseif ($sa_jasa == 20) {
+            $grace_jasa = 12;
+            $tempo_jasa = floor(($jangka - 12) / $sistem_jasa);
+        } elseif ($sa_jasa == 25) {
+            // M1: angsuran ditunda 1 bulan → grace 1, tempo = floor((jangka-1)/interval).
+            $grace_jasa = 1;
+            $tempo_jasa = floor(($jangka - 1) / $sistem_jasa);
         } else {
             $tempo_jasa = floor($jangka / $sistem_jasa);
+        }
+        if ($tempo_jasa < 0) {
+            $tempo_jasa = 0;
         }
 
         $rencana_angs = RencanaAngsuran::where([
             ['loan_id', $id_pinj],
-            ['angsuran_ke', '!=', '0']
+            ['angsuran_ke', '!=', '0'],
         ])->orderBy('jatuh_tempo', 'ASC')->first();
         RencanaAngsuran::where([
             ['loan_id', $id_pinj],
-            ['angsuran_ke', '!=', '0']
+            ['angsuran_ke', '!=', '0'],
         ])->delete();
 
         $rencana = [];
@@ -707,8 +741,8 @@ class PinjamanAnggotaController extends Controller
         // Rencana Angsuran Pokok
         for ($i = 1; $i <= $jangka; $i++) {
             $x = $i;
-            $bulan  = substr($tgl, 5, 2);
-            $tahun  = substr($tgl, 0, 4);
+            $bulan = substr($tgl, 5, 2);
+            $tahun = substr($tgl, 0, 4);
 
             if ($sa_pokok == 12) {
                 $tambah = $i * 7;
@@ -719,9 +753,12 @@ class PinjamanAnggotaController extends Controller
             $jatuh_tempo = date('Y-m-d', strtotime($penambahan, strtotime($tgl)));
 
             $sisa_pokok = $i % $sistem_pokok;
-            $ke_pokok = $i / $sistem_pokok;
+            // Sumbu grace: ke_pokok = nomor cicilan (1..tempo), bukan indeks
+            // bulan. ke = bulan/interval - grace → pokok hanya muncul setelah
+            // masa tunda (ke > 0).
+            $ke_pokok = $i / $sistem_pokok - $grace_pokok;
             $sisa_jasa = $i % $sistem_jasa;
-            $ke_jasa = $i / $sistem_jasa;
+            $ke_jasa = $i / $sistem_jasa - $grace_jasa;
             $alokasi_jasa = ($alokasi * ($pros_jasa / 100)) - $jasa_penghapusan;
 
             $wajib_pokok = Keuangan::bulatkan($alokasi / $tempo_pokok);
@@ -741,7 +778,7 @@ class PinjamanAnggotaController extends Controller
                         'target_pokok' => $target_pokok + Session::get('hapus_pokok'),
                         'target_jasa' => $target_jasa + Session::get('hapus_jasa'),
                         'lu' => date('Y-m-d H:i:s'),
-                        'id_user' => auth()->user()->id
+                        'id_user' => auth()->user()->id,
                     ];
 
                     $_alokasi_pokok = $alokasi - ($target_pokok + Session::get('hapus_pokok'));
@@ -764,7 +801,7 @@ class PinjamanAnggotaController extends Controller
                 $x = $i + 1;
             }
 
-            if ($sisa_pokok == 0 and $ke_pokok != $tempo_pokok) {
+            if ($sisa_pokok == 0 and $ke_pokok > 0 and $ke_pokok < $tempo_pokok) {
                 $angsuran_pokok = $wajib_pokok;
             } elseif ($sisa_pokok == 0 and $ke_pokok == $tempo_pokok) {
                 // amortisasi terakhir: pakai sisa alokasi yg valid,
@@ -776,7 +813,7 @@ class PinjamanAnggotaController extends Controller
                 $angsuran_pokok = 0;
             }
 
-            if ($sisa_jasa == 0 and $ke_jasa != $tempo_jasa) {
+            if ($sisa_jasa == 0 and $ke_jasa > 0 and $ke_jasa < $tempo_jasa) {
                 $angsuran_jasa = $wajib_jasa;
             } elseif ($sisa_jasa == 0 and $ke_jasa == $tempo_jasa) {
                 $ref_alokasi_j = ($_alokasi_jasa > 0) ? $_alokasi_jasa : $alokasi_jasa;
@@ -800,7 +837,7 @@ class PinjamanAnggotaController extends Controller
                 'target_pokok' => $target_pokok,
                 'target_jasa' => $target_jasa,
                 'lu' => date('Y-m-d H:i:s'),
-                'id_user' => auth()->user()->id
+                'id_user' => auth()->user()->id,
             ];
         }
 

@@ -332,7 +332,7 @@ class GenerateService
                 $rencana_anggota['id'.$pa->id] = [
                     'pokok' => $sch_pa['pokok'],
                     'jasa' => $sch_pa['jasa'],
-                    'jumlah_angsuran' => ($target_pa_p + $target_pa_j) / $pa->jangka
+                    'jumlah_angsuran' => ($target_pa_p + $target_pa_j) / $pa->jangka,
                 ];
             }
         }
@@ -446,7 +446,7 @@ class GenerateService
             'rencana' => $rencana,
             'data_rencana' => $data_rencana,
             'id_real' => $data_id_real,
-            'rencana_anggota' => $rencana_anggota
+            'rencana_anggota' => $rencana_anggota,
         ];
     }
 
@@ -568,10 +568,17 @@ class GenerateService
 
     protected function sistem($sistem_angsuran, $jangka_pinjaman, $sistem)
     {
+        // Grace = masa tunda pokok (bulan) sejak cair, sebelum cicilan pokok
+        // pertama jatuh tempo. Hanya berlaku utk sa di $map; di luar itu 0.
         $map = [11 => 24, 14 => 3, 26 => 6, 15 => 2, 25 => 1, 20 => 12];
         if (isset($map[$sistem_angsuran])) {
-            $tempo = $jangka_pinjaman - $map[$sistem_angsuran] / $sistem;
-            $mulai_angsuran = $jangka_pinjaman - $tempo;
+            $grace = $map[$sistem_angsuran];
+            // Tempo = JUMLAH cicilan pokok setelah grace. Kurung eksplisit WAJIB
+            // (tanpa itu PHP menghitung grace/interval lebih dulu).
+            $tempo = floor(($jangka_pinjaman - $grace) / $sistem);
+            // mulai_angsuran = faktor pergeseran sumbu bulan agar cicilan ke-k
+            // jatuh di bulan (grace + k*interval). Bila tempo habis, 0.
+            $mulai_angsuran = ($tempo > 0) ? $grace : 0;
         } else {
             $tempo = floor($jangka_pinjaman / $sistem);
             $mulai_angsuran = 0;
@@ -612,7 +619,7 @@ class GenerateService
 
         $tgl_baru = mktime(0, 0, 0, $m, 1, $y);
         $max_d = (int) date('t', $tgl_baru);
-        $tgl_baru_str = date('Y-m', $tgl_baru) . '-' . sprintf('%02d', min($d, $max_d));
+        $tgl_baru_str = date('Y-m', $tgl_baru).'-'.sprintf('%02d', min($d, $max_d));
 
         // tgl_cair_asli = tanggal cair mentah (sebelum penyesuaian jadwal desa)
         $tgl_cair_asli = date('Y-m-d', $time);
@@ -631,15 +638,21 @@ class GenerateService
         // dengan rumus kelompok). Default pakai $pinkel->pros_jasa.
         $pros_jasa = $pros_jasa_override ?? $pinkel->pros_jasa;
 
-        $pokok_dibulatkan = Keuangan::pembulatan($alokasi_pokok / $ang_pokok['tempo'], $pembulatan);
+        // Guard tempo > 0 agar tidak division by zero (mis. jangka <= grace).
+        $pokok_dibulatkan = ($ang_pokok['tempo'] > 0)
+            ? Keuangan::pembulatan($alokasi_pokok / $ang_pokok['tempo'], $pembulatan)
+            : 0;
 
         for ($j = 1; $j <= $pinkel->jangka; $j++) {
+            // Sumbu grace: ke = nomor cicilan (1..tempo), bukan indeks bulan.
+            // ke == j/interval - mulai_angsuran; pokok hanya di bulan setelah
+            // masa tunda (ke > 0).
             $pokok = 0;
             if ($j % $ang_pokok['sistem'] == 0) {
-                $ke = $j / $ang_pokok['sistem'];
+                $ke = $j / $ang_pokok['sistem'] - $ang_pokok['mulai_angsuran'];
                 if ($ke == $ang_pokok['tempo']) {
                     $pokok = $alokasi_pokok - ($pokok_dibulatkan * ($ang_pokok['tempo'] - 1));
-                } elseif ($ke > $ang_pokok['mulai_angsuran'] && $ke < $ang_pokok['tempo']) {
+                } elseif ($ke > 0 && $ke < $ang_pokok['tempo']) {
                     $pokok = $pokok_dibulatkan;
                 }
             }
@@ -647,16 +660,19 @@ class GenerateService
 
             $jasa = 0;
             if ($j % $ang_jasa['sistem'] == 0) {
-                $ke = $j / $ang_jasa['sistem'];
+                // Sumbu grace jasa (mis. id 25/M1 → grace 1 bulan).
+                $ke_jasa = $j / $ang_jasa['sistem'] - $ang_jasa['mulai_angsuran'];
                 $alokasi_jasa = $temp_alokasi * ($pros_jasa / 100);
-                $jasa_dibulatkan = Keuangan::pembulatan($alokasi_jasa / $ang_jasa['tempo'], $pembulatan);
+                $jasa_dibulatkan = ($ang_jasa['tempo'] > 0)
+                    ? Keuangan::pembulatan($alokasi_jasa / $ang_jasa['tempo'], $pembulatan)
+                    : 0;
 
                 if ($pinkel->jenis_jasa == '2') {
                     $jasa = $jasa_dibulatkan;
                 } else {
-                    if ($ke == $ang_jasa['tempo']) {
+                    if ($ke_jasa == $ang_jasa['tempo']) {
                         $jasa = $alokasi_jasa - ($jasa_dibulatkan * ($ang_jasa['tempo'] - 1));
-                    } elseif ($ke > $ang_jasa['mulai_angsuran'] && $ke < $ang_jasa['tempo']) {
+                    } elseif ($ke_jasa > 0 && $ke_jasa < $ang_jasa['tempo']) {
                         $jasa = $jasa_dibulatkan;
                     }
                 }
@@ -683,6 +699,6 @@ class GenerateService
         $day = (int) date('d', $base);
         $max_d = (int) date('t', $target_ts);
 
-        return date('Y-m', $target_ts) . '-' . sprintf('%02d', min($day, $max_d));
+        return date('Y-m', $target_ts).'-'.sprintf('%02d', min($day, $max_d));
     }
 }
