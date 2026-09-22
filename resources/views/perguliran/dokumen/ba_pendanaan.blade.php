@@ -44,35 +44,35 @@
         </thead>
 
         <tbody>
-            @foreach ($pinjaman as $pinkel)
+            @foreach ($pinjaman as $pinj)
                 @php
-                    $jumlah += $pinkel->alokasi;
+                    $jumlah += $pinj->alokasi;
                 @endphp
                 <tr>
                     <td align="center">
                         {{ $loop->iteration }}
                     </td>
                     <td>
-                        {{ $pinkel->kelompok->nama_kelompok }}
+                        {{ $pinj->kelompok->nama_kelompok }}
                     </td>
                     <td>
-                        {{ $pinkel->kelompok->alamat_kelompok }} {{ $pinkel->kelompok->d->sebutan_desa->sebutan_desa }}
-                        {{ $pinkel->kelompok->d->nama_desa }}
+                        {{ $pinj->kelompok->alamat_kelompok }} {{ $pinj->kelompok->d->sebutan_desa->sebutan_desa }}
+                        {{ $pinj->kelompok->d->nama_desa }}
                     </td>
                     <td align="center">
-                        {{ $pinkel->jpp->nama_jpp }}
+                        {{ $pinj->jpp->nama_jpp }}
                     </td>
                     <td align="center">
-                        {{ $pinkel->pinjaman_anggota_count }}
+                        {{ $pinj->pinjaman_anggota_count }}
                     </td>
                     <td>
-                        {{ $pinkel->kelompok->ketua }}
+                        {{ $pinj->kelompok->ketua }}
                     </td>
                     <td align="right">
-                        {{ number_format($pinkel->alokasi) }}
+                        {{ number_format($pinj->alokasi) }}
                     </td>
                     <td align="right">
-                        {{ ($pinkel->jangka) }} Bulan
+                        {{ ($pinj->jangka) }} Bulan
                     </td>
                 </tr>
             @endforeach

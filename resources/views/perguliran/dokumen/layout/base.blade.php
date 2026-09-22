@@ -184,6 +184,49 @@
         </style>
     @endif
 
+    @php
+        $excludedReports = [
+            'cover', 'coverpencairan', 'cover_pencairan', 'coverproposal', 'cover_proposal',
+            'kuitansi', 'kuitansianggota', 'kuitansi_anggota',
+            'kartuangsuran', 'kartuangsurananggota', 'kartu_angsuran', 'kartu_angsuran_anggota',
+            'cetakkartuangsuran', 'cetakkartuangsurananggota', 'cetak_kartu_angsuran', 'cetak_kartu_angsuran_anggota'
+        ];
+        $currentReportKey = strtolower(str_replace(['_', '-'], '', $report ?? ''));
+
+        $disbursementReportKeys = [
+            'spk', 'spkrestrukturisasi', 'bapencairan', 'rencanaangsuran', 'tandaterima',
+            'pemberitahuandesa', 'bapendanaan', 'pesertaasuransi', 'surattagihan', 'tagihan',
+            'suratahliwaris', 'suratkuasa', 'tanggungrentengkematian', 'iptw', 'rekeningkoran',
+            'pernyataanpeminjam', 'daftarhadirpencairan'
+        ];
+
+        $isDisbursementDoc = false;
+        if (!in_array($currentReportKey, $excludedReports, true)) {
+            if (in_array($currentReportKey, $disbursementReportKeys, true) || (request()->get('jenis') === 'dokumen_pencairan')) {
+                $isDisbursementDoc = true;
+            }
+        }
+    @endphp
+
+    @hasSection('footer')
+        <footer>
+            @yield('footer')
+        </footer>
+    @elseif ($isDisbursementDoc && isset($pinkel) && is_object($pinkel))
+        <footer>
+            <table width="100%" style="border-top: 1px solid #888; font-size: 8px; color: #555;">
+                <tr>
+                    <td align="left">
+                        <i>No. SPK: {{ $pinkel->spk_no ?: '-' }}</i>
+                    </td>
+                    <td align="right">
+                        <i>Tgl. Cair: {{ $pinkel->tgl_cair ? \App\Utils\Tanggal::tglLatin($pinkel->tgl_cair) : '-' }}</i>
+                    </td>
+                </tr>
+            </table>
+        </footer>
+    @endif
+
     <main>
         @yield('content')
     </main>
