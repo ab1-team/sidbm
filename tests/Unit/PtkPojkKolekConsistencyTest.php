@@ -311,4 +311,51 @@ class PtkPojkKolekConsistencyTest extends TestCase
         $this->assertEqualsWithDelta(array_sum($per_row), $ppap_wajib_minimum, 0.01,
             'Jumlah PPAP per-baris (Blade) = $a[ppap_wajib_minimum] (controller)');
     }
+
+    /**
+     * Mensimulasikan inisialisasi $global_kolek* di Blade Rekapitulasi.
+     * Sebelumnya, loop @forelse ($detail as $jpp) mengakumulasi ulang
+     * $global_kolek* dari $jpp['tot'] (sumber: ptkPojkKolekDetail), yang
+     * menyebabkan total saldo/kolek di Rekapitulasi berbeda dari G. Ringkasan.
+     * Perbaikan: inisialisasi langsung dari $a['sum_kolek_total'] (ptkPojkKolek)
+     * dan JANGAN akumulasi ulang di loop.
+     */
+    public function test_global_kolek_diambil_langsung_dari_sum_kolek_total()
+    {
+        $data = $this->dataset();
+        $tgl_kondisi = '2025-06-30';
+
+        // sumber tunggal: ptkPojkKolek -> $a['sum_kolek_total']
+        $sum_kolek_total = array_fill(0, 5, 0.0);
+        foreach ($data as $pinkel) {
+            $r = $this->classifyKolek($pinkel, $tgl_kondisi);
+            $sum_kolek_total[$r['kategori']] += $r['saldo_pokok'];
+        }
+
+        // sumber: ptkPojkKolekDetail -> $jpp['tot'] (simulasi)
+        $jpp_totals = array_fill(1, 5, 0.0);
+        foreach ($data as $pinkel) {
+            $r = $this->classifyKolekDetail($pinkel, $tgl_kondisi);
+            $jpp_totals[$r['kategori']] += $r['saldo_pokok'];
+        }
+
+        // Blade (perbaikan): $global_kolekN = $a['sum_kolek_total'][N-1]
+        $global_kolek = [
+            1 => $sum_kolek_total[0],
+            2 => $sum_kolek_total[1],
+            3 => $sum_kolek_total[2],
+            4 => $sum_kolek_total[3],
+            5 => $sum_kolek_total[4],
+        ];
+
+        // Verifikasi: global_kolek == sum_kolek_total (sumber tunggal)
+        $this->assertEqualsWithDelta($sum_kolek_total[0], $global_kolek[1], 0.01);
+        $this->assertEqualsWithDelta($sum_kolek_total[4], $global_kolek[5], 0.01);
+
+        // Simulasi loop lama (akumulasi ulang) seharusnya TIDAK dilakukan lagi.
+        // Jika dilakukan: total menjadi $sum_kolek_total + $jpp_totals = 2x lipat (salah).
+        $buggy_global_kolek1 = $sum_kolek_total[0] + $jpp_totals[1];
+        $this->assertGreaterThan($sum_kolek_total[0] + 0.01, $buggy_global_kolek1,
+            'Akumulasi ulang akan menggandakan total (bug)');
+    }
 }

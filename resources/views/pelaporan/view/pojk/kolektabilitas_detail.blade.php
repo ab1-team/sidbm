@@ -37,12 +37,13 @@
     <br>
 
     @php
+        // Sumber tunggal untuk konsistensi G. Ringkasan & Rekapitulasi:
+        // $a['sum_kolek_total'] (0..4) dari ptkPojkKolek().
         $global_kolek1 = $a['sum_kolek_total'][0] ?? 0;
         $global_kolek2 = $a['sum_kolek_total'][1] ?? 0;
         $global_kolek3 = $a['sum_kolek_total'][2] ?? 0;
         $global_kolek4 = $a['sum_kolek_total'][3] ?? 0;
         $global_kolek5 = $a['sum_kolek_total'][4] ?? 0;
-        $global_alokasi = 0;
         $global_saldo = $global_kolek1 + $global_kolek2 + $global_kolek3 + $global_kolek4 + $global_kolek5;
     @endphp
 
@@ -53,13 +54,10 @@
                 'alokasi' => 0, 'saldo' => 0,
                 'kolek1' => 0, 'kolek2' => 0, 'kolek3' => 0, 'kolek4' => 0, 'kolek5' => 0,
             ];
-            $global_alokasi += $t['alokasi'];
-            $global_saldo += $t['saldo'];
-            $global_kolek1 += $t['kolek1'];
-            $global_kolek2 += $t['kolek2'];
-            $global_kolek3 += $t['kolek3'];
-            $global_kolek4 += $t['kolek4'];
-            $global_kolek5 += $t['kolek5'];
+            // Jangan akumulasi ulang $global_* karena nilainya sudah diinisialisasi
+            // dari $a['sum_kolek_total'] (sumber: ptkPojkKolek) di atas.
+            // Akumulasi ulang di sini akan menyebabkan total saldo/kolek di
+            // Rekapitulasi berbeda dari G. Ringkasan.
             $nomor = 1;
         @endphp
 
