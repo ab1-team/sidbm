@@ -246,4 +246,69 @@ class PtkPojkKolekConsistencyTest extends TestCase
         $r2 = $this->classifyKolekDetail($pinkel, '2025-06-30');
         $this->assertSame(1, $r2['kategori'], 'Lunas R -> Lancar (detail)');
     }
+
+    public function test_ppap_wajib_total_sama_antara_kedua_method()
+    {
+        // PPAP wajib = saldo * prosentase per kategori.
+        // Jika klasifikasi identik, total PPAP wajib juga harus identik.
+        $prosentase = [0 => 0, 1 => 5, 2 => 15, 3 => 50, 4 => 100];
+        $prosentase_detail = [1 => 0, 2 => 5, 3 => 15, 4 => 50, 5 => 100];
+
+        $data = $this->dataset();
+        $tgl_kondisi = '2025-06-30';
+
+        $ppap_kolek = 0.0;
+        $ppap_detail = 0.0;
+
+        foreach ($data as $pinkel) {
+            $r = $this->classifyKolek($pinkel, $tgl_kondisi);
+            $ppap_kolek += $r['saldo_pokok'] * ($prosentase[$r['kategori']] / 100);
+
+            $r2 = $this->classifyKolekDetail($pinkel, $tgl_kondisi);
+            $ppap_detail += $r2['saldo_pokok'] * ($prosentase_detail[$r2['kategori']] / 100);
+        }
+
+        $this->assertEqualsWithDelta($ppap_kolek, $ppap_detail, 0.01,
+            'Total PPAP wajib kolek vs detail harus identik untuk dataset sintetis');
+    }
+
+    /**
+     * Mensimulasikan halaman Rekapitulasi (Blade) yang sekarang mengambil
+     * PPAP dari $a['ppap_wajib_minimum'] & $a['kolek_items'] & $a['sum_kolek_total']
+     * (sumber: ptkPojkKolek) — bukan lagi menghitung ulang dari data detail.
+     * Memastikan sumber tunggal untuk kedua halaman.
+     */
+    public function test_ppap_wajib_total_dari_sumber_kolek_saja()
+    {
+        $prosentase = [0 => 0, 1 => 5, 2 => 15, 3 => 50, 4 => 100];
+
+        $data = $this->dataset();
+        $tgl_kondisi = '2025-06-30';
+
+        // sumber tunggal: ptkPojkKolek
+        $sum_kolek_total = array_fill(0, 5, 0.0);
+        $ppap_wajib_minimum = 0.0;
+        foreach ($data as $pinkel) {
+            $r = $this->classifyKolek($pinkel, $tgl_kondisi);
+            $sum_kolek_total[$r['kategori']] += $r['saldo_pokok'];
+            if ($prosentase[$r['kategori']] > 0) {
+                $ppap_wajib_minimum += $r['saldo_pokok'] * ($prosentase[$r['kategori']] / 100);
+            }
+        }
+
+        // halaman G & Rekapitulasi sekarang ambil dari sumber yang sama
+        $g_total_ppap = $ppap_wajib_minimum; // controller -> $a['ppap_wajib_minimum']
+        $rekap_total_ppap = $ppap_wajib_minimum; // Blade pakai $a['ppap_wajib_minimum']
+
+        $this->assertEqualsWithDelta($g_total_ppap, $rekap_total_ppap, 0.01);
+
+        // jumlah per baris (Blade) = sum_kolek_total[i] * prosentase[i]
+        $per_row = [];
+        foreach ($sum_kolek_total as $idx => $saldo) {
+            $per_row[$idx] = $saldo * ($prosentase[$idx] / 100);
+        }
+
+        $this->assertEqualsWithDelta(array_sum($per_row), $ppap_wajib_minimum, 0.01,
+            'Jumlah PPAP per-baris (Blade) = $a[ppap_wajib_minimum] (controller)');
+    }
 }

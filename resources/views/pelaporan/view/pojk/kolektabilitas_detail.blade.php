@@ -37,13 +37,13 @@
     <br>
 
     @php
-        $global_kolek1 = 0;
-        $global_kolek2 = 0;
-        $global_kolek3 = 0;
-        $global_kolek4 = 0;
-        $global_kolek5 = 0;
+        $global_kolek1 = $a['sum_kolek_total'][0] ?? 0;
+        $global_kolek2 = $a['sum_kolek_total'][1] ?? 0;
+        $global_kolek3 = $a['sum_kolek_total'][2] ?? 0;
+        $global_kolek4 = $a['sum_kolek_total'][3] ?? 0;
+        $global_kolek5 = $a['sum_kolek_total'][4] ?? 0;
         $global_alokasi = 0;
-        $global_saldo = 0;
+        $global_saldo = $global_kolek1 + $global_kolek2 + $global_kolek3 + $global_kolek4 + $global_kolek5;
     @endphp
 
     @forelse ($detail as $jpp)
@@ -162,7 +162,18 @@
 
     @php
         $npl_total_pinjaman = $global_saldo > 0 ? (($global_kolek3 + $global_kolek4 + $global_kolek5) / $global_saldo) * 100 : 0;
-        $ppap_wajib_minimum_total = ($global_kolek2 * 0.05) + ($global_kolek3 * 0.15) + ($global_kolek4 * 0.50) + ($global_kolek5 * 1.00);
+        // Pakai sumber PPAP yang sama dengan halaman G. Ringkasan (ptkPojkKolek)
+        // untuk menjamin konsistensi antar-halaman. Per-baris dihitung dari
+        // $a['kolek_items'] & $a['sum_kolek_total'] (sumber: ptkPojkKolek).
+        $ppap_wajib_minimum_total = (float) ($a['ppap_wajib_minimum'] ?? 0);
+        $kolek_ppap_rows = $a['kolek_items'] ?? [];
+        $kolek_total_rows = $a['sum_kolek_total'] ?? [];
+        $ppap_per_row = [];
+        foreach ($kolek_ppap_rows as $idx => $item) {
+            $saldo_row = $kolek_total_rows[$idx] ?? 0;
+            $prosentase_row = (float) ($item['prosentase'] ?? 0);
+            $ppap_per_row[$idx] = $saldo_row * ($prosentase_row / 100);
+        }
     @endphp
 
     <div style="font-size: 11px; font-weight: bold; background: rgb(232,232,232); padding: 4px;">
@@ -188,7 +199,7 @@
                 <td class="t l b r" align="center">0 - 3 bulan</td>
                 <td class="t l b r" align="center">0%</td>
                 <td class="t l b r" align="right">{{ number_format($global_kolek1, 0, '.', ',') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek1 * 0, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($ppap_per_row[0] ?? 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek1 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(212,237,218); font-weight: bold;">Sehat</td>
             </tr>
@@ -198,7 +209,7 @@
                 <td class="t l b r" align="center">>3 - 6 bulan</td>
                 <td class="t l b r" align="center">5%</td>
                 <td class="t l b r" align="right">{{ number_format($global_kolek2, 0, '.', ',') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek2 * 0.05, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($ppap_per_row[1] ?? 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek2 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(255,243,205); font-weight: bold;">Perlu Perhatian</td>
             </tr>
@@ -208,7 +219,7 @@
                 <td class="t l b r" align="center">>6 - 9 bulan</td>
                 <td class="t l b r" align="center">15%</td>
                 <td class="t l b r" align="right">{{ number_format($global_kolek3, 0, '.', ',') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek3 * 0.15, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($ppap_per_row[2] ?? 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek3 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(255,224,192); font-weight: bold;">Kurang Sehat</td>
             </tr>
@@ -218,7 +229,7 @@
                 <td class="t l b r" align="center">>9 - 12 bulan</td>
                 <td class="t l b r" align="center">50%</td>
                 <td class="t l b r" align="right">{{ number_format($global_kolek4, 0, '.', ',') }}</td>
-                <td class="t l b r" align="right">{{ number_format($global_kolek4 * 0.50, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right">{{ number_format($ppap_per_row[3] ?? 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right">{{ $global_saldo > 0 ? number_format(($global_kolek4 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(248,215,218); font-weight: bold;">Tidak Sehat</td>
             </tr>
@@ -228,7 +239,7 @@
                 <td class="t l b r" align="center">&gt; 12 bulan</td>
                 <td class="t l b r" align="center">100%</td>
                 <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5, 0, '.', ',') }}</td>
-                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($global_kolek5 * 1.00, 0, '.', ',') }}</td>
+                <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ number_format($ppap_per_row[4] ?? 0, 0, '.', ',') }}</td>
                 <td class="t l b r" align="right" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">{{ $global_saldo > 0 ? number_format(($global_kolek5 / $global_saldo) * 100, 2) : '0,00' }}%</td>
                 <td class="t l b r" align="center" style="background: rgb(220,53,69); color: #fff; font-weight: bold;">Tidak Sehat</td>
             </tr>
