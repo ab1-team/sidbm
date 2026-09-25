@@ -1192,11 +1192,11 @@ class Keuangan
                 $angsuran_ke = $pinkel->target->angsuran_ke;
             }
 
-            if ($saldo_pokok <= 0) {
-                continue;
-            }
-
             $tunggakan_pokok = max(0, $wajib_pokok - $target_pokok);
+
+            if ($pinkel->tgl_lunas <= $tgl_kondisi && in_array($pinkel->status, ['L', 'R', 'H'], true)) {
+                $tunggakan_pokok = 0;
+            }
 
             $tgl_cair = new \DateTime($pinkel->tgl_cair);
             $tgl_kond = new \DateTime($tgl_kondisi);
@@ -1205,6 +1205,10 @@ class Keuangan
 
             $rasio_tunggakan = $wajib_pokok > 0 ? ($tunggakan_pokok / $wajib_pokok) : 0;
             $bulan_tunggak = round($rasio_tunggakan + ($selisih_bulan - $angsuran_ke));
+
+            if ($saldo_pokok == 0) {
+                $bulan_tunggak = 0;
+            }
 
             if ($bulan_tunggak <= 3) {
                 $kategori = 0;
