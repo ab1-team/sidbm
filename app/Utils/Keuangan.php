@@ -1196,6 +1196,7 @@ class Keuangan
 
             if ($pinkel->tgl_lunas <= $tgl_kondisi && in_array($pinkel->status, ['L', 'R', 'H'], true)) {
                 $tunggakan_pokok = 0;
+                $saldo_pokok = 0;
             }
 
             $tgl_cair = new \DateTime($pinkel->tgl_cair);

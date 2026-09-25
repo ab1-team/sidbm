@@ -39,6 +39,7 @@ class PtkPojkKolekConsistencyTest extends TestCase
         if (! empty($pinkel['tgl_lunas']) && $pinkel['tgl_lunas'] <= $tgl_kondisi
             && in_array($pinkel['status'], ['L', 'R', 'H'], true)) {
             $tunggakan_pokok = 0;
+            $saldo_pokok = 0;
         }
 
         $tgl_cair = new \DateTime($pinkel['tgl_cair']);
@@ -245,6 +246,28 @@ class PtkPojkKolekConsistencyTest extends TestCase
 
         $r2 = $this->classifyKolekDetail($pinkel, '2025-06-30');
         $this->assertSame(1, $r2['kategori'], 'Lunas R -> Lancar (detail)');
+    }
+
+    public function test_pinjaman_lunas_R_H_dengan_saldo_sisa_direset_nol()
+    {
+        // Kasus: pinjaman Lunas sebagian (status L, tgl_lunas <= tgl_kondisi,
+        // saldo_pokok masih > 0 di record RealAngsuran). Sebelum perbaikan,
+        // JUMLAH SPP (Detail) tidak termasuk saldo ini (di-reset ke 0),
+        // tapi G. Ringkasan / Rekapitulasi (Kolek) tetap pakai nilai saldo
+        // yang > 0 -> selisih saldo pokok antara halaman.
+        // Setelah perbaikan: saldo_pokok di-reset ke 0 di Kolek juga,
+        // sehingga JUMLAH SPP == Saldo Pokok (Rp) di Rekapitulasi.
+        $pinkel = ['alokasi' => 1000000, 'status' => 'L', 'tgl_cair' => '2024-02-01', 'tgl_lunas' => '2025-04-01',
+            'saldo' => ['saldo_pokok' => 250000, 'sum_pokok' => 750000],   // sisa 250rb
+            'target' => ['target_pokok' => 800000, 'wajib_pokok' => 1000000, 'angsuran_ke' => 16]];
+
+        $r = $this->classifyKolek($pinkel, '2025-06-30');
+        $this->assertSame(0, $r['kategori'], 'Lunas sebagian L -> Lancar (kolek)');
+        $this->assertEquals(0.0, $r['saldo_pokok'], 'Saldo paksa 0 saat L/R/H lunas (kolek)');
+
+        $r2 = $this->classifyKolekDetail($pinkel, '2025-06-30');
+        $this->assertSame(1, $r2['kategori'], 'Lunas sebagian L -> Lancar (detail)');
+        $this->assertEquals(0.0, $r2['saldo_pokok'], 'Saldo paksa 0 saat L/R/H lunas (detail)');
     }
 
     public function test_ppap_wajib_total_sama_antara_kedua_method()
