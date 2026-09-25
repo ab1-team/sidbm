@@ -4275,7 +4275,7 @@ class PelaporanController extends Controller
         $is_a4 = is_string($paperSize) && strtoupper($paperSize) === 'A4';
         $landscape_size_css = $is_a4 ? '297mm 210mm' : '935.43pt 595.28pt';
 
-        $style_block = '<style>@page landscape_page { size: '.$landscape_size_css.'; } .landscape-page { page: landscape_page; page-break-before: always; }</style>';
+        $style_block = '<style>@page landscape_page { size: '.$landscape_size_css.'; } .landscape-page { page: landscape_page; page-break-before: always; } .landscape-ttd-page { page: landscape_page; page-break-before: always; } .ttd-block { page-break-inside: avoid; }</style>';
 
         if (preg_match('/<\/head>/i', $clean_portrait)) {
             $clean_portrait = preg_replace('/<\/head>/i', $style_block.'</head>', $clean_portrait, 1);

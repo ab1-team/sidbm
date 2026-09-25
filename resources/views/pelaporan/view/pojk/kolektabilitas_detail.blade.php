@@ -271,22 +271,26 @@
     </div>
 
     <br><br>
-    <table border="0" width="100%" cellspacing="0" cellpadding="2" style="font-size: 10px;">
-        <tr>
-            <td width="60%"></td>
-            <td width="40%" align="center">
-                {{ $kec->nama_kec }}, {{ Tanggal::tglLatin($tgl_kondisi) }}<br>
-                {{ $nama_lembaga }}<br><br><br><br><br>
-                <strong><u>{{ $dir->namadepan ?? '' }} {{ $dir->namabelakang ?? '' }}</u></strong><br>
-                <strong>
-                    @if (!empty($dir) && isset($dir->jabatan))
-                        {{ $dir->j->nama_jabatan ?? 'Direktur' }}
-                    @else
-                        Direktur
-                    @endif
-                </strong>
-            </td>
-        </tr>
-    </table>
+    <div class="landscape-ttd-page">
+        <div class="ttd-block">
+            <table border="0" width="100%" cellspacing="0" cellpadding="2" style="font-size: 10px;">
+                <tr>
+                    <td width="60%"></td>
+                    <td width="40%" align="center">
+                        {{ $kec->nama_kec }}, {{ Tanggal::tglLatin($tgl_kondisi) }}<br>
+                        {{ $nama_lembaga }}<br><br><br><br><br>
+                        <strong><u>{{ $dir->namadepan ?? '' }} {{ $dir->namabelakang ?? '' }}</u></strong><br>
+                        <strong>
+                            @if (!empty($dir) && isset($dir->jabatan))
+                                {{ $dir->j->nama_jabatan ?? 'Direktur' }}
+                            @else
+                                Direktur
+                            @endif
+                        </strong>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
     </div>
 @endsection
