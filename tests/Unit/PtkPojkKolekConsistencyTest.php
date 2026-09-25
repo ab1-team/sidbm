@@ -21,8 +21,10 @@ class PtkPojkKolekConsistencyTest extends TestCase
     private function classifyKolek(array $pinkel, string $tgl_kondisi): array
     {
         $saldo_pokok = $pinkel['alokasi'];
+        $sum_pokok = 0;
         if (! empty($pinkel['saldo'])) {
             $saldo_pokok = $pinkel['saldo']['saldo_pokok'];
+            $sum_pokok = $pinkel['saldo']['sum_pokok'];
         }
 
         $target_pokok = 0;
@@ -34,7 +36,11 @@ class PtkPojkKolekConsistencyTest extends TestCase
             $angsuran_ke = $pinkel['target']['angsuran_ke'];
         }
 
-        $tunggakan_pokok = max(0, $wajib_pokok - $target_pokok);
+        // Rumus paralel dengan ptkPojkKolekDetail(): target - sum_pokok
+        $tunggakan_pokok = $target_pokok - $sum_pokok;
+        if ($tunggakan_pokok < 0) {
+            $tunggakan_pokok = 0;
+        }
 
         if (! empty($pinkel['tgl_lunas']) && $pinkel['tgl_lunas'] <= $tgl_kondisi
             && in_array($pinkel['status'], ['L', 'R', 'H'], true)) {

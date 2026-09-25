@@ -1179,8 +1179,10 @@ class Keuangan
 
         foreach ($pinjaman_kelompok as $pinkel) {
             $saldo_pokok = $pinkel->alokasi;
+            $sum_pokok = 0;
             if ($pinkel->saldo) {
                 $saldo_pokok = $pinkel->saldo->saldo_pokok;
+                $sum_pokok = $pinkel->saldo->sum_pokok;
             }
 
             $target_pokok = 0;
@@ -1192,7 +1194,12 @@ class Keuangan
                 $angsuran_ke = $pinkel->target->angsuran_ke;
             }
 
-            $tunggakan_pokok = max(0, $wajib_pokok - $target_pokok);
+            // Rumus paralel dengan ptkPojkKolekDetail(): tunggakan = target - sum_pokok
+            // (seharusnya dibayar sesuai rencana angsuran - sudah dibayar riil)
+            $tunggakan_pokok = $target_pokok - $sum_pokok;
+            if ($tunggakan_pokok < 0) {
+                $tunggakan_pokok = 0;
+            }
 
             if ($pinkel->tgl_lunas <= $tgl_kondisi && in_array($pinkel->status, ['L', 'R', 'H'], true)) {
                 $tunggakan_pokok = 0;
