@@ -1637,7 +1637,7 @@ class PinjamanKelompokController extends Controller
             $data['tanda_tangan'] = Pinjaman::keyword($dokumenPinjaman->tanda_tangan->tanda_tangan, $data);
         }
 
-        $data['logo'] = $this->supabaseToBase64(env('SUPABASE_PUBLIC_URL').'/logo_kab/'.$data['kab']->id.'.jpg');
+        $data['logo'] = $this->supabaseToBase64(\Illuminate\Support\Facades\Storage::disk('enstorage')->url('logo_kab/'.$data['kab']->id.'.jpg'));
 
         $data['keuangan'] = $keuangan;
         $data['judul'] = 'Surat Rekomendasi Kredit ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';
@@ -2240,7 +2240,6 @@ class PinjamanKelompokController extends Controller
         }
     }
 
-
     public function spkRestrukturisasi($id, $data)
     {
         $keuangan = new Keuangan;
@@ -2289,6 +2288,7 @@ class PinjamanKelompokController extends Controller
             return $view;
         }
     }
+
     public function suratKelayakan($id, $data)
     {
         $keuangan = new Keuangan;

@@ -219,14 +219,16 @@ class KabupatenController extends Controller
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
             $extension = $request->file('logo')->getClientOriginalExtension();
             $filename = time().'_'.$kab->id.'_'.date('Ymd').'.'.$extension;
-            $path = $request->file('logo')->storeAs('logo_kab', $filename, 'supabase');
+            $disk = config('filesystems.cloud_disk', 'enstorage');
+            $path = $request->file('logo')->storeAs('logo_kab', $filename, $disk);
 
-            $relativePath = str_replace(env('SUPABASE_PUBLIC_URL').'/', '', $kab->logo);
-            if ($relativePath && Storage::disk('supabase')->exists($relativePath)) {
-                Storage::disk('supabase')->delete($relativePath);
+            $publicUrl = Storage::disk($disk)->url($path);
+            $baseUrl = rtrim(Storage::disk($disk)->url(''), '/');
+            $relativePath = $kab->logo ? str_replace($baseUrl.'/', '', $kab->logo) : null;
+            if ($relativePath && Storage::disk($disk)->exists($relativePath)) {
+                Storage::disk($disk)->delete($relativePath);
             }
 
-            $publicUrl = env('SUPABASE_PUBLIC_URL').'/'.$path;
             Kabupaten::where('kd_kab', Session::get('kd_kab'))->update([
                 'logo' => $publicUrl,
             ]);

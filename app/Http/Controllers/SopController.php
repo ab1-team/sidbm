@@ -427,15 +427,15 @@ class SopController extends Controller
             $disk = config('filesystems.cloud_disk', 'enstorage');
             $path = $request->file('logo_kec')->storeAs('logo', $filename, $disk);
 
-            $baseUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL'));
-            $relativePath = str_replace($baseUrl.'/', '', $kec->logo);
-            if (Storage::disk($disk)->exists($relativePath)) {
+            $publicUrl = Storage::disk($disk)->url($path);
+            $baseUrl = rtrim(Storage::disk($disk)->url(''), '/');
+            $relativePath = $kec->logo ? str_replace($baseUrl.'/', '', $kec->logo) : null;
+            if ($relativePath && Storage::disk($disk)->exists($relativePath)) {
                 if ($relativePath != 'logo/1.png') {
                     Storage::disk($disk)->delete($relativePath);
                 }
             }
 
-            $publicUrl = $baseUrl.'/'.$path;
             $kecamatan = Kecamatan::where('id', $kec->id)->update([
                 'logo' => $publicUrl,
             ]);

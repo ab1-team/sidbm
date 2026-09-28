@@ -6,9 +6,9 @@ use App\Models\DokumenPinjaman;
 use App\Models\Kecamatan;
 use App\Models\TandaTanganDokumen;
 use App\Utils\Pinjaman;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Http\Request;
 use Session;
 
 class TandaTanganController extends Controller
@@ -20,7 +20,8 @@ class TandaTanganController extends Controller
         $data['keyword'] = Pinjaman::keyword();
         $data['kec'] = Kecamatan::where('id', Session::get('lokasi'))->first();
 
-        $data['title'] = "Pengaturan Tanda Tangan";
+        $data['title'] = 'Pengaturan Tanda Tangan';
+
         return view('tanda_tangan.index')->with($data);
     }
 
@@ -42,14 +43,14 @@ class TandaTanganController extends Controller
             'lokasi' => Session::get('lokasi'),
             'dokumen_pinjaman_id' => $data['dokumen'],
             'jenis_laporan' => $data['jenis_laporan'],
-            'tanda_tangan' => json_encode($data['tanda_tangan'])
+            'tanda_tangan' => json_encode($data['tanda_tangan']),
         ]);
 
         return response()->json([
             'success' => true,
             'msg' => 'Tanda tangan berhasil disimpan.',
             'data' => $tandaTanganDokumen,
-            'tanda_tangan' => json_encode($data['tanda_tangan'])
+            'tanda_tangan' => json_encode($data['tanda_tangan']),
         ]);
     }
 
@@ -86,7 +87,7 @@ class TandaTanganController extends Controller
             }
 
             $path = $request->file('ttd_tagihan')->storeAs('ttd_tagihan', $filename, $disk);
-            $publicUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL')).'/'.$path;
+            $publicUrl = Storage::disk($disk)->url($path);
 
             Kecamatan::where('id', $kecamatan->id)
                 ->toBase()

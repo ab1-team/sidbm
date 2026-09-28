@@ -27,6 +27,7 @@ class UserController extends Controller
         $pass = $this->RandomString(strlen($user->pass));
 
         $title = 'Profil User';
+
         return view('profil.index')->with(compact('title', 'kec', 'user', 'pendidikan', 'pass'));
     }
 
@@ -80,7 +81,7 @@ class UserController extends Controller
                 'alamat',
                 'telpon',
                 'pendidikan',
-                'menjabat_sejak'
+                'menjabat_sejak',
             ]);
 
             $rules = [
@@ -91,7 +92,7 @@ class UserController extends Controller
                 'tanggal_lahir' => 'required',
                 'telpon' => 'required',
                 'pendidikan' => 'required',
-                'menjabat_sejak' => 'required'
+                'menjabat_sejak' => 'required',
             ];
 
             if ($request->nik != $profil->nik) {
@@ -101,7 +102,7 @@ class UserController extends Controller
             if ($request->inisial != $profil->ins) {
                 $rules['inisial'] = [
                     'required',
-                    Rule::unique('users', 'ins')->where('lokasi', $profil->lokasi)
+                    Rule::unique('users', 'ins')->where('lokasi', $profil->lokasi),
                 ];
             }
 
@@ -120,26 +121,27 @@ class UserController extends Controller
                 'tgl_lahir' => Tanggal::tglNasional($request->tanggal_lahir),
                 'hp' => $request->telpon,
                 'pendidikan' => $request->pendidikan,
-                'sejak' => Tanggal::tglNasional($request->menjabat_sejak)
+                'sejak' => Tanggal::tglNasional($request->menjabat_sejak),
             ]);
 
-            Session::put('nama', $request->nama_depan . ' ' . $request->nama_belakang);
+            Session::put('nama', $request->nama_depan.' '.$request->nama_belakang);
+
             return response()->json([
                 'success' => true,
                 'msg' => 'Data Diri berhasil diperbarui.',
-                'user' => User::where('id', $profil->id)->first()
+                'user' => User::where('id', $profil->id)->first(),
             ]);
         } elseif ($type == 'data_user') {
             $data = $request->only([
                 'username',
                 'password_baru',
-                'konfirmasi_password'
+                'konfirmasi_password',
             ]);
 
             $rules = [
                 'username' => 'required',
                 'password_baru' => 'same:konfirmasi_password',
-                'konfirmasi_password' => 'same:password_baru'
+                'konfirmasi_password' => 'same:password_baru',
             ];
 
             if ($request->username != $profil->uname) {
@@ -155,7 +157,7 @@ class UserController extends Controller
             if ($request->password_baru == $profil->pass) {
                 return response()->json([
                     'success' => false,
-                    'msg' => 'Password baru dan Password lama tidak boleh sama'
+                    'msg' => 'Password baru dan Password lama tidak boleh sama',
                 ]);
             }
 
@@ -165,47 +167,49 @@ class UserController extends Controller
             }
 
             $user = User::where('id', $profil->id)->update($update);
+
             return response()->json([
                 'success' => true,
-                'msg' => 'Username dan Password berhasil diperbarui. Silahkan login dengan Username dan Password yang baru.'
+                'msg' => 'Username dan Password berhasil diperbarui. Silahkan login dengan Username dan Password yang baru.',
             ]);
         } else {
             $data = $request->only([
-                'logo'
+                'logo',
             ]);
 
             $validate = Validator::make($data, [
-                'logo' => 'required|image|mimes:jpg,png,jpeg|max:4096'
+                'logo' => 'required|image|mimes:jpg,png,jpeg|max:4096',
             ]);
 
             if ($request->file('logo')->isValid()) {
                 $extension = $request->file('logo')->getClientOriginalExtension();
 
-                $filename = time() . '_' . $profil->lokasi . '_' . date('Ymd') . '.' . $extension;
+                $filename = time().'_'.$profil->lokasi.'_'.date('Ymd').'.'.$extension;
                 $disk = config('filesystems.cloud_disk', 'enstorage');
                 $path = $request->file('logo')->storeAs('profil', $filename, $disk);
 
-                $baseUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL'));
-                $relativePath = str_replace($baseUrl . '/', '', $profil->foto);
-                if (Storage::disk($disk)->exists($relativePath)) {
+                $publicUrl = Storage::disk($disk)->url($path);
+                $baseUrl = rtrim(Storage::disk($disk)->url(''), '/');
+                $relativePath = $profil->foto ? str_replace($baseUrl.'/', '', $profil->foto) : null;
+                if ($relativePath && Storage::disk($disk)->exists($relativePath)) {
                     Storage::disk($disk)->delete($relativePath);
                 }
 
-                $publicUrl = $baseUrl . '/' . $path;
                 $user = User::where('id', $profil->id)->update([
-                    'foto' => $publicUrl
+                    'foto' => $publicUrl,
                 ]);
 
                 Session::put('foto', $publicUrl);
+
                 return response()->json([
                     'success' => true,
-                    'path' => $publicUrl
+                    'path' => $publicUrl,
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'msg' => 'Logo gagal diperbarui'
+                'msg' => 'Logo gagal diperbarui',
             ]);
         }
     }
@@ -218,8 +222,7 @@ class UserController extends Controller
         //
     }
 
-    public
-    function RandomString($length)
+    public function RandomString($length)
     {
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $randomString = '';

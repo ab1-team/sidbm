@@ -142,7 +142,7 @@ class ServiceWorkerController extends Controller
             'enstorage.enpiistudio.com',
         ];
 
-        $enstorageUrl = env('ENSTORAGE_URL', env('SUPABASE_URL'));
+        $enstorageUrl = config('filesystems.disks.enstorage.url') ?: config('filesystems.disks.supabase.url');
         if ($enstorageUrl) {
             $host = parse_url($enstorageUrl, PHP_URL_HOST);
             if ($host) {

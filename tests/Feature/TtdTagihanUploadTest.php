@@ -71,17 +71,18 @@ class TtdTagihanUploadTest extends TestCase
         ]);
 
         $response->assertOk();
+        $expectedUrl = Storage::disk('enstorage')->url('ttd_tagihan/301.png');
         $response->assertJson([
             'success' => true,
             'msg' => 'Tanda tangan & stempel surat tagihan berhasil disimpan.',
-            'path' => 'http://supabase.test/ttd_tagihan/301.png',
+            'path' => $expectedUrl,
         ]);
         Storage::disk('enstorage')->assertExists('ttd_tagihan/301.png');
         Storage::disk(config('filesystems.cloud_disk', 'enstorage'))->assertExists('ttd_tagihan/301.png');
 
         foreach (['mysql', 'mysql_b'] as $connection) {
             $this->assertSame(
-                'http://supabase.test/ttd_tagihan/301.png',
+                $expectedUrl,
                 DB::connection($connection)->table('kecamatan')->where('id', 301)->value('ttd_tagihan')
             );
         }

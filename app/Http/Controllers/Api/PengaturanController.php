@@ -157,13 +157,13 @@ class PengaturanController extends Controller
         $disk = config('filesystems.cloud_disk', 'enstorage');
         $path = $request->file('foto')->storeAs('profil', $filename, $disk);
 
-        $baseUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL'));
-        $relativePath = str_replace($baseUrl.'/', '', $user->foto);
-        if (Storage::disk($disk)->exists($relativePath)) {
+        $publicUrl = Storage::disk($disk)->url($path);
+        $baseUrl = rtrim(Storage::disk($disk)->url(''), '/');
+        $relativePath = $user->foto ? str_replace($baseUrl.'/', '', $user->foto) : null;
+        if ($relativePath && Storage::disk($disk)->exists($relativePath)) {
             Storage::disk($disk)->delete($relativePath);
         }
 
-        $publicUrl = $baseUrl.'/'.$path;
         $update = User::where('id', $user->id)->update([
             'foto' => $publicUrl,
         ]);
