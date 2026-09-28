@@ -37,6 +37,10 @@ class SopController extends Controller
 
         $title = 'Personalisasi SOP';
 
+        if ($kec && $kec->logo) {
+            Session::put('logo', $kec->logo);
+        }
+
         return view('sop.index')->with(compact('title', 'kec', 'token', 'instance_name'));
     }
 
