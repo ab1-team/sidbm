@@ -182,14 +182,16 @@ class UserController extends Controller
                 $extension = $request->file('logo')->getClientOriginalExtension();
 
                 $filename = time() . '_' . $profil->lokasi . '_' . date('Ymd') . '.' . $extension;
-                $path = $request->file('logo')->storeAs('profil', $filename, 'supabase');
+                $disk = config('filesystems.cloud_disk', 'enstorage');
+                $path = $request->file('logo')->storeAs('profil', $filename, $disk);
 
-                $relativePath = str_replace(env('SUPABASE_PUBLIC_URL') . '/', '', $profil->foto);
-                if (Storage::disk('supabase')->exists($relativePath)) {
-                    Storage::disk('supabase')->delete($relativePath);
+                $baseUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL'));
+                $relativePath = str_replace($baseUrl . '/', '', $profil->foto);
+                if (Storage::disk($disk)->exists($relativePath)) {
+                    Storage::disk($disk)->delete($relativePath);
                 }
 
-                $publicUrl = env('SUPABASE_PUBLIC_URL') . '/' . $path;
+                $publicUrl = $baseUrl . '/' . $path;
                 $user = User::where('id', $profil->id)->update([
                     'foto' => $publicUrl
                 ]);

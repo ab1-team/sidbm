@@ -3100,8 +3100,16 @@ class PinjamanKelompokController extends Controller
         echo '================================================================';
     }
 
-    private function supabaseToBase64($url)
+    /**
+     * Ambil gambar dari cloud storage (EnStorage/Supabase) dan konversi
+     * menjadi data URI base64 agar aman dipakai pada cetak PDF/laporan.
+     */
+    private function storageToBase64($url)
     {
+        if (! $url) {
+            return null;
+        }
+
         $response = Http::withOptions([
             'verify' => false,
         ])->get($url);
@@ -3112,14 +3120,23 @@ class PinjamanKelompokController extends Controller
 
         $binary = $response->body();
 
-        $extension = pathinfo($url, PATHINFO_EXTENSION);
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
         $mime = [
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
             'png' => 'image/png',
             'webp' => 'image/webp',
+            'gif' => 'image/gif',
         ][$extension] ?? 'application/octet-stream';
 
         return "data:$mime;base64,".base64_encode($binary);
+    }
+
+    /**
+     * @deprecated Gunakan storageToBase64(). Dipertahankan untuk kompatibilitas.
+     */
+    private function supabaseToBase64($url)
+    {
+        return $this->storageToBase64($url);
     }
 }

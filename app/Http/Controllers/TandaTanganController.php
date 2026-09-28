@@ -77,15 +77,16 @@ class TandaTanganController extends Controller
             $extension = $request->file('ttd_tagihan')->getClientOriginalExtension();
             $filename = $lokasi.'.'.$extension;
 
+            $disk = config('filesystems.cloud_disk', 'enstorage');
             foreach (['jpg', 'jpeg', 'png'] as $oldExtension) {
                 $oldPath = 'ttd_tagihan/'.$lokasi.'.'.$oldExtension;
-                if ($oldExtension !== $extension && Storage::disk('supabase')->exists($oldPath)) {
-                    Storage::disk('supabase')->delete($oldPath);
+                if ($oldExtension !== $extension && Storage::disk($disk)->exists($oldPath)) {
+                    Storage::disk($disk)->delete($oldPath);
                 }
             }
 
-            $path = $request->file('ttd_tagihan')->storeAs('ttd_tagihan', $filename, 'supabase');
-            $publicUrl = env('SUPABASE_PUBLIC_URL').'/'.$path;
+            $path = $request->file('ttd_tagihan')->storeAs('ttd_tagihan', $filename, $disk);
+            $publicUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL')).'/'.$path;
 
             Kecamatan::where('id', $kecamatan->id)
                 ->toBase()

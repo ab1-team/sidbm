@@ -30,6 +30,40 @@ class SuratTagihanTtdTest extends TestCase
         );
     }
 
+    public function test_storage_to_base64_helper_converts_enstorage_file(): void
+    {
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        Http::fake([
+            'https://enstorage.enpiistudio.com/storage/v1/object/public/ttd_tagihan/301.png' => Http::response($png, 200),
+        ]);
+
+        $controller = app(PinjamanKelompokController::class);
+        $method = new \ReflectionMethod($controller, 'storageToBase64');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            'data:image/png;base64,'.base64_encode($png),
+            $method->invoke($controller, 'https://enstorage.enpiistudio.com/storage/v1/object/public/ttd_tagihan/301.png')
+        );
+    }
+
+    public function test_supabase_to_base64_helper_delegates_to_storage_helper(): void
+    {
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        Http::fake([
+            'http://supabase.test/ttd_tagihan/301.png' => Http::response($png, 200),
+        ]);
+
+        $controller = app(PinjamanKelompokController::class);
+        $method = new \ReflectionMethod($controller, 'supabaseToBase64');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            'data:image/png;base64,'.base64_encode($png),
+            $method->invoke($controller, 'http://supabase.test/ttd_tagihan/301.png')
+        );
+    }
+
     public function test_view_renders_base64_when_ttd_tagihan_is_filled(): void
     {
         $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');

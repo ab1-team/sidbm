@@ -154,14 +154,16 @@ class PengaturanController extends Controller
         $extension = $request->file('foto')->getClientOriginalExtension();
 
         $filename = time().'_'.$user->lokasi.'_'.date('Ymd').'.'.$extension;
-        $path = $request->file('foto')->storeAs('profil', $filename, 'supabase');
+        $disk = config('filesystems.cloud_disk', 'enstorage');
+        $path = $request->file('foto')->storeAs('profil', $filename, $disk);
 
-        $relativePath = str_replace(env('SUPABASE_PUBLIC_URL').'/', '', $user->foto);
-        if (Storage::disk('supabase')->exists($relativePath)) {
-            Storage::disk('supabase')->delete($relativePath);
+        $baseUrl = env('ENSTORAGE_PUBLIC_URL', env('SUPABASE_PUBLIC_URL'));
+        $relativePath = str_replace($baseUrl.'/', '', $user->foto);
+        if (Storage::disk($disk)->exists($relativePath)) {
+            Storage::disk($disk)->delete($relativePath);
         }
 
-        $publicUrl = env('SUPABASE_PUBLIC_URL').'/'.$path;
+        $publicUrl = $baseUrl.'/'.$path;
         $update = User::where('id', $user->id)->update([
             'foto' => $publicUrl,
         ]);

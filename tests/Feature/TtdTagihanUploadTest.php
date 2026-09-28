@@ -18,6 +18,7 @@ class TtdTagihanUploadTest extends TestCase
         parent::setUp();
 
         putenv('SUPABASE_PUBLIC_URL=http://supabase.test');
+        putenv('ENSTORAGE_PUBLIC_URL=http://supabase.test');
 
         $this->dbFile = tempnam(sys_get_temp_dir(), 'ttdtest').'.sqlite';
         touch($this->dbFile);
@@ -56,6 +57,7 @@ class TtdTagihanUploadTest extends TestCase
 
     public function test_upload_stores_file_and_updates_kecamatan_url(): void
     {
+        Storage::fake('enstorage');
         Storage::fake('supabase');
         $image = TestFile::fake()->image('ttd.png');
 
@@ -74,7 +76,8 @@ class TtdTagihanUploadTest extends TestCase
             'msg' => 'Tanda tangan & stempel surat tagihan berhasil disimpan.',
             'path' => 'http://supabase.test/ttd_tagihan/301.png',
         ]);
-        Storage::disk('supabase')->assertExists('ttd_tagihan/301.png');
+        Storage::disk('enstorage')->assertExists('ttd_tagihan/301.png');
+        Storage::disk(config('filesystems.cloud_disk', 'enstorage'))->assertExists('ttd_tagihan/301.png');
 
         foreach (['mysql', 'mysql_b'] as $connection) {
             $this->assertSame(

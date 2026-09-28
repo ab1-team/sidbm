@@ -17,6 +17,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default Cloud Disk
+    |--------------------------------------------------------------------------
+    |
+    | Disk cloud default untuk upload (logo, tanda tangan, foto profil, dll).
+    |
+    */
+
+    'cloud_disk' => env('FILESYSTEM_CLOUD_DISK', 'enstorage'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -56,13 +67,41 @@ return [
             'throw' => false,
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | EnStorage (S3-compatible cloud storage)
+        |----------------------------------------------------------------------
+        | Disk default untuk seluruh upload cloud pada aplikasi sidbm.
+        | Menggantikan Supabase Storage, tetapi tetap membaca env SUPABASE_*
+        | sebagai fallback agar kompatibel dengan deployment lama.
+        */
+        'enstorage' => [
+            'driver' => 's3',
+            'key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
+            'secret' => env('ENSTORAGE_SECRET', env('SUPABASE_S3_SECRET')),
+            'region' => env('ENSTORAGE_REGION', env('SUPABASE_S3_REGION', 'us-east-1')),
+            'bucket' => env('ENSTORAGE_BUCKET', env('SUPABASE_S3_BUCKET', 'public')),
+            'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
+            'endpoint' => env('ENSTORAGE_ENDPOINT', env('SUPABASE_S3_ENDPOINT', 'https://enstorage.enpiistudio.com/s3')),
+            'use_path_style_endpoint' => true,
+            'throw' => true,
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Supabase (alias kompatibilitas)
+        |----------------------------------------------------------------------
+        | Disk lama tetap dipertahankan sebagai alias yang mengarah ke
+        | konfigurasi EnStorage yang sama.
+        */
         'supabase' => [
             'driver' => 's3',
-            'key' => env('SUPABASE_S3_KEY'),
-            'secret' => env('SUPABASE_S3_SECRET'),
-            'region' => env('SUPABASE_S3_REGION', 'ap-southeast-1'),
-            'bucket' => env('SUPABASE_S3_BUCKET', 'public'),
-            'endpoint' => env('SUPABASE_S3_ENDPOINT'),
+            'key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
+            'secret' => env('ENSTORAGE_SECRET', env('SUPABASE_S3_SECRET')),
+            'region' => env('ENSTORAGE_REGION', env('SUPABASE_S3_REGION', 'us-east-1')),
+            'bucket' => env('ENSTORAGE_BUCKET', env('SUPABASE_S3_BUCKET', 'public')),
+            'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
+            'endpoint' => env('ENSTORAGE_ENDPOINT', env('SUPABASE_S3_ENDPOINT', 'https://enstorage.enpiistudio.com/s3')),
             'use_path_style_endpoint' => true,
             'throw' => true,
         ],

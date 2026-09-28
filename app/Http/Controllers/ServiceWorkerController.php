@@ -54,12 +54,12 @@ class ServiceWorkerController extends Controller
             $logo = '1.png';
         }
 
-        // Cek apakah logo adalah URL Supabase
-        if ($this->isSupabaseUrl($logo)) {
-            // Ambil gambar dari Supabase
-            $imageContent = $this->getImageFromSupabase($logo);
+        // Cek apakah logo adalah URL cloud storage (EnStorage/Supabase)
+        if ($this->isStorageUrl($logo)) {
+            // Ambil gambar dari cloud storage
+            $imageContent = $this->getImageFromStorage($logo);
             if (! $imageContent) {
-                throw new Exception('Failed to fetch image from Supabase: '.$logo);
+                throw new Exception('Failed to fetch image from storage: '.$logo);
             }
         } else {
             // Ambil gambar dari local storage
@@ -126,16 +126,53 @@ class ServiceWorkerController extends Controller
         return 'data:image/png;base64,'.$base64Image;
     }
 
-    private function isSupabaseUrl($url)
+    /**
+     * Cek apakah URL merupakan URL cloud storage yang dikenali, yaitu
+     * domain Supabase maupun domain EnStorage (enstorage.enpiistudio.com
+     * atau domain dari env ENSTORAGE_URL).
+     */
+    private function isStorageUrl($url)
     {
-        // Cek apakah URL mengandung domain Supabase atau dimulai dengan http/https
-        return filter_var($url, FILTER_VALIDATE_URL) !== false &&
-               (strpos($url, 'supabase.co') !== false ||
-                strpos($url, 'http://') === 0 ||
-                strpos($url, 'https://') === 0);
+        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return false;
+        }
+
+        $hosts = [
+            'supabase.co',
+            'enstorage.enpiistudio.com',
+        ];
+
+        $enstorageUrl = env('ENSTORAGE_URL', env('SUPABASE_URL'));
+        if ($enstorageUrl) {
+            $host = parse_url($enstorageUrl, PHP_URL_HOST);
+            if ($host) {
+                $hosts[] = $host;
+            }
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host && in_array($host, $hosts, true)) {
+            return true;
+        }
+
+        foreach ($hosts as $needle) {
+            if (strpos($url, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    private function getImageFromSupabase($url)
+    /**
+     * @deprecated Gunakan isStorageUrl(). Dipertahankan untuk kompatibilitas.
+     */
+    private function isSupabaseUrl($url)
+    {
+        return $this->isStorageUrl($url);
+    }
+
+    private function getImageFromStorage($url)
     {
         $response = Http::withOptions([
             'verify' => false,
@@ -148,22 +185,42 @@ class ServiceWorkerController extends Controller
         return $response->body();
     }
 
-    private function supabaseToBase64($url)
+    /**
+     * @deprecated Gunakan getImageFromStorage(). Dipertahankan untuk kompatibilitas.
+     */
+    private function getImageFromSupabase($url)
     {
-        $imageContent = $this->getImageFromSupabase($url);
+        return $this->getImageFromStorage($url);
+    }
+
+    /**
+     * Ambil gambar dari cloud storage dan konversi menjadi data URI base64.
+     */
+    private function storageToBase64($url)
+    {
+        $imageContent = $this->getImageFromStorage($url);
 
         if (! $imageContent) {
             return null;
         }
 
-        $extension = pathinfo($url, PATHINFO_EXTENSION);
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
         $mime = [
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
             'png' => 'image/png',
             'webp' => 'image/webp',
+            'gif' => 'image/gif',
         ][$extension] ?? 'application/octet-stream';
 
         return "data:$mime;base64,".base64_encode($imageContent);
+    }
+
+    /**
+     * @deprecated Gunakan storageToBase64(). Dipertahankan untuk kompatibilitas.
+     */
+    private function supabaseToBase64($url)
+    {
+        return $this->storageToBase64($url);
     }
 }
