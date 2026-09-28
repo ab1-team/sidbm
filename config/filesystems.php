@@ -77,8 +77,8 @@ return [
         */
         'enstorage' => [
             'driver' => 's3',
-            'key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
-            'secret' => env('ENSTORAGE_SECRET', env('SUPABASE_S3_SECRET')),
+            'key' => env('ENSTORAGE_ACCESS_KEY', 'en_ascqaplo'),
+            'secret' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
             'region' => env('ENSTORAGE_REGION', env('SUPABASE_S3_REGION', 'us-east-1')),
             'bucket' => env('ENSTORAGE_BUCKET', env('SUPABASE_S3_BUCKET', 'public')),
             'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
@@ -86,16 +86,18 @@ return [
             'use_path_style_endpoint' => true,
             /*
              | API key ikut dikirim sebagai header `X-API-Key` pada setiap
-             | request. Ini jalur autentikasi yang andal di produksi: proxy
-             | (Cloudflare/nginx) bisa membuang header yang ikut
-             | ditandatangani AWS SDK (`X-Amz-User-Agent`) sehingga SigV4
-             | gagal, sedangkan API key selalu lolos apa adanya.
+             | request. Signature SigV4 tetap dikirim (supaya gateway dapat
+             | memverifikasi identitas), tetapi API key menjamin autentikasi
+             | tetap berhasil apa pun perlakuan proxy terhadap header yang
+             | ikut ditandatangani.
+             |
+             | Kunci `http` (bukan `options`) yang benar: FilesystemManager
+             | meneruskan seluruh konfigurasi disk ke konstruktor S3Client,
+             | dan hanya `http` yang dibaca Guzzle untuk opsi koneksi.
              */
-            'options' => [
-                'http' => [
-                    'headers' => [
-                        'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
-                    ],
+            'http' => [
+                'headers' => [
+                    'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
                 ],
             ],
             'throw' => true,
@@ -117,11 +119,9 @@ return [
             'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
             'endpoint' => env('ENSTORAGE_ENDPOINT', env('SUPABASE_S3_ENDPOINT', 'https://enstorage.enpiistudio.com/api/v1/s3')),
             'use_path_style_endpoint' => true,
-            'options' => [
-                'http' => [
-                    'headers' => [
-                        'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
-                    ],
+            'http' => [
+                'headers' => [
+                    'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
                 ],
             ],
             'throw' => true,
