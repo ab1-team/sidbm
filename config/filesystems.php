@@ -50,7 +50,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL') . '/storage',
+            'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],
@@ -84,6 +84,20 @@ return [
             'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
             'endpoint' => env('ENSTORAGE_ENDPOINT', env('SUPABASE_S3_ENDPOINT', 'https://enstorage.enpiistudio.com/api/v1/s3')),
             'use_path_style_endpoint' => true,
+            /*
+             | API key ikut dikirim sebagai header `X-API-Key` pada setiap
+             | request. Ini jalur autentikasi yang andal di produksi: proxy
+             | (Cloudflare/nginx) bisa membuang header yang ikut
+             | ditandatangani AWS SDK (`X-Amz-User-Agent`) sehingga SigV4
+             | gagal, sedangkan API key selalu lolos apa adanya.
+             */
+            'options' => [
+                'http' => [
+                    'headers' => [
+                        'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
+                    ],
+                ],
+            ],
             'throw' => true,
         ],
 
@@ -103,6 +117,13 @@ return [
             'url' => env('ENSTORAGE_URL', env('SUPABASE_URL')),
             'endpoint' => env('ENSTORAGE_ENDPOINT', env('SUPABASE_S3_ENDPOINT', 'https://enstorage.enpiistudio.com/api/v1/s3')),
             'use_path_style_endpoint' => true,
+            'options' => [
+                'http' => [
+                    'headers' => [
+                        'X-API-Key' => env('ENSTORAGE_KEY', env('SUPABASE_S3_KEY')),
+                    ],
+                ],
+            ],
             'throw' => true,
         ],
 
