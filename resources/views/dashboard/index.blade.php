@@ -28,7 +28,7 @@
                 </div>
             </div>
         @endif
-        <div class="col-sm-4">
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
                 <div class="card-body p-3 position-relative pointer" id="btnAktif">
                     <div class="row">
@@ -51,7 +51,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-4 mt-sm-0 mt-4">
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
                 <div class="card-body p-3 position-relative pointer" id="btnpinjaman">
                     <div class="row">
@@ -68,13 +68,15 @@
                         <div class="col-5">
                             <div class="dropdown text-end">
                                 <span class="text-xs text-secondary">{{ $waiting }} waiting</span>
+                                <br>
+                                <span class="text-xs text-danger font-weight-bold">{{ $tidak_layak }} tidak layak</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-sm-4 mt-sm-0 mt-4">
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
                 <div class="card-body p-3 position-relative pointer" id="btnjatuhTempo">
                     <div class="row">
@@ -98,6 +100,28 @@
                         <div class="col-5">
                             <div class="dropdown text-end">
                                 <span class="text-xs text-warning">&#33; tagihan</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card">
+                <div class="card-body p-3 position-relative pointer" id="btnTidakLayak">
+                    <div class="row">
+                        <div class="col-8 text-start">
+                            <p class="text-sm mb-1 text-capitalize font-weight-bold">Pinjaman Tidak Layak</p>
+                            <h5 class="font-weight-bolder mb-0 text-danger">
+                                {{ $tidak_layak }} Kelompok
+                            </h5>
+                            <span class="text-sm text-end text-danger font-weight-bolder mt-auto mb-0">
+                                <span class="font-weight-normal text-secondary">tidak layak didanai</span>
+                            </span>
+                        </div>
+                        <div class="col-4">
+                            <div class="dropdown text-end">
+                                <span class="text-xs text-danger font-weight-bold">Status T</span>
                             </div>
                         </div>
                     </div>
@@ -991,6 +1015,15 @@
                 setLaporan('5', tab.attr('aria-controls'))
             }
         })
+
+        $(document).on('click', '#btnTidakLayak', function(e) {
+            e.preventDefault();
+
+            $('#pinjaman').modal('show');
+            $('#pinjaman .nav-pills a[href="#tidak_layak"]').tab('show');
+            setLaporan('5', 'tidak_layak');
+            $('.btn-pelaporan').show();
+        });
 
         $(document).on('click', '#btnAktif', function(e) {
             e.preventDefault()

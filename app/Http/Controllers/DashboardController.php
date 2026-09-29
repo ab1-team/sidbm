@@ -53,15 +53,18 @@ class DashboardController extends Controller
             DB::raw("(SELECT count(*) FROM $tb WHERE status='P') as p"),
             DB::raw("(SELECT count(*) FROM $tb WHERE status='V') as v"),
             DB::raw("(SELECT count(*) FROM $tb WHERE status='W') as w"),
+            DB::raw("(SELECT count(*) FROM $tb WHERE status='T') as t"),
         ])->first();
 
         $data['proposal'] = 0;
         $data['verifikasi'] = 0;
         $data['waiting'] = 0;
+        $data['tidak_layak'] = 0;
         if ($pinj) {
             $data['proposal'] = $pinj->p;
             $data['verifikasi'] = $pinj->v;
             $data['waiting'] = $pinj->w;
+            $data['tidak_layak'] = $pinj->t;
         }
 
         $tb = 'transaksi_'.Session::get('lokasi');

@@ -35,6 +35,26 @@ class DaftarPinjamanTidakLayakTest extends TestCase
         $this->assertStringContainsString('Tidak Layak', $blade);
     }
 
+    public function test_blade_dashboard_memiliki_kartu_pinjaman_tidak_layak()
+    {
+        $blade = $this->dashboardBlade();
+
+        // Kartu khusus "Pinjaman Tidak Layak" harus tampil di permukaan dashboard (bukan hanya di modal).
+        $this->assertStringContainsString('id="btnTidakLayak"', $blade);
+        $this->assertStringContainsString('Pinjaman Tidak Layak', $blade);
+        $this->assertStringContainsString('tidak layak didanai', $blade);
+        $this->assertStringContainsString('{{ $tidak_layak }} Kelompok', $blade);
+        $this->assertStringContainsString('Status T', $blade);
+
+        // Click handler kartu tidak layak: buka modal, pilih tab, set laporan.
+        $this->assertStringContainsString("$(document).on('click', '#btnTidakLayak'", $blade);
+        $this->assertStringContainsString(
+            '$(\'#pinjaman .nav-pills a[href="#tidak_layak"]\').tab(\'show\')',
+            $blade
+        );
+        $this->assertStringContainsString("setLaporan('5', 'tidak_layak')", $blade);
+    }
+
     public function test_ajax_dashboard_memuat_pinjaman_status_t()
     {
         $blade = $this->dashboardBlade();
