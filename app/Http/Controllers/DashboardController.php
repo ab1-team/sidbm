@@ -128,6 +128,9 @@ class DashboardController extends Controller
         } elseif ($status == 'W') {
             $tgl = 'tgl_tunggu';
             $alokasi = 'alokasi';
+        } elseif ($status == 'T') {
+            $tgl = 'tgl_tunggu';
+            $alokasi = 'alokasi';
         } else {
             $tgl = 'tgl_cair';
             $alokasi = 'alokasi';
@@ -139,7 +142,7 @@ class DashboardController extends Controller
         $pinjaman = PinjamanKelompok::where('status', $status)->with('saldo', 'kelompok', 'jpp', 'sts')->withCount('pinjaman_anggota')
             ->orderBy($tgl, 'ASC')->get();
         foreach ($pinjaman as $pinkel) {
-            $status = $pinkel->sts->warna_status;
+            $status = $pinkel->sts->warna_status ?? 'danger';
 
             $table .= '<tr>';
             if ($pinkel->status == 'A') {

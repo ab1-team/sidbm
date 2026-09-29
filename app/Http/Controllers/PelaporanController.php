@@ -138,6 +138,7 @@ class PelaporanController extends Controller
             ])->orderBy('urut', 'ASC')->get();
             $mingguan = [5, 6, 8, 9, 10];
             $nomor = 0;
+            $hasTidakLayak = false;
             foreach ($jenis_laporan as $jl) {
                 if ($file == 6 && ! in_array($jl->id, $mingguan)) {
                     continue;
@@ -147,6 +148,16 @@ class PelaporanController extends Controller
                 $data[] = [
                     'title' => str_pad($nomor, 2, '0', STR_PAD_LEFT).'. '.$jl->nama_laporan,
                     'value' => $jl->file,
+                ];
+                if ($jl->file == 'tidak_layak') {
+                    $hasTidakLayak = true;
+                }
+            }
+            if ($file == 5 && ! $hasTidakLayak) {
+                $nomor++;
+                $data[] = [
+                    'title' => str_pad($nomor, 2, '0', STR_PAD_LEFT).'. Daftar Pinjaman Tidak Layak',
+                    'value' => 'tidak_layak',
                 ];
             }
         }
@@ -1497,46 +1508,53 @@ class PelaporanController extends Controller
 
     public function tidak_layak(array $data)
     {
-        $thn = $data['tahun'];
-        $bln = $data['bulan'];
-        $hari = $data['hari'];
+        $thn = $data['tahun'] ?? date('Y');
+        $bln = $data['bulan'] ?? date('m');
+        $hari = $data['hari'] ?? date('d');
 
         $tgl = $thn.'-'.$bln.'-'.$hari;
         $data['sub_judul'] = 'Tahun '.Tanggal::tahun($tgl);
         $data['tgl'] = Tanggal::tahun($tgl);
-        if ($data['bulanan']) {
+        if (! empty($data['bulanan'])) {
             $data['sub_judul'] = 'Bulan '.Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
             $data['tgl'] = Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
         }
 
-        $data['jenis_pp'] = JenisProdukPinjaman::where('lokasi', '0')->with([
-            'pinjaman_kelompok' => function ($query) use ($data) {
-                $tb_pinkel = 'pinjaman_kelompok_'.$data['kec']->id;
-                $tb_kel = 'kelompok_'.$data['kec']->id;
-                $data['tb_pinkel'] = $tb_pinkel;
+        $data['type'] = $data['type'] ?? 'html';
+        $data['tgl_kondisi'] = $data['tgl_kondisi'] ?? date('Y-m-d');
+        $data['tanda_tangan'] = $data['tanda_tangan'] ?? '';
+        $data['jenis_pp'] = collect();
 
-                $query->select($tb_pinkel.'.*', $tb_kel.'.nama_kelompok', $tb_kel.'.ketua', 'desa.nama_desa', 'desa.kd_desa', 'desa.kode_desa', 'sebutan_desa.sebutan_desa')
-                    ->join($tb_kel, $tb_kel.'.id', '=', $tb_pinkel.'.id_kel')
-                    ->join('desa', $tb_kel.'.desa', '=', 'desa.kd_desa')
-                    ->join('sebutan_desa', 'sebutan_desa.id', '=', 'desa.sebutan')
-                    ->with([
-                        'pinjaman_anggota',
-                        'pinjaman_anggota.anggota',
-                        'pinjaman_anggota.anggota.d',
-                        'pinjaman_anggota.pinjaman_anggota_layak',
-                        'pinjaman_anggota.pinjaman_anggota_layak.d',
-                        'pinjaman_anggota.pinjaman_anggota_layak.d.sebutan_desa',
-                    ])
-                    ->where($tb_pinkel.'.sistem_angsuran', '!=', '12')->where(function ($query) use ($data) {
-                        $query->where([
-                            [$data['tb_pinkel'].'.status', 'T'],
-                            [$data['tb_pinkel'].'.tgl_tunggu', '<=', $data['tgl_kondisi']],
-                        ]);
-                    })
-                    ->orderBy($tb_kel.'.desa', 'ASC')
-                    ->orderBy($tb_pinkel.'.tgl_tunggu', 'ASC');
-            },
-        ])->get();
+        if (! empty($data['kec']) && ! empty($data['kec']->id)) {
+            $data['jenis_pp'] = JenisProdukPinjaman::where('lokasi', '0')->with([
+                'pinjaman_kelompok' => function ($query) use ($data) {
+                    $tb_pinkel = 'pinjaman_kelompok_'.$data['kec']->id;
+                    $tb_kel = 'kelompok_'.$data['kec']->id;
+                    $data['tb_pinkel'] = $tb_pinkel;
+
+                    $query->select($tb_pinkel.'.*', $tb_kel.'.nama_kelompok', $tb_kel.'.ketua', 'desa.nama_desa', 'desa.kd_desa', 'desa.kode_desa', 'sebutan_desa.sebutan_desa')
+                        ->join($tb_kel, $tb_kel.'.id', '=', $tb_pinkel.'.id_kel')
+                        ->join('desa', $tb_kel.'.desa', '=', 'desa.kd_desa')
+                        ->join('sebutan_desa', 'sebutan_desa.id', '=', 'desa.sebutan')
+                        ->with([
+                            'pinjaman_anggota',
+                            'pinjaman_anggota.anggota',
+                            'pinjaman_anggota.anggota.d',
+                            'pinjaman_anggota.pinjaman_anggota_layak',
+                            'pinjaman_anggota.pinjaman_anggota_layak.d',
+                            'pinjaman_anggota.pinjaman_anggota_layak.d.sebutan_desa',
+                        ])
+                        ->where($tb_pinkel.'.sistem_angsuran', '!=', '12')->where(function ($query) use ($data) {
+                            $query->where([
+                                [$data['tb_pinkel'].'.status', 'T'],
+                                [$data['tb_pinkel'].'.tgl_tunggu', '<=', $data['tgl_kondisi']],
+                            ]);
+                        })
+                        ->orderBy($tb_kel.'.desa', 'ASC')
+                        ->orderBy($tb_pinkel.'.tgl_tunggu', 'ASC');
+                },
+            ])->get();
+        }
 
         $view = view('pelaporan.view.perkembangan_piutang.tidak_layak', $data)->render();
         if ($data['type'] == 'pdf') {

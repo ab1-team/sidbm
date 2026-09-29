@@ -483,6 +483,12 @@
                                     Waiting
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link mb-0 px-0 py-1 text-secondary" data-bs-toggle="tab" href="#tidak_layak"
+                                    role="tab" aria-controls="tidak_layak" aria-selected="false">
+                                    Tidak Layak
+                                </a>
+                            </li>
                         </ul>
 
                         <div class="tab-content mt-2">
@@ -542,6 +548,26 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="tbWaiting"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="tidak_layak" role="tabpanel" aria-labelledby="tidak_layak">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped midle" width="100%">
+                                                <thead>
+                                                    <tr>
+                                                        <td align="center">No</td>
+                                                        <td align="center">Tanggal</td>
+                                                        <td align="center">Nama Kelompok</td>
+                                                        <td align="center">Alokasi</td>
+                                                        <td align="center">Anggota</td>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tbTidakLayak"></tbody>
                                             </table>
                                         </div>
                                     </div>
@@ -867,6 +893,12 @@
         $.get('/dashboard/pinjaman?status=A', function(result) {
             if (result.success) {
                 $('#tbKelompok').html(result.table)
+            }
+        })
+
+        $.get('/dashboard/pinjaman?status=T', function(result) {
+            if (result.success) {
+                $('#tbTidakLayak').html(result.table)
             }
         })
 
