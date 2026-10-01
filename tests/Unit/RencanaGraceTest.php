@@ -354,4 +354,86 @@ class RencanaGraceTest extends TestCase
         // Regresi tanpa grace: interval 3 → bulan 3,6,9,12.
         $this->assertSame([3, 6, 9, 12], $bulanPokok(2, 12, 3));
     }
+    // ---------------------------------------------------------------------
+    // jatuh_tempo() — anti-overflow bulan (regresi bulan ganda/hilang)
+    // ---------------------------------------------------------------------
+
+    /** Replika ekspektasi tanggal jatuh tempo dari tanggal angsuran ke-1. */
+    private function expectedTempo(string $tanggalPertama, int $index): string
+    {
+        $base = strtotime($tanggalPertama);
+        $y = (int) date('Y', $base);
+        $m = (int) date('m', $base);
+        $d = (int) date('d', $base);
+        $first = mktime(0, 0, 0, $m + ($index - 1), 1, $y);
+
+        return date('Y-m', $first).'-'.sprintf('%02d', min($d, (int) date('t', $first)));
+    }
+
+    public function test_jatuh_tempo_mulai_31_tidak_lompat_bulan(): void
+    {
+        // Loan 1647: angsuran pertama 2026-08-31, jangka 6 bulan.
+        // Bug lama: Sep hilang, Okt ganda (angs 2 & 3); Nov hilang, Des ganda.
+        $expected = [
+            1 => '2026-08-31',
+            2 => '2026-09-30',
+            3 => '2026-10-31',
+            4 => '2026-11-30',
+            5 => '2026-12-31',
+            6 => '2027-01-31',
+        ];
+
+        $actual = [];
+        foreach ($expected as $i => $_) {
+            $actual[$i] = $this->call('jatuh_tempo', [$i, 6, '2026-08-31']);
+        }
+
+        $this->assertSame($expected, $actual);
+
+        // Tidak ada bulan terlewat / berulang: 6 bulan kalender berurutan.
+        $months = array_map(fn ($t) => substr($t, 0, 7), array_values($actual));
+        $this->assertSame($months, array_values(array_unique($months)), 'bulan tidak boleh berulang');
+        for ($i = 1; $i < count($months); $i++) {
+            $prev = new \DateTime($months[$i - 1].'-01');
+            $prev->modify('+1 month');
+            $this->assertSame($prev->format('Y-m'), $months[$i], "bulan ke-$i harus tepat setelah bulan sebelumnya");
+        }
+    }
+
+    public function test_jatuh_tempo_31_januari_clamp_februari_kembali_31_maret(): void
+    {
+        // 31 Jan 2027 (non-kabisat) → Feb clamp 28; Mar kembali 31.
+        $this->assertSame('2027-01-31', $this->call('jatuh_tempo', [1, 6, '2027-01-31']));
+        $this->assertSame('2027-02-28', $this->call('jatuh_tempo', [2, 6, '2027-01-31']));
+        $this->assertSame('2027-03-31', $this->call('jatuh_tempo', [3, 6, '2027-01-31']));
+
+        // 31 Jan 2028 (kabisat) → Feb clamp 29; Mar kembali 31.
+        $this->assertSame('2028-01-31', $this->call('jatuh_tempo', [1, 6, '2028-01-31']));
+        $this->assertSame('2028-02-29', $this->call('jatuh_tempo', [2, 6, '2028-01-31']));
+        $this->assertSame('2028-03-31', $this->call('jatuh_tempo', [3, 6, '2028-01-31']));
+    }
+
+    public function test_jatuh_tempo_tanpa_tanggal_31_tetap_benar(): void
+    {
+        // Kasus umum (tanggal <= 28): murni +1 bulan per indeks.
+        for ($i = 1; $i <= 12; $i++) {
+            $this->assertSame(
+                $this->expectedTempo('2026-01-15', $i),
+                $this->call('jatuh_tempo', [$i, 6, '2026-01-15']),
+                "angsuran ke-$i"
+            );
+        }
+    }
+
+    public function test_jatuh_tempo_mingguan_sa12_tambah_7_hari(): void
+    {
+        $base = '2026-08-31';
+        for ($i = 1; $i <= 8; $i++) {
+            $expected = date('Y-m-d', strtotime('+'.(($i - 1) * 7).' days', strtotime($base)));
+            $this->assertSame($expected, $this->call('jatuh_tempo', [$i, 12, $base]), "minggu ke-$i");
+        }
+
+        // Titik lintas bulan: 31 Agu +7 hari = 7 Sep, dst.
+        $this->assertSame('2026-09-07', $this->call('jatuh_tempo', [2, 12, '2026-08-31']));
+    }
 }

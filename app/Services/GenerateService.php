@@ -693,12 +693,25 @@ class GenerateService
         // Angsuran ke-$index = tanggal + ($index - 1) bulan.
         // (Dahulu pakai +$index month, tapi $tanggal dulunya = tgl.cair asli,
         // sekarang $tanggal = angs pertama → kurangi 1.)
-        $penambahan = ($sa_pokok == 12) ? '+'.(($index - 1) * 7).' days' : '+'.($index - 1).' month';
+        //
+        // Hindari overflow bulan PHP: strtotime('+N month') pada tgl 31 bisa
+        // melompati bulan pendek (mis. 31 Agu +1 bulan → 1 Okt, sehingga
+        // September hilang & Oktober ganda). Pola aman: tentukan dulu bulan
+        // target (= hari pertama), cari jumlah hari max bulan itu, lalu clamp.
         $base = strtotime($tanggal);
-        $target_ts = strtotime($penambahan, $base);
-        $day = (int) date('d', $base);
-        $max_d = (int) date('t', $target_ts);
+        if ($sa_pokok == 12) {
+            $penambahan = '+'.(($index - 1) * 7).' days';
 
-        return date('Y-m', $target_ts).'-'.sprintf('%02d', min($day, $max_d));
+            return date('Y-m-d', strtotime($penambahan, $base));
+        }
+
+        $y = (int) date('Y', $base);
+        $m = (int) date('m', $base);
+        $d = (int) date('d', $base);
+
+        $target_first = mktime(0, 0, 0, $m + ($index - 1), 1, $y);
+        $max_d = (int) date('t', $target_first);
+
+        return date('Y-m', $target_first).'-'.sprintf('%02d', min($d, $max_d));
     }
 }
