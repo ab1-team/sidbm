@@ -83,7 +83,7 @@
         <div class="bottom">
             <div style="font-weight: bold;">Pengajuan Rp. {{ number_format($pinkel->proposal) }}</div>
             <div style="font-weight: bold;">Tanggal Proposal {{ Tanggal::tglLatin($pinkel->tgl_proposal) }}</div>
-            <div style="font-weight: bold;">Tenor {{ $pinkel->jangka }} Bulan</div>
+            <div style="font-weight: bold;">Tenor {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}</div>
         </div>
     </main>
 

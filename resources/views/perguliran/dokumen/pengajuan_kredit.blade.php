@@ -190,7 +190,7 @@
                         ({{ $keuangan->terbilang($pinkel->proposal) }}) untuk memenuhi kebutuhan tambahan modal usaha
                         bagi
                         {{ $pinkel->pinjaman_anggota_count }} anggota. Kredit atau piutang tersebut di atas, akan kami
-                        kembalikan dalam jangka waktu {{ $pinkel->jangka }} bulan, dengan sistem angsuran
+                        kembalikan dalam jangka waktu {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}, dengan sistem angsuran
                         {{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->sis_pokok->deskripsi_sistem }}).
                     </div>
                     <div>

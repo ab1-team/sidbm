@@ -68,7 +68,7 @@
 
             <td>Sistem Angsuran</td>
             <td>:</td>
-            <td style="font-weight: bold !important;">{{ $pinkel->jangka }} bulan @
+            <td style="font-weight: bold !important;">{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }} @
                 {{ $pinkel->sis_pokok->nama_sistem }}</td>
         </tr>
         <tr>

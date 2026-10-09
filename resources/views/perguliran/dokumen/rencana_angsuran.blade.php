@@ -83,7 +83,7 @@
             <td width="90">Jangka waktu</td>
             <td width="5" align="center">:</td>
             <td>
-                <b>{{ $pinkel->jangka }} Bulan</b>
+                <b>{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}</b>
             </td>
         </tr>
         <tr>
@@ -119,7 +119,7 @@
             <td>Prosentase Jasa</td>
             <td align="center">:</td>
             <td>
-                <b>{{ round($pinkel->pros_jasa / $pinkel->jangka, 2) }}% per bulan</b>
+                <b>{{ round($pinkel->pros_jasa / $pinkel->jangka, 2) }}% per {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</b>
             </td>
         </tr>
         <tr>

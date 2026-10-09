@@ -53,7 +53,7 @@
             <td>{{ Tanggal::tglLatin($pinkel->tgl_proposal) }}</td>
             <td>Pros. Jasa</td>
             <td align="right">:</td>
-            <td>{{ $pinkel->pros_jasa }}% / {{ $pinkel->jangka }} bulan</td>
+            <td>{{ $pinkel->pros_jasa }}% / {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</td>
         </tr>
         <tr>
             <td>Piutang Ke-</td>

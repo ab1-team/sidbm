@@ -88,7 +88,7 @@
             <td>Alokasi Piutang</td>
             <td align="center">:</td>
             <td>
-                <b>{{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->jangka }} Bulan)</b>
+                <b>{{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }})</b>
             </td>
         </tr>
         <tr>
@@ -100,7 +100,7 @@
             <td>Sistem Bagi Hasil</td>
             <td align="center">:</td>
             <td>
-                <b>{{ number_format($pinkel->pros_jasa / $pinkel->jangka, 2) }}%/Bulan, {{ $pinkel->jasa->nama_jj }}</b>
+                <b>{{ number_format($pinkel->pros_jasa / $pinkel->jangka, 2) }}%/{{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}, {{ $pinkel->jasa->nama_jj }}</b>
             </td>
         </tr>
     </table>

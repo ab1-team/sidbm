@@ -106,7 +106,7 @@
                                                 <span class="fw-bold">
                                                     {{ $pinkel->pros_jasa == 0 ? 0 : $pinkel->pros_jasa / $pinkel->jangka }}%
                                                     @
-                                                    {{ $pinkel->jangka }} Bulan --
+                                                    {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }} --
                                                     {{ $pinkel->angsuran_pokok->nama_sistem }}
                                                 </span>
                                                 |

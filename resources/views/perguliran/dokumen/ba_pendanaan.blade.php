@@ -72,7 +72,7 @@
                         {{ number_format($pinj->alokasi) }}
                     </td>
                     <td align="right">
-                        {{ ($pinj->jangka) }} Bulan
+                        {{ ($pinj->jangka) }} {{ \App\Utils\Pinjaman::satuanJangka($pinj) }}
                     </td>
                 </tr>
             @endforeach

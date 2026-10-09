@@ -55,7 +55,7 @@
             <td>{{ Tanggal::tglLatin($pinkel->tgl_cair) }}</td>
             <td>Prosentase Jasa</td>
             <td align="right">:</td>
-            <td>{{ $pinkel->pros_jasa }}% / {{ $pinkel->jangka }} bulan</td>
+            <td>{{ $pinkel->pros_jasa }}% / {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</td>
         </tr>
         <tr>
             <td>Nomor SPK</td>

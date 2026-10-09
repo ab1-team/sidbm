@@ -28,7 +28,7 @@
     $jangka = $pinkel->jangka;
     $alokasi = intval($pinkel->alokasi);
     $pros_jasa = $pinkel->pros_jasa;
-    $jasa_per_bulan = $pros_jasa > 0 ? number_format($pros_jasa / $jangka, 2) : '0';
+    $jasa_per_periode = $pros_jasa > 0 ? number_format($pros_jasa / $jangka, 2) : '0';
     $angsuran_pokok = $jangka > 0 ? floor($alokasi / $jangka) : 0;
     $angsuran_jasa = $pros_jasa > 0 ? floor($alokasi * ($pros_jasa / 100) / $jangka) : 0;
 @endphp
@@ -196,7 +196,7 @@
         <tr>
             <td style="vertical-align: top;">2.</td>
             <td style="text-align: justify;">
-                PINJAMAN tersebut diangsur selama <b>{{ $jangka }} ({{ $keuangan->terbilang($jangka) }}) bulan</b>,
+                PINJAMAN tersebut diangsur selama <b>{{ $jangka }} ({{ $keuangan->terbilang($jangka) }}) {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</b>,
                 dengan angsuran pokok dan angsuran bunga, selanjutnya disebut <b><i><u>ANGSURAN</u></i></b>;
             </td>
         </tr>
@@ -219,7 +219,7 @@
             <td style="vertical-align: top;">2.</td>
             <td style="text-align: justify;">
                 Atas PINJAMAN tersebut PEMINJAM dikenakan Bunga sebesar
-                <b>{{ $jasa_per_bulan }}%</b> dari pokok PINJAMAN per bulan secara menetap (flat);
+                <b>{{ $jasa_per_periode }}%</b> dari pokok PINJAMAN per {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }} secara menetap (flat);
             </td>
         </tr>
         <tr>

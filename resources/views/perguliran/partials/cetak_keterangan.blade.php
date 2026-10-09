@@ -71,7 +71,7 @@
                         <td>Jenis Pinjaman</td>
                         <td>: {{ $perguliran->jpp->nama_jpp }}</td>
                         <td>Sistem</td>
-                        <td>{{ $perguliran->jangka }} bulan / {{ $perguliran->sis_pokok->nama_sistem }}</td>
+                        <td>{{ $perguliran->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($perguliran, false) }} / {{ $perguliran->sis_pokok->nama_sistem }}</td>
                     </tr>
                 </table>
 

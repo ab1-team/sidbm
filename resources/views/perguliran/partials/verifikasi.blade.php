@@ -32,7 +32,7 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center text-sm">
                                 Jasa
                                 <span class="badge badge-info badge-pill">
-                                    {{ $perguliran->pros_jasa . '% / ' . $perguliran->jangka . ' bulan' }}
+                                    {{ $perguliran->pros_jasa . '% / ' . $perguliran->jangka . ' ' . \App\Utils\Pinjaman::satuanJangka($perguliran, false) }}
                                 </span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center text-sm">
@@ -77,7 +77,7 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center text-sm">
                                 Jasa
                                 <span class="badge badge-danger badge-pill">
-                                    {{ $perguliran->pros_jasa . '% / ' . $perguliran->jangka . ' bulan' }}
+                                    {{ $perguliran->pros_jasa . '% / ' . $perguliran->jangka . ' ' . \App\Utils\Pinjaman::satuanJangka($perguliran, false) }}
                                 </span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center text-sm">

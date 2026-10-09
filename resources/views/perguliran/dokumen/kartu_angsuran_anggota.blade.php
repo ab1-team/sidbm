@@ -177,7 +177,7 @@
                     <td>{{ Tanggal::tglLatin($pinkel->tgl_cair) }}</td>
                     <td>Jangka</td>
                     <td align="center">:</td>
-                    <td>{{ $pinkel->jangka }} {{ $pinkel->sis_pokok->id == '12' ? 'Minggu' : 'Bulan' }}</td>
+                    <td>{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}</td>
                 </tr>
                 <tr>
                     <td>Alokasi</td>

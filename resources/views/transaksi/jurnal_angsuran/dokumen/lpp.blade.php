@@ -89,7 +89,7 @@
             </td>
             <td width="50">Prosentase, Jenis Jasa</td>
             <td width="100">: &nbsp;
-                <b>{{ $pinkel->pros_jasa > 0 ? $pinkel->pros_jasa / $pinkel->jangka : '0' }}% / Bulan,
+                <b>{{ $pinkel->pros_jasa > 0 ? $pinkel->pros_jasa / $pinkel->jangka : '0' }}% / {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }},
                     {{ $pinkel->jasa->nama_jj }}</b>
             </td>
         </tr>
@@ -101,7 +101,7 @@
             </td>
             <td width="50">Sistem Angsuran</td>
             <td width="100">: &nbsp;
-                <b>{{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->jangka }} Bulan)</b>
+                <b>{{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }})</b>
             </td>
         </tr>
         <tr>

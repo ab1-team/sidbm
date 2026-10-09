@@ -176,7 +176,8 @@ class LembagaLainController extends Controller
                 $query->where('jenis_pp', $lembaga_lain->jenis_produk_pinjaman);
             },
             'pinkel.sts',
-            'pinkel.saldo'
+            'pinkel.saldo',
+            'pinkel.sis_pokok'
         ])->where('id', $lembaga_lain->id)->first();
         $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
         $desa = Desa::where('kd_kec', 'LIKE', $kec['kd_kab'] . '%')->with('sebutan_desa')->get();

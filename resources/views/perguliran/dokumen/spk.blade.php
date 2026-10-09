@@ -259,7 +259,7 @@
                         {{ number_format($pinkel->alokasi) }}.
                     </li>
                     <li>
-                        Jangka waktu kredit diubah menjadi {{ $pinkel->jangka }} bulan/tahun, terhitung mulai tanggal
+                        Jangka waktu kredit diubah menjadi {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}, terhitung mulai tanggal
                         {{ Tanggal::tglLatin(date('Y-m-d', strtotime('+1 month', strtotime($pinkel->tgl_cair)))) }}.
                     </li>
                     <li>
@@ -284,13 +284,13 @@
                         kelompok yang sepakat memberikan dukungan operasional dan pengembangan kepada
                         {{ $kec->nama_lembaga_sort }} secara progresif proporsional berupa jasa piutang sebesar
                         {{ number_format($pinkel->pros_jasa / $pinkel->jangka, 2) }}% {{ $pinkel->jasa->nama_jj }}
-                        per-bulan
+                        per-{{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}
                         dikalikan pokok
                         piutang.
                     </li>
                     <li>
                         Kelompok menyepakati akan melakukan angsuran kredit dalam jangka waktu {{ $pinkel->jangka }}
-                        ({{ $keuangan->terbilang($pinkel->jangka) }}) bulan dengan cara membayar angsuran Pokok
+                        ({{ $keuangan->terbilang($pinkel->jangka) }}) {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }} dengan cara membayar angsuran Pokok
                         {{ $pinkel->sis_pokok->nama_sistem }} ({{ $pinkel->sis_pokok->deskripsi_sistem }}) dan angsuran
                         jasa
                         {{ $pinkel->sis_jasa->nama_sistem }} ({{ $pinkel->sis_jasa->deskripsi_sistem }}) sebagaimana

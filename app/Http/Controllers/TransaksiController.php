@@ -2877,6 +2877,7 @@ class TransaksiController extends Controller
             'kelompok.d.sebutan_desa',
             'jpp',
             'jasa',
+            'sis_pokok',
             'target' => function ($query) {
                 $query->where('angsuran_ke', '1');
             },

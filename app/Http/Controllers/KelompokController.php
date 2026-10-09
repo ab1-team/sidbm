@@ -208,7 +208,8 @@ class KelompokController extends Controller
         $kelompok = $kelompok->with([
             'pinkel',
             'pinkel.sts',
-            'pinkel.saldo'
+            'pinkel.saldo',
+            'pinkel.sis_pokok'
         ])->where('id', $kelompok->id)->first();
         $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
         $desa = Desa::where('kd_kec', $kec['kd_kec'])->with('sebutan_desa')->get();

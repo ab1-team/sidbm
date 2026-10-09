@@ -63,7 +63,7 @@ class PinjamanKelompokController extends Controller
         if (request()->ajax()) {
             $pinkel = PinjamanKelompok::where([
                 ['status', 'P'],
-            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'pinjaman_anggota')->get();
+            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'sis_pokok', 'pinjaman_anggota')->get();
 
             return DataTables::of($pinkel)
                 ->addColumn('jasa', function ($row) {
@@ -72,7 +72,7 @@ class PinjamanKelompokController extends Controller
 
                     $jasa = number_format($pros / $jangka, 2);
 
-                    return $jasa.'% / '.$jangka.' bln';
+                    return $jasa.'% / '.$jangka.' '.strtolower(Pinjaman::satuanJangka($row));
                 })
                 ->editColumn('nama_kelompok', function ($row) {
                     $jpp = $row->jpp;
@@ -101,7 +101,7 @@ class PinjamanKelompokController extends Controller
         if (request()->ajax()) {
             $pinkel = PinjamanKelompok::where([
                 ['status', 'V'],
-            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'pinjaman_anggota')->get();
+            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'sis_pokok', 'pinjaman_anggota')->get();
 
             return DataTables::of($pinkel)
                 ->addColumn('jasa', function ($row) {
@@ -110,7 +110,7 @@ class PinjamanKelompokController extends Controller
 
                     $jasa = number_format($pros / $jangka, 2);
 
-                    return $jasa.'% / '.$jangka.' bln';
+                    return $jasa.'% / '.$jangka.' '.strtolower(Pinjaman::satuanJangka($row));
                 })
                 ->editColumn('nama_kelompok', function ($row) {
                     $jpp = $row->jpp;
@@ -142,7 +142,7 @@ class PinjamanKelompokController extends Controller
         if (request()->ajax()) {
             $pinkel = PinjamanKelompok::where([
                 ['status', 'W'],
-            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'pinjaman_anggota')->get();
+            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'sis_pokok', 'pinjaman_anggota')->get();
 
             return DataTables::of($pinkel)
                 ->addColumn('jasa', function ($row) {
@@ -151,7 +151,7 @@ class PinjamanKelompokController extends Controller
 
                     $jasa = number_format($pros / $jangka, 2);
 
-                    return $jasa.'% / '.$jangka.' bln';
+                    return $jasa.'% / '.$jangka.' '.strtolower(Pinjaman::satuanJangka($row));
                 })
                 ->editColumn('nama_kelompok', function ($row) {
                     $jpp = $row->jpp;
@@ -183,7 +183,7 @@ class PinjamanKelompokController extends Controller
         if (request()->ajax()) {
             $pinkel = PinjamanKelompok::where([
                 ['status', 'A'],
-            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'pinjaman_anggota')->get();
+            ])->with('kelompok', 'kelompok.d', 'jpp', 'sts', 'sis_pokok', 'pinjaman_anggota')->get();
 
             return DataTables::of($pinkel)
                 ->addColumn('jasa', function ($row) {
@@ -192,7 +192,7 @@ class PinjamanKelompokController extends Controller
 
                     $jasa = number_format($pros / $jangka, 2);
 
-                    return $jasa.'% / '.$jangka.' bln';
+                    return $jasa.'% / '.$jangka.' '.strtolower(Pinjaman::satuanJangka($row));
                 })
                 ->editColumn('nama_kelompok', function ($row) {
                     $jpp = $row->jpp;
@@ -226,7 +226,7 @@ class PinjamanKelompokController extends Controller
             $pinkel = PinjamanKelompok::where([
                 ['status', 'A'],
             ])->whereRaw($tb_pinkel.'.alokasi<=(SELECT SUM(realisasi_pokok) FROM real_angsuran_'.Session::get('lokasi').' WHERE loan_id='.$tb_pinkel.'.id)')
-                ->with('kelompok', 'jpp', 'sts')->withCount('pinjaman_anggota')->get();
+                ->with('kelompok', 'jpp', 'sts', 'sis_pokok')->withCount('pinjaman_anggota')->get();
 
             return DataTables::of($pinkel)
                 ->addColumn('jasa', function ($row) {
@@ -235,7 +235,7 @@ class PinjamanKelompokController extends Controller
 
                     $jasa = number_format($pros / $jangka, 2);
 
-                    return $jasa.'% / '.$jangka.' bln';
+                    return $jasa.'% / '.$jangka.' '.strtolower(Pinjaman::satuanJangka($row));
                 })
                 ->editColumn('nama_kelompok', function ($row) {
                     $jpp = $row->jpp;
@@ -567,6 +567,7 @@ class PinjamanKelompokController extends Controller
 
     public function pelunasan(PinjamanKelompok $perguliran)
     {
+        $perguliran->loadMissing('sis_pokok');
         $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
         $title = 'Detal Piutang Kelompok '.$perguliran->kelompok->nama_kelompok;
         $real = RealAngsuran::where('loan_id', $perguliran->id)->orderBy('tgl_transaksi', 'DESC')->orderBy('id', 'DESC')->first();
@@ -577,6 +578,7 @@ class PinjamanKelompokController extends Controller
 
     public function keterangan(PinjamanKelompok $perguliran)
     {
+        $perguliran->loadMissing('sis_pokok');
         $title = 'Cetak Keterangan Pelunasan '.$perguliran->kelompok->nama_kelompok;
         $real = RealAngsuran::where('loan_id', $perguliran->id)->orderBy('tgl_transaksi', 'DESC')->orderBy('id', 'DESC')->first();
         $ra = RencanaAngsuran::where('loan_id', $perguliran->id)->orderBy('jatuh_tempo', 'DESC')->first();
@@ -1552,6 +1554,7 @@ class PinjamanKelompokController extends Controller
             'kelompok',
             'kelompok.d',
             'kelompok.d.sebutan_desa',
+            'sis_pokok',
         ])->first();
 
         $data['judul'] = 'DOKUMEN PROPOSAL';
@@ -1593,6 +1596,7 @@ class PinjamanKelompokController extends Controller
             'kelompok',
             'kelompok.d',
             'kelompok.d.sebutan_desa',
+            'sis_pokok',
         ])->withCount('pinjaman_anggota')->first();
 
         $jenis_dokumen = request()->get('jenis') ?: 'dokumen_proposal';
@@ -1954,6 +1958,7 @@ class PinjamanKelompokController extends Controller
             'kelompok',
             'kelompok.d',
             'kelompok.d.sebutan_desa',
+            'sis_pokok',
         ])->withCount('pinjaman_anggota')->get();
 
         $data['pendanaan'] = User::where([
@@ -2177,6 +2182,7 @@ class PinjamanKelompokController extends Controller
             'kelompok',
             'kelompok.d',
             'kelompok.d.sebutan_desa',
+            'sis_pokok',
         ])->first();
 
         $data['judul'] = 'DOKUMEN PENCAIRAN';

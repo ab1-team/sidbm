@@ -94,7 +94,7 @@
             <li>
                 Forum menyepakati bunga piutang yang akan diberlakukan kepada anggota kelompok sebesar
                 @if (in_array($kec->id, [372, 373]))
-                    _____% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                    _____% setiap {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }} dalam {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}.
                 @else
                     @php
                         $bungaPerBulan = $pinkel->pros_jasa / $pinkel->jangka;
@@ -104,7 +104,7 @@
                         );
                     @endphp
 
-                    {{ $bungaFormatted }}% setiap bulan dalam {{ $pinkel->jangka }} bulan.
+                    {{ $bungaFormatted }}% setiap {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }} dalam {{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}.
                 @endif
             </li>
             <li>

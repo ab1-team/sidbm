@@ -160,7 +160,7 @@
             <td align="center">
                 {{ number_format($pinkel->pros_jasa / $pinkel->jangka, 2) }}%/{{ $pinkel->jasa->nama_jj }}
             </td>
-            <td align="center">{{ $pinkel->jangka }} bulan</td>
+            <td align="center">{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</td>
             <td align="center">{{ $pinkel->sis_pokok->nama_sistem }}</td>
         </tr>
         @if (!($pinkel->status == 'P' || $pinkel->status == 'V'))
@@ -171,7 +171,7 @@
                 <td align="center">
                     {{ number_format($pinkel->pros_jasa / $pinkel->jangka, 2) }}%/{{ $pinkel->jasa->nama_jj }}
                 </td>
-                <td align="center">{{ $pinkel->jangka }} bulan</td>
+                <td align="center">{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel, false) }}</td>
                 <td align="center">{{ $pinkel->sis_pokok->nama_sistem }}</td>
             </tr>
         @else

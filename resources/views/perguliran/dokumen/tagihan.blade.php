@@ -123,7 +123,7 @@
                         <td>
                             <b>
                                 {{ number_format($pinkel->pros_jasa > 0 ? $pinkel->pros_jasa / $pinkel->jangka : 0, 2) }}%
-                                per Bulan
+                                per {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}
                             </b>
                         </td>
                     </tr>
@@ -132,7 +132,7 @@
                         <td>Masa Angsuran</td>
                         <td>:</td>
                         <td>
-                            <b>{{ $pinkel->jangka }} Bulan</b>
+                            <b>{{ $pinkel->jangka }} {{ \App\Utils\Pinjaman::satuanJangka($pinkel) }}</b>
                         </td>
                     </tr>
                     <tr>

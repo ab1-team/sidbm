@@ -4,6 +4,15 @@ namespace App\Utils;
 
 class Pinjaman
 {
+    public static function satuanJangka($pinjaman, $capital = true)
+    {
+        $minggu = optional(optional($pinjaman)->sis_pokok)->id == '12';
+
+        return $capital
+            ? ($minggu ? 'Minggu' : 'Bulan')
+            : ($minggu ? 'minggu' : 'bulan');
+    }
+
     public static function keyword($text = false, $data = [])
     {
         if ($text === false) {
