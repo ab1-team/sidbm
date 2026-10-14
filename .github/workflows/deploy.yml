@@ -23,3 +23,146 @@ jobs:
             php artisan config:clear || true
             php artisan route:clear || true
             php artisan view:clear || true
+
+            # === SIDBM: pastikan client_max_body_size 10m pada vhost sidbm.net (idempoten) ===
+            # Default nginx 1m memblokir upload caption "maks 4MB" (413) sebelum request sampai Laravel.
+            # Proses SEMUA blok server{} yang server_name-nya memuat token berakhir "sidbm.net"
+            # (apex maupun *.sidbm.net); blok domain lain tidak disentuh.
+            SUDO=""
+            if [ "$(id -u)" != "0" ]; then SUDO="sudo"; fi
+
+            # ---------------------------------------------------------------------------
+            # Fungsi inti (SATU sumber kebenaran): menormalkan cmbs pada tiap blok server{}.
+            # Satu blok server{} = SATU keputusan:
+            #   - match bila server_name blok memuat token berakhir "sidbm.net" (apex / *.sidbm.net,
+            #     termasuk bila ada >1 token dalam satu baris server_name).
+            #   - bila blok match & sudah punya client_max_body_size -> GANTI nilainya (bukan tambah baris).
+            #   - bila blok match & belum punya -> SISIPKAN satu baris di dalam blok.
+            #   - blok non-match dibiarkan apa adanya.
+            # Blok dilacak via kedalaman brace (depth), jadi satu blok server{} HANYA diproses
+            # sekali: tak mungkin ada dua direktif client_max_body_size di blok yang sama.
+            # Counter = per blok (bukan per token sidbm.net), jadi 1 blok dihitung 1 kali.
+            # Exit: 0 = ada perubahan/ok, 2 = tak ada blok match (file tak disentuh).
+            # Dipakai ulang oleh self-test di bawah (logika sama persis, bukan salinan).
+            cmbs_apply() {
+              ${SUDO:-} awk '                                          {
+                raw[FNR]=$0; line=$0; sub(/#.*/,"",line)
+                if (!insrv && match(line,/server[ \t]*\{/)) { insrv=1; depth=0; so=FNR; has_sn=0; cmbs=0; cmbsv=""; se=0 }
+                if (insrv) {
+                  o=gsub(/\{/,"",line); c=gsub(/\}/,"",line); depth+=o-c
+                  if (line ~ /server_name/ && line ~ /(^|[ \t;.])sidbm\.net([ \t;]|$)/) has_sn=1
+                  if (match(line,/client_max_body_size[ \t]+[^;]+;/)) {
+                    cmbs=1; seg=substr(line,RSTART,RLENGTH); sub(/client_max_body_size[ \t]+/,"",seg); sub(/;.*/,"",seg); cmbsv=seg; se=FNR
+                  }
+                  if (depth==0) { srv_start[++ns]=so; srv_sn[ns]=has_sn; srv_cmbs[ns]=cmbs; srv_cmbsv[ns]=cmbsv; srv_se[ns]=se; insrv=0 }
+                } n=FNR
+              }
+              END {
+                tgt=0; for (k=1;k<=ns;k++) if (srv_sn[k]) tgt++
+                if (tgt==0) { print "[nginx-cmbs] 0 blok diubah, 0 sudah 10m (tak ada blok server_name sidbm.net): " FILENAME; exit 2 }
+                nchg=0; nok=0
+                for (k=ns;k>=1;k--) {
+                  if (!srv_sn[k]) continue
+                  if (srv_cmbs[k] && srv_cmbsv[k]=="10m") { nok++; continue }
+                  if (srv_cmbs[k]) { sub(/client_max_body_size[ \t]+[^;]+;/,"client_max_body_size 10m;",raw[srv_se[k]]); nchg++ }
+                  else { for (i=n;i>srv_start[k];i--) raw[i+1]=raw[i]; raw[srv_start[k]+1]="    client_max_body_size 10m;"; n++; nchg++ }
+                }
+                for (i=1;i<=n;i++) print raw[i] > FILENAME
+                print "[nginx-cmbs] " nchg " blok diubah, " nok " sudah 10m: " FILENAME; exit 0
+              }' "$1"
+            }
+
+            # ---------------------------------------------------------------------------
+            # SELF-TEST (aktif hanya bila CMBS_SELFTEST=1) memakai fungsi cmbs_apply di atas.
+            if [ "${CMBS_SELFTEST:-0}" = "1" ]; then
+              st_block() { awk -v w="$2" '{ a=$0; sub(/#.*/,"",a)
+                if (!ins && match(a,/server[ \t]*\{/)) { ins=1; depth=0; n++ }
+                if (ins) { o=gsub(/\{/,"",a); c=gsub(/\}/,"",a); depth+=o-c
+                  if (n==w) print $0
+                  if (depth==0) ins=0 } }' "$1"; }
+              st_cnt() { st_block "$1" "$2" | grep -cE 'client_max_body_size[ \t]+[^;]+;'; }
+              st_val() { st_block "$1" "$2" | grep -oE 'client_max_body_size[ \t]+[^;]+;' | head -n1; }
+              STP=0; STF=0
+              st_chk() { if [ "$2" = 0 ]; then echo "PASS: $1"; STP=$((STP+1)); else echo "FAIL: $1"; STF=$((STF+1)); fi; }
+
+              SF=/tmp/cmbs-fixture.conf
+              printf '%b' '# comment: server_name sidbm.net di baris komentar tidak boleh dianggap\nserver {\n    listen 80;\n    server_name sidbm.net www.sidbm.net;\n    root /var/www/sidbm.net/public;\n    location / { try_files $uri /index.php?$query_string; }\n}\n\nserver {\n    listen 80;\n    server_name lendah.sidbm.net;\n    client_max_body_size 2m;\n    root /var/www/lendah/public;\n}\n\nserver {\n    listen 443 ssl;\n    server_name contoh-lain.example.com;\n    client_max_body_size 8m;\n    root /var/www/other;\n}\n\nserver {\n    listen 80;\n    server_name sidbm.net;\n    client_max_body_size 10m;\n    root /var/www/sidbm.net/public;\n}\n' > "$SF"
+              LB=$(wc -l < "$SF"); C0=$(sed -n '1p' "$SF"); M0=$(st_block "$SF" 3 | md5sum)
+              L1=$(cmbs_apply "$SF"); cp "$SF" /tmp/cmbs-st1.conf
+              L2=$(cmbs_apply "$SF"); cp "$SF" /tmp/cmbs-st2.conf
+              echo "--- log run1: $L1"; echo "--- log run2: $L2"
+              [ "$(st_cnt "$SF" 1)" = 1 ] && st_chk "blok1 tepat 1 cmbs" 0 || st_chk "blok1 tepat 1 cmbs" 1
+              [ "$(st_val "$SF" 1)" = "client_max_body_size 10m;" ] && st_chk "blok1 nilai 10m" 0 || st_chk "blok1 nilai 10m" 1
+              ( st_block "$SF" 2 | grep -q '2m' ) && st_chk "blok2 tak lagi 2m" 1 || st_chk "blok2 tak lagi 2m" 0
+              [ "$(st_cnt "$SF" 2)" = 1 ] && st_chk "blok2 tepat 1 cmbs" 0 || st_chk "blok2 tepat 1 cmbs" 1
+              [ "$(st_val "$SF" 2)" = "client_max_body_size 10m;" ] && st_chk "blok2 nilai 10m" 0 || st_chk "blok2 nilai 10m" 1
+              [ "$(st_val "$SF" 3)" = "client_max_body_size 8m;" ] && st_chk "blok3 tetap 8m" 0 || st_chk "blok3 tetap 8m" 1
+              ( st_block "$SF" 3 | grep -q '10m' ) && st_chk "blok3 tanpa 10m" 1 || st_chk "blok3 tanpa 10m" 0
+              [ "$M0" = "$(st_block "$SF" 3 | md5sum)" ] && st_chk "blok3 md5 identik" 0 || st_chk "blok3 md5 identik" 1
+              [ "$(st_cnt "$SF" 4)" = 1 ] && st_chk "blok4 tepat 1 cmbs" 0 || st_chk "blok4 tepat 1 cmbs" 1
+              [ "$(wc -l < "$SF")" = "$((LB+1))" ] && st_chk "jumlah baris = before+1" 0 || st_chk "jumlah baris = before+1" 1
+              MX=0; for b in 1 2 3 4; do c=$(st_cnt "$SF" "$b"); [ "$c" -gt "$MX" ] && MX=$c; done
+              [ "$MX" -le 1 ] && st_chk "tak ada blok >1 cmbs" 0 || st_chk "tak ada blok >1 cmbs" 1
+              [ "$(sed -n '1p' "$SF")" = "$C0" ] && st_chk "komentar baris1 tetap" 0 || st_chk "komentar baris1 tetap" 1
+              cmp -s /tmp/cmbs-st1.conf /tmp/cmbs-st2.conf && st_chk "idempoten run2==run1" 0 || st_chk "idempoten run2==run1" 1
+              echo "$L1" | grep -q '2 blok diubah, 1 sudah 10m' && st_chk "log run1 benar" 0 || st_chk "log run1 benar" 1
+
+              S2=/tmp/cmbs-fixture2.conf
+              printf 'server {\n    server_name lain.example.org;\n    client_max_body_size 8m;\n}\n' > "$S2"
+              Z0=$(md5sum "$S2"); L3=$(cmbs_apply "$S2"); R3=$?; Z1=$(md5sum "$S2")
+              echo "--- log uji2: $L3 (rc=$R3)"
+              [ "$R3" = 2 ] && st_chk "uji2 exit 2" 0 || st_chk "uji2 exit 2" 1
+              [ "$Z0" = "$Z1" ] && st_chk "uji2 file tetap" 0 || st_chk "uji2 file tetap" 1
+              echo "$L3" | grep -q '0 blok diubah' && st_chk "uji2 log 0 blok diubah" 0 || st_chk "uji2 log 0 blok diubah" 1
+              echo "[nginx-cmbs] SELF-TEST PASS=$STP FAIL=$STF"
+            fi
+
+            # Deteksi rekursif di seluruh /etc/nginx, kecuali file backup/swap. `|| true`
+            # mencegah status non-zero (tak ada match) mematikan step deploy (set -e).
+            CANDIDATES=$(grep -rlE 'server_name[^;]*sidbm\.net' /etc/nginx \
+              --exclude='*.bak*' --exclude='*.swp' 2>/dev/null | sort -u || true)
+
+            if [ -z "$CANDIDATES" ]; then
+              echo "[nginx-cmbs] SKIP: tidak ada file dengan server_name sidbm.net ditemukan."
+            else
+              echo "[nginx-cmbs] kandidat:"; echo "$CANDIDATES"
+              NCAND=$(echo "$CANDIDATES" | wc -l || true)
+              if [ "${NCAND:-0}" -gt 1 ]; then
+                echo "[nginx-cmbs] PERINGATAN: >1 file kandidat; diproses semuanya."
+              fi
+
+              CHANGED_FILES=""
+              for CONF in $CANDIDATES; do
+                [ -f "$CONF" ] || continue
+                BACKUP="${CONF}.bak.sidbm-cmbs"
+                $SUDO cp -p "$CONF" "$BACKUP" || { echo "[nginx-cmbs] GAGAL backup $CONF, lewati."; continue; }
+
+                # Set/insert client_max_body_size 10m di SETIAP blok server{} sidbm.net
+                # memakai fungsi cmbs_apply (lihat definisi di atas).
+                if cmbs_apply "$CONF"; then
+                  CHANGED_FILES="$CHANGED_FILES $CONF"
+                else
+                  $SUDO rm -f "$BACKUP"
+                fi
+              done
+
+              if [ -n "$CHANGED_FILES" ]; then
+                if $SUDO nginx -t; then
+                  $SUDO nginx -s reload || $SUDO systemctl reload nginx || true
+                  for CONF in $CHANGED_FILES; do
+                    FINAL=$(grep -hoE 'client_max_body_size[ \t]+[^;]+;' "$CONF" | head -n1 || true)
+                    echo "[nginx-cmbs] TERPASANG di $CONF -> ${FINAL:-'(tak terbaca)'}"
+                  done
+                  echo "[nginx-cmbs] selesai; nginx direload."
+                else
+                  echo "[nginx-cmbs] nginx -t GAGAL, mengembalikan perubahan..."
+                  for CONF in $CHANGED_FILES; do
+                    $SUDO cp -p "${CONF}.bak.sidbm-cmbs" "$CONF" && echo "[nginx-cmbs] restore $CONF"
+                  done
+                  echo "[nginx-cmbs] tanpa reload; deploy dilanjutkan."
+                fi
+                for CONF in $CHANGED_FILES; do $SUDO rm -f "${CONF}.bak.sidbm-cmbs"; done
+              else
+                echo "[nginx-cmbs] tidak ada file yang perlu diubah."
+              fi
+            fi
