@@ -100,7 +100,7 @@
                 src="{{ $kab->logo ?? asset('assets/img/no_image.png') }}"
                 class="border rounded" style="max-width:180px; max-height:120px; object-fit:contain;" alt="Logo Laporan">
 
-            <small class="text-muted d-block mt-2">PNG/JPG maksimal 4 MB. Tampil pada header laporan keuangan kabupaten.</small>
+            <small class="text-muted d-block mt-2">PNG/JPG maksimal 1 MB. Tampil pada header laporan keuangan kabupaten.</small>
 
             <form action="/kab/profil/logo" method="post" id="formLogo" enctype="multipart/form-data">
                 @csrf

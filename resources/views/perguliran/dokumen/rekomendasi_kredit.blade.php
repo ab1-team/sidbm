@@ -87,7 +87,9 @@
             style="font-size: 11px; position: relative; top: -20px;">
             <tr class="b">
                 <td align="center">
-                    <img src="{{ $logo }}" width="70" alt="{{ $logo }}" style="margin-bottom: 8px;">
+                    @if($logo)
+                        <img src="{{ $logo }}" width="70" alt="Logo Kabupaten" style="margin-bottom: 8px;">
+                    @endif
                 </td>
                 <td align="center">
                     <div style="font-size: 18px;">

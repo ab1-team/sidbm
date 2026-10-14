@@ -1641,7 +1641,19 @@ class PinjamanKelompokController extends Controller
             $data['tanda_tangan'] = Pinjaman::keyword($dokumenPinjaman->tanda_tangan->tanda_tangan, $data);
         }
 
-        $data['logo'] = $this->supabaseToBase64(\Illuminate\Support\Facades\Storage::disk('enstorage')->url('logo_kab/'.$data['kab']->id.'.jpg'));
+        $logoPath = $data['kab']->logo;
+        if (! $logoPath) {
+            try {
+                $disk = \Illuminate\Support\Facades\Storage::disk('enstorage');
+                $legacyPath = 'logo_kab/'.$data['kab']->id.'.jpg';
+                if ($disk->exists($legacyPath)) {
+                    $logoPath = $disk->url($legacyPath);
+                }
+            } catch (\Throwable $e) {
+                $logoPath = null;
+            }
+        }
+        $data['logo'] = $logoPath ? $this->supabaseToBase64($logoPath) : null;
 
         $data['keuangan'] = $keuangan;
         $data['judul'] = 'Surat Rekomendasi Kredit ('.$data['pinkel']->kelompok->nama_kelompok.' - Loan ID. '.$data['pinkel']->id.')';

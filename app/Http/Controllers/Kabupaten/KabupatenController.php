@@ -200,7 +200,12 @@ class KabupatenController extends Controller
     public function simpanLogo(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'logo' => 'required|image|mimes:jpg,png,jpeg|max:4096',
+            'logo' => 'required|image|mimes:jpg,png,jpeg|max:1024',
+        ], [
+            'logo.required' => 'Logo wajib diunggah.',
+            'logo.image' => 'Logo harus berupa file gambar.',
+            'logo.mimes' => 'Logo harus berformat JPG, JPEG, atau PNG.',
+            'logo.max' => 'Ukuran logo maksimal 1 MB.',
         ]);
 
         if ($validator->fails()) {
