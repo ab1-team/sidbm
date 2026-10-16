@@ -285,6 +285,7 @@
                 $.ajax({
                     type: 'GET',
                     url: '/pengaturan/whatsapp/instance_state',
+                    timeout: 4000,
                     success: function(res) {
                         console.log('Connection state:', res)
                         if (res.state === 'open') {
@@ -330,6 +331,7 @@
                 $.ajax({
                     type: 'GET',
                     url: '/pengaturan/whatsapp/instance_state',
+                    timeout: 4000,
                     success: function(res) {
                         console.log('QR poll:', res)
                         if (res.success && res.qr) {
@@ -356,6 +358,7 @@
                 $.ajax({
                     type: 'GET',
                     url: '/pengaturan/whatsapp/instance_state',
+                    timeout: 4000,
                     success: function(res) {
                         console.log('Initial state:', res)
                         if (res.state === 'open') {

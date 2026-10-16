@@ -42,6 +42,21 @@ class ServiceWorkerFallbackTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function test_cache_files_endpoint_does_not_contain_data_uri()
+    {
+        $response = $this->get('/cache-files');
+
+        $response->assertStatus(200);
+
+        $files = $response->json();
+        $this->assertIsArray($files);
+
+        foreach ($files as $file) {
+            $this->assertIsString($file);
+            $this->assertStringStartsNotWith('data:', $file, 'Endpoint /cache-files tidak boleh mengembalikan data URI.');
+        }
+    }
+
     public function test_safe_resize_returns_null_on_storage_timeout()
     {
         Http::fake(function () {

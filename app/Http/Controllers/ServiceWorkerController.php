@@ -52,14 +52,15 @@ class ServiceWorkerController extends Controller
 
     public function assets()
     {
-        $url = request()->getHost();
-        $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->first();
-
-        $assets = array_values(array_filter([
+        $assets = [
             '/',
-            $this->safeResize($kec->logo ?? null, 192, 192),
-            $this->safeResize($kec->logo ?? null, 512, 512),
-        ]));
+            file_exists(public_path('assets/img/icon/favicon-192x192.png'))
+                ? '/assets/img/icon/favicon-192x192.png'
+                : '/assets/img/icon/favicon.png',
+            file_exists(public_path('assets/img/icon/favicon-512x512.png'))
+                ? '/assets/img/icon/favicon-512x512.png'
+                : '/assets/img/icon/favicon.png',
+        ];
 
         return response()->json($assets)->header('Content-Type', 'application/json');
     }

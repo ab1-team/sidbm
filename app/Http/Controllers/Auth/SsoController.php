@@ -66,7 +66,12 @@ class SsoController extends Controller
             $tokenKec = 'dbm-'.str_replace('.', '', $kec->kd_kec).'-'.str_pad($kec->id, 3, '0', STR_PAD_LEFT);
         }
 
-        $icon = $kec->logo ? '/storage/logo/'.$kec->logo : '/assets/img/icon/favicon.png';
+        $icon = '/assets/img/icon/favicon.png';
+        if ($kec->logo) {
+            $icon = (str_starts_with($kec->logo, 'http://') || str_starts_with($kec->logo, 'https://'))
+                ? $kec->logo
+                : '/storage/logo/'.$kec->logo;
+        }
 
         // 4. Login
         Auth::login($user, remember: false);

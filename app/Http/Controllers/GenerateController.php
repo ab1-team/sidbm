@@ -3,15 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kecamatan;
-use App\Models\PinjamanKelompok;
-use App\Models\RealAngsuran;
-use App\Models\RencanaAngsuran;
 use App\Services\GenerateService;
 use App\Support\TenantResolver;
-use App\Utils\Keuangan;
 use Illuminate\Http\Request;
 use Session;
-use URL;
 
 class GenerateController extends Controller
 {
@@ -39,10 +34,12 @@ class GenerateController extends Controller
 
         $logo = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
-            $logo = '/storage/logo/' . $kec->logo;
+            $logo = (str_starts_with($kec->logo, 'http://') || str_starts_with($kec->logo, 'https://'))
+                ? $kec->logo
+                : '/storage/logo/'.$kec->logo;
         }
 
-        $table = 'pinjaman_kelompok_' . Session::get('lokasi');
+        $table = 'pinjaman_kelompok_'.Session::get('lokasi');
 
         $database = \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
         $strukturTabel = \Illuminate\Support\Facades\DB::select("

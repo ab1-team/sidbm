@@ -3,7 +3,7 @@
         <div class="card mt-4 border" data-animation="true">
             <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
                 <a class="d-block blur-shadow-image">
-                    <img src="{{ $kec->logo ?: Session::get('logo') }}" alt="img-blur-shadow" class="img-fluid shadow border-radius-lg"
+                    <img src="{{ $kec->logo ?: Session::get('logo') }}" onerror="this.onerror=null;this.src='/assets/img/icon/favicon.png'" alt="img-blur-shadow" class="img-fluid shadow border-radius-lg"
                         id="previewLogo">
                 </a>
                 <div class="colored-shadow" style="background-image: url(&quot;{{ $kec->logo ?: Session::get('logo') }}&quot;);">

@@ -5,13 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\AdminInvoice;
 use App\Models\AdminJenisPembayaran;
 use App\Models\AppUpdate;
-use App\Models\Kabupaten;
 use App\Models\Kecamatan;
 use App\Models\Menu;
 use App\Models\MenuTombol;
 use App\Models\PinjamanKelompok;
-use App\Support\TenantResolver;
 use App\Models\User;
+use App\Support\TenantResolver;
 use App\Utils\Keuangan;
 use App\Utils\Tanggal;
 use Auth;
@@ -114,7 +113,7 @@ class AuthController extends Controller
             TenantResolver::applyResolvedConnection($resolvedTenant);
         }
 
-        if (!$kec) {
+        if (! $kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
         $lokasi = $kec->id;
@@ -147,7 +146,9 @@ class AuthController extends Controller
 
         $icon = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
-            $icon = '/storage/logo/'.$kec->logo;
+            $icon = (str_starts_with($kec->logo, 'http://') || str_starts_with($kec->logo, 'https://'))
+                ? $kec->logo
+                : '/storage/logo/'.$kec->logo;
         }
 
         if ($username == 'superadmin' && $password == 'superadmin') {
@@ -292,14 +293,16 @@ class AuthController extends Controller
             TenantResolver::applyResolvedConnection($resolvedTenant);
         }
 
-        if (!$kec) {
+        if (! $kec) {
             abort(404, 'Lembaga tidak ditemukan');
         }
         $lokasi = $kec->id;
 
         $icon = '/assets/img/icon/favicon.png';
         if ($kec->logo) {
-            $icon = '/storage/logo/'.$kec->logo;
+            $icon = (str_starts_with($kec->logo, 'http://') || str_starts_with($kec->logo, 'https://'))
+                ? $kec->logo
+                : '/storage/logo/'.$kec->logo;
         }
 
         User::where([
