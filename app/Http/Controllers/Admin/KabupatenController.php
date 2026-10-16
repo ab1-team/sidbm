@@ -208,15 +208,25 @@ class KabupatenController extends Controller
 
     private function supabaseToBase64($url)
     {
-        $response = Http::withOptions([
-            'verify' => false,
-        ])->get($url);
-
-        if (! $response->successful()) {
+        if (! $url) {
             return null;
         }
 
-        $binary = $response->body();
+        try {
+            $response = Http::withOptions([
+                'verify' => false,
+            ])->timeout(3)->get($url);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $binary = $response->body();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
 
         $extension = pathinfo($url, PATHINFO_EXTENSION);
         $mime = [

@@ -3128,15 +3128,21 @@ class PinjamanKelompokController extends Controller
             return null;
         }
 
-        $response = Http::withOptions([
-            'verify' => false,
-        ])->get($url);
+        try {
+            $response = Http::withOptions([
+                'verify' => false,
+            ])->timeout(3)->get($url);
 
-        if (! $response->successful()) {
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $binary = $response->body();
+        } catch (\Throwable $e) {
+            report($e);
+
             return null;
         }
-
-        $binary = $response->body();
 
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
         $mime = [

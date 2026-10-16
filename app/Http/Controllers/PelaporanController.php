@@ -227,7 +227,7 @@ class PelaporanController extends Controller
 
         $laporan = JenisLaporan::where('file', $file)->first();
 
-        if (!$laporan) {
+        if (! $laporan) {
             $laporan = new JenisLaporan();
             $laporan->nama_laporan = 'Laporan';
         }
@@ -4078,7 +4078,7 @@ class PelaporanController extends Controller
         $tgl_kondisi = $data['tgl_kondisi'];
         $kec = $data['kec'];
 
-        if (!empty($data['bulanan'])) {
+        if (! empty($data['bulanan'])) {
             $data['sub_judul'] = 'Per '.Tanggal::tglLatin($tgl_kondisi);
             $data['tgl'] = Tanggal::namaBulan($tgl_kondisi).' '.Tanggal::tahun($tgl_kondisi);
         } else {
@@ -4447,46 +4447,46 @@ class PelaporanController extends Controller
             $need_solv = max(0, ($a['total_liabilitas'] * 1.10) - $a['total_aset']);
             $target_total_aset = max(0, ($a['total_liabilitas'] * 1.10));
             $rekomendasi[] =
-                "PERMODALAN: Rasio Solvabilitas ".number_format($a['rasio_solvabilitas'], 2)."% di bawah batas minimum 110%. "
-                ."Cara perbaikan: (a) Tambahkan minimal ".$rp($need_solv)." ke rekening ".str_replace('rekening ', '', $listRekSingkat($rek_kas, '')).' / '.str_replace('rekening ', '', $listRekSingkat($rek_bank, ''))
-                ." dari setoran modal/hibah/penambahan simpanan anggota; "
-                ."(b) Naikkan ekuitas di rekening ".$listRekSingkat($rek_pokok, '').', '.$listRekSingkat($rek_wajib, '').', atau '.$listRekSingkat($rek_hibah, '').' minimal '.$rp(max(0, ($a['total_liabilitas'] * 1.10) - ($a['total_aset'] - $a['total_liabilitas'])))
-                ."; (c) Atau kurangi liabilitas dengan membayar jatuh tempo simpanan anggota / utang pihak ke-3 tepat waktu. "
-                ."Setelah penyesuaian, target Total Aset minimal ".$rp($target_total_aset).' (110% dari Liabilitas '.$rp($a['total_liabilitas']).').';
+                'PERMODALAN: Rasio Solvabilitas '.number_format($a['rasio_solvabilitas'], 2).'% di bawah batas minimum 110%. '
+                .'Cara perbaikan: (a) Tambahkan minimal '.$rp($need_solv).' ke rekening '.str_replace('rekening ', '', $listRekSingkat($rek_kas, '')).' / '.str_replace('rekening ', '', $listRekSingkat($rek_bank, ''))
+                .' dari setoran modal/hibah/penambahan simpanan anggota; '
+                .'(b) Naikkan ekuitas di rekening '.$listRekSingkat($rek_pokok, '').', '.$listRekSingkat($rek_wajib, '').', atau '.$listRekSingkat($rek_hibah, '').' minimal '.$rp(max(0, ($a['total_liabilitas'] * 1.10) - ($a['total_aset'] - $a['total_liabilitas'])))
+                .'; (c) Atau kurangi liabilitas dengan membayar jatuh tempo simpanan anggota / utang pihak ke-3 tepat waktu. '
+                .'Setelah penyesuaian, target Total Aset minimal '.$rp($target_total_aset).' (110% dari Liabilitas '.$rp($a['total_liabilitas']).').';
         }
 
         if ($a['rasio_ekuitas'] < 75) {
             $need_ekuitas = max(0, ($a['modal_disetor'] * 0.75) - $a['total_ekuitas']);
             $rekomendasi[] =
-                "PERMODALAN: Rasio Ekuitas ".number_format($a['rasio_ekuitas'], 2)."% di bawah batas minimum 75%. "
-                ."Cara perbaikan: (a) Setoran Simpanan Pokok anggota baru di rekening ".$listRekSingkat($rek_pokok, '')."; "
-                ."(b) Naikkan Simpanan Wajib ".$listRekSingkat($rek_wajib, '')." melalui iuran bulanan; "
-                ."(c) Setor modal hibah ke ".$listRekSingkat($rek_hibah, '')."; "
-                ."(d) Alokasikan SHU tahun berjalan ke rekening cadangan ekuitas ".$listRekSingkat($rek_cadangan_ekuitas, '').". "
-                ."Target Total Ekuitas minimal ".$rp($a['modal_disetor'] * 0.75)." (75% dari Modal Disetor ".$rp($a['modal_disetor']).').';
+                'PERMODALAN: Rasio Ekuitas '.number_format($a['rasio_ekuitas'], 2).'% di bawah batas minimum 75%. '
+                .'Cara perbaikan: (a) Setoran Simpanan Pokok anggota baru di rekening '.$listRekSingkat($rek_pokok, '').'; '
+                .'(b) Naikkan Simpanan Wajib '.$listRekSingkat($rek_wajib, '').' melalui iuran bulanan; '
+                .'(c) Setor modal hibah ke '.$listRekSingkat($rek_hibah, '').'; '
+                .'(d) Alokasikan SHU tahun berjalan ke rekening cadangan ekuitas '.$listRekSingkat($rek_cadangan_ekuitas, '').'. '
+                .'Target Total Ekuitas minimal '.$rp($a['modal_disetor'] * 0.75).' (75% dari Modal Disetor '.$rp($a['modal_disetor']).').';
         }
 
         if ($a['rasio_npl_neto'] > 5) {
             $target_npl = $a['outstanding_pinjaman'] * 0.05;
             $selisih_npl = max(0, $a['npl_neto'] - $target_npl);
             $rekomendasi[] =
-                "KUALITAS ASET: Rasio NPL Neto ".number_format($a['rasio_npl_neto'], 2)."% di atas batas maksimum 5%. "
-                ."Cara perbaikan: (a) Kurangi NPL Neto menjadi <= ".$rp($target_npl)." (5% dari Outstanding ".$rp($a['outstanding_pinjaman']).'), selisih diturunkan '.$rp($selisih_npl).'; '
-                ."(b) Restrukturisasi pinjaman Kurang Lancar/Diragukan (perpanjang tenor, reschedule angsuran); "
-                ."(c) Hapus buku pinjaman Macet melalui mekanisme Penghapusan Piutang ke rekening ".$listRekSingkat($rek_cadangan, '').'; '
-                ."(d) Early warning system: angsuran ke-3 kirim surat peringatan, ke-4 kunjungan, ke-6 proses collection; "
-                ."(e) Coverage agunan minimal 125% untuk pinjaman baru; "
-                ."(f) Review kelayakan penerima pinjaman baru via Komite Kredit.";
+                'KUALITAS ASET: Rasio NPL Neto '.number_format($a['rasio_npl_neto'], 2).'% di atas batas maksimum 5%. '
+                .'Cara perbaikan: (a) Kurangi NPL Neto menjadi <= '.$rp($target_npl).' (5% dari Outstanding '.$rp($a['outstanding_pinjaman']).'), selisih diturunkan '.$rp($selisih_npl).'; '
+                .'(b) Restrukturisasi pinjaman Kurang Lancar/Diragukan (perpanjang tenor, reschedule angsuran); '
+                .'(c) Hapus buku pinjaman Macet melalui mekanisme Penghapusan Piutang ke rekening '.$listRekSingkat($rek_cadangan, '').'; '
+                .'(d) Early warning system: angsuran ke-3 kirim surat peringatan, ke-4 kunjungan, ke-6 proses collection; '
+                .'(e) Coverage agunan minimal 125% untuk pinjaman baru; '
+                .'(f) Review kelayakan penerima pinjaman baru via Komite Kredit.';
         }
 
         if ($a['ppap_coverage'] < 100) {
             $need_ppap = max(0, $a['ppap_wajib_minimum'] - $a['cadangan_ppap_terbentuk']);
             $rekomendasi[] =
-                "KUALITAS ASET: Coverage PPAP ".number_format($a['ppap_coverage'], 2)."% di bawah batas minimum 100%. "
-                ."Cara perbaikan: (a) Tambahkan penyisihan PPAP ke rekening ".$listRekSingkat($rek_cadangan, '').' sebesar '.$rp($need_ppap)
-                ." agar coverage menjadi 100%; "
-                ."(b) Sumber dana: alokasi SHU tahun berjalan atau beban laba rugi periode berjalan; "
-                ."(c) Formulasi PPAP sesuai kolektibilitas POJK: Lancar 0%, DPK 5%, Kurang Lancar 15%, Diragukan 50%, Macet 100%.";
+                'KUALITAS ASET: Coverage PPAP '.number_format($a['ppap_coverage'], 2).'% di bawah batas minimum 100%. '
+                .'Cara perbaikan: (a) Tambahkan penyisihan PPAP ke rekening '.$listRekSingkat($rek_cadangan, '').' sebesar '.$rp($need_ppap)
+                .' agar coverage menjadi 100%; '
+                .'(b) Sumber dana: alokasi SHU tahun berjalan atau beban laba rugi periode berjalan; '
+                .'(c) Formulasi PPAP sesuai kolektibilitas POJK: Lancar 0%, DPK 5%, Kurang Lancar 15%, Diragukan 50%, Macet 100%.';
         }
 
         if ($a['rasio_likuiditas'] < 4) {
@@ -4494,31 +4494,31 @@ class PelaporanController extends Controller
             $target_kas = max(0, ($a['liabilitas_lancar'] * 0.04));
             $liab_text = $listRekSingkat($rek_liabilitas_lancar, '');
             $rekomendasi[] =
-                "LIKUIDITAS: Rasio Kas & Setara Kas ".number_format($a['rasio_likuiditas'], 2)."% di bawah batas minimum 4%. "
-                ."Cara perbaikan: (a) Tambah saldo ".$listRekSingkat($rek_kas, '').' / '.$listRekSingkat($rek_bank, '').' minimal '.$rp($need_kas).' agar rasio menjadi 4%; '
-                ."(b) Percepat penagihan piutang, tunda pencairan pinjaman baru, tarik simpanan berjangka jatuh tempo; "
-                ."(c) Diversifikasi penempatan kas: giro ".$listRekSingkat($rek_giro, '')." (60%), deposito on-call ".$listRekSingkat($rek_deposito, '')." (30%), kas tunai ".$listRekSingkat($rek_kas, '')." (10%); "
-                ."(d) Monitor liabilitas lancar ".$liab_text.' (simpanan sukarela, simpanan berjangka <=1 tahun) untuk menjaga rasio tetap >=4%; '
-                ."Target Kas & Setara Kas minimal ".$rp($target_kas).'.';
+                'LIKUIDITAS: Rasio Kas & Setara Kas '.number_format($a['rasio_likuiditas'], 2).'% di bawah batas minimum 4%. '
+                .'Cara perbaikan: (a) Tambah saldo '.$listRekSingkat($rek_kas, '').' / '.$listRekSingkat($rek_bank, '').' minimal '.$rp($need_kas).' agar rasio menjadi 4%; '
+                .'(b) Percepat penagihan piutang, tunda pencairan pinjaman baru, tarik simpanan berjangka jatuh tempo; '
+                .'(c) Diversifikasi penempatan kas: giro '.$listRekSingkat($rek_giro, '').' (60%), deposito on-call '.$listRekSingkat($rek_deposito, '').' (30%), kas tunai '.$listRekSingkat($rek_kas, '').' (10%); '
+                .'(d) Monitor liabilitas lancar '.$liab_text.' (simpanan sukarela, simpanan berjangka <=1 tahun) untuk menjaga rasio tetap >=4%; '
+                .'Target Kas & Setara Kas minimal '.$rp($target_kas).'.';
         }
 
         if ($a['roa'] < 0.5) {
             $target_roa = $a['total_aset'] * 0.005;
             $gap_laba = max(0, $target_roa - $a['laba_bersih']);
             $rekomendasi[] =
-                "RENTABILITAS: ROA ".number_format($a['roa'], 2)."% di bawah batas minimum 0.5%. "
-                ."Cara perbaikan: (a) Naikkan laba bersih menjadi minimal ".$rp($target_roa)." (gap ".$rp($gap_laba).") melalui: "
-                ."- review margin jasa di rekening ".$listRekSingkat($rek_pendapatan_jasa, '').', '
-                ."- efisiensi ".$listRekSingkat($rek_beban_gaji, '').', '.$listRekSingkat($rek_beban_atk, '').', '.$listRekSingkat($rek_beban_adm, '').'; '
-                ."(b) Alirkan Kas/Bank ke pinjaman produktif (rekening ".$listRekSingkat($rek_piutang, '').") untuk meningkatkan pendapatan bunga; "
-                ."(c) Review portofolio pinjaman: hentikan produk dengan margin rendah, fokus pada layanan jasa baru (administrasi, transfer, asuransi).";
+                'RENTABILITAS: ROA '.number_format($a['roa'], 2).'% di bawah batas minimum 0.5%. '
+                .'Cara perbaikan: (a) Naikkan laba bersih menjadi minimal '.$rp($target_roa).' (gap '.$rp($gap_laba).') melalui: '
+                .'- review margin jasa di rekening '.$listRekSingkat($rek_pendapatan_jasa, '').', '
+                .'- efisiensi '.$listRekSingkat($rek_beban_gaji, '').', '.$listRekSingkat($rek_beban_atk, '').', '.$listRekSingkat($rek_beban_adm, '').'; '
+                .'(b) Alirkan Kas/Bank ke pinjaman produktif (rekening '.$listRekSingkat($rek_piutang, '').') untuk meningkatkan pendapatan bunga; '
+                .'(c) Review portofolio pinjaman: hentikan produk dengan margin rendah, fokus pada layanan jasa baru (administrasi, transfer, asuransi).';
         }
 
         $rekomendasi[] =
-            "MANAJEMEN: Lengkapi dokumentasi tata kelola: (a) Notulen rapat pengurus & rapat anggota; "
-            ."(b) Kebijakan risiko & SOP operasional; "
-            ."(c) Program pelatihan SDM untuk pengurus/staf; "
-            ."(d) Audit internal berkala (minimal 1x/tahun oleh pihak independen).";
+            'MANAJEMEN: Lengkapi dokumentasi tata kelola: (a) Notulen rapat pengurus & rapat anggota; '
+            .'(b) Kebijakan risiko & SOP operasional; '
+            .'(c) Program pelatihan SDM untuk pengurus/staf; '
+            .'(d) Audit internal berkala (minimal 1x/tahun oleh pihak independen).';
 
         if (count($rekomendasi) === 1) {
             $rekomendasi = [
@@ -4680,15 +4680,21 @@ class PelaporanController extends Controller
             return null;
         }
 
-        $response = Http::withOptions([
-            'verify' => false,
-        ])->get($url);
+        try {
+            $response = Http::withOptions([
+                'verify' => false,
+            ])->timeout(3)->get($url);
 
-        if (! $response->successful()) {
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $binary = $response->body();
+        } catch (\Throwable $e) {
+            report($e);
+
             return null;
         }
-
-        $binary = $response->body();
 
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
         $mime = [

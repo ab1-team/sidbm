@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kecamatan;
-use Exception;
 use Illuminate\Support\Facades\Http;
 
 class ServiceWorkerController extends Controller
@@ -13,8 +12,23 @@ class ServiceWorkerController extends Controller
         $url = request()->getHost();
         $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->first();
 
+        $logo192 = $this->safeResize($kec->logo ?? null, 192, 192);
+        $logo512 = $this->safeResize($kec->logo ?? null, 512, 512);
+
+        if (empty($logo192)) {
+            $logo192 = file_exists(public_path('assets/img/icon/favicon-192x192.png'))
+                ? '/assets/img/icon/favicon-192x192.png'
+                : '/assets/img/icon/favicon.png';
+        }
+
+        if (empty($logo512)) {
+            $logo512 = file_exists(public_path('assets/img/icon/favicon-512x512.png'))
+                ? '/assets/img/icon/favicon-512x512.png'
+                : '/assets/img/icon/favicon.png';
+        }
+
         return response()->json([
-            'name' => $kec->nama_lembaga_sort,
+            'name' => $kec->nama_lembaga_sort ?? 'SI DBM',
             'short_name' => 'SI DBM',
             'start_url' => '/',
             'display' => 'standalone',
@@ -23,12 +37,12 @@ class ServiceWorkerController extends Controller
             'description' => 'Sistem Informasi Dana Bergulir Masyarakat',
             'icons' => [
                 [
-                    'src' => $this->resize($kec->logo, 192, 192),
+                    'src' => $logo192,
                     'type' => 'image/png',
                     'sizes' => '192x192',
                 ],
                 [
-                    'src' => $this->resize($kec->logo, 512, 512),
+                    'src' => $logo512,
                     'type' => 'image/png',
                     'sizes' => '512x512',
                 ],
@@ -41,11 +55,27 @@ class ServiceWorkerController extends Controller
         $url = request()->getHost();
         $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->first();
 
-        return response()->json([
+        $assets = array_values(array_filter([
             '/',
-            $this->resize($kec->logo, 192, 192),
-            $this->resize($kec->logo, 512, 512),
-        ]);
+            $this->safeResize($kec->logo ?? null, 192, 192),
+            $this->safeResize($kec->logo ?? null, 512, 512),
+        ]));
+
+        return response()->json($assets)->header('Content-Type', 'application/json');
+    }
+
+    /**
+     * Bungkus resize() agar kegagalan storage tidak menjatuhkan request.
+     */
+    private function safeResize($logo, $width, $height)
+    {
+        try {
+            return $this->resize($logo, $width, $height);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     private function resize($logo, $width, $height)
@@ -54,39 +84,51 @@ class ServiceWorkerController extends Controller
             $logo = '1.png';
         }
 
+        $imageContent = null;
+
         // Cek apakah logo adalah URL cloud storage (EnStorage/Supabase)
         if ($this->isStorageUrl($logo)) {
             // Ambil gambar dari cloud storage
             $imageContent = $this->getImageFromStorage($logo);
-            if (! $imageContent) {
-                throw new Exception('Failed to fetch image from storage: '.$logo);
-            }
-        } else {
-            // Ambil gambar dari local storage
-            $imagePath = 'logo/'.$logo;
-            $filePath = storage_path('app/public/'.$imagePath);
+        }
 
-            if (! file_exists($filePath)) {
-                throw new Exception('File not found: '.$filePath);
-            }
+        // Fallback: ambil dari local storage (logo tenant) atau icon default
+        if (! $imageContent) {
+            $candidates = [
+                public_path('storage/logo/'.$logo),
+                storage_path('app/public/logo/'.$logo),
+                public_path('assets/img/icon/favicon.png'),
+                public_path('assets/img/icon/favicon-'.$width.'x'.$height.'.png'),
+            ];
 
-            $imageContent = file_get_contents($filePath);
-            if (! $imageContent) {
-                throw new Exception('Failed to read image file: '.$filePath);
+            foreach ($candidates as $path) {
+                if ($path && @file_exists($path)) {
+                    $content = @file_get_contents($path);
+                    if ($content !== false && $content !== '') {
+                        $imageContent = $content;
+                        break;
+                    }
+                }
             }
+        }
+
+        // Jika tetap tidak ada gambar, return null secara anggun (jangan throw).
+        if (! $imageContent) {
+            return null;
         }
 
         // Buat image dari string
         $image = @imagecreatefromstring($imageContent);
         if (! $image) {
-            throw new Exception('Failed to create image from content');
+            return null;
         }
 
         // Dapatkan dimensi asli
-        $imageSize = getimagesizefromstring($imageContent);
+        $imageSize = @getimagesizefromstring($imageContent);
         if (! $imageSize) {
             imagedestroy($image);
-            throw new Exception('Failed to get image size');
+
+            return null;
         }
 
         [$originalWidth, $originalHeight] = $imageSize;
@@ -174,15 +216,25 @@ class ServiceWorkerController extends Controller
 
     private function getImageFromStorage($url)
     {
-        $response = Http::withOptions([
-            'verify' => false,
-        ])->timeout(30)->get($url);
-
-        if (! $response->successful()) {
+        if (! $url || filter_var($url, FILTER_VALIDATE_URL) === false) {
             return null;
         }
 
-        return $response->body();
+        try {
+            $response = Http::withOptions([
+                'verify' => false,
+            ])->timeout(3)->get($url);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            return $response->body();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**
@@ -198,22 +250,28 @@ class ServiceWorkerController extends Controller
      */
     private function storageToBase64($url)
     {
-        $imageContent = $this->getImageFromStorage($url);
+        try {
+            $imageContent = $this->getImageFromStorage($url);
 
-        if (! $imageContent) {
+            if (! $imageContent) {
+                return null;
+            }
+
+            $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
+            $mime = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'webp' => 'image/webp',
+                'gif' => 'image/gif',
+            ][$extension] ?? 'application/octet-stream';
+
+            return "data:$mime;base64,".base64_encode($imageContent);
+        } catch (\Throwable $e) {
+            report($e);
+
             return null;
         }
-
-        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? $url, PATHINFO_EXTENSION));
-        $mime = [
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-            'gif' => 'image/gif',
-        ][$extension] ?? 'application/octet-stream';
-
-        return "data:$mime;base64,".base64_encode($imageContent);
     }
 
     /**

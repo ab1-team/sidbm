@@ -205,18 +205,28 @@ class DashboardController extends Controller
         ])->orderBy('tgl_cair', 'ASC')->get();
         foreach ($pinjaman as $pinkel) {
             $nama_desa = '';
-            if ($pinkel->anggota->d) {
-                $nama_desa = $pinkel->anggota->d->sebutan_desa->sebutan_desa.' '.$pinkel->anggota->d->nama_desa;
+            if ($pinkel->anggota?->d) {
+                $sebutan = $pinkel->anggota->d->sebutan_desa?->sebutan_desa ?? '';
+                $nama_desa = trim($sebutan.' '.($pinkel->anggota->d->nama_desa ?? ''));
             }
+
+            $kelompokNama = $pinkel->kelompok?->nama_kelompok ?? '-';
+            $idPinkel = $pinkel->id_pinkel ?? '-';
+            $nik = $pinkel->anggota?->nik ?? '-';
+            $namaDepan = $pinkel->anggota?->namadepan ?? '-';
+            $alamat = $pinkel->anggota?->alamat ?? '';
+            $tglVal = $pinkel->$tgl ?? null;
+            $alokasiVal = $pinkel->$alokasi ?? 0;
+
             $table .= '<tr>';
 
             $table .= '<td align="center">'.$no.'</td>';
-            $table .= '<td>'.$pinkel->kelompok->nama_kelompok.' - Loan ID. '.$pinkel->id_pinkel.'</td>';
-            $table .= '<td align="center">'.$pinkel->anggota->nik.'</td>';
-            $table .= '<td>'.$pinkel->anggota->namadepan.'</td>';
-            $table .= '<td>'.$nama_desa.' '.$pinkel->anggota->alamat.'</td>';
-            $table .= '<td align="center">'.Tanggal::tglIndo($pinkel->$tgl).'</td>';
-            $table .= '<td align="right">'.number_format($pinkel->$alokasi).'</td>';
+            $table .= '<td>'.$kelompokNama.' - Loan ID. '.$idPinkel.'</td>';
+            $table .= '<td align="center">'.$nik.'</td>';
+            $table .= '<td>'.$namaDepan.'</td>';
+            $table .= '<td>'.$nama_desa.' '.$alamat.'</td>';
+            $table .= '<td align="center">'.Tanggal::tglIndo($tglVal).'</td>';
+            $table .= '<td align="right">'.number_format($alokasiVal).'</td>';
 
             $table .= '</tr>';
 
