@@ -2,17 +2,79 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Kabupaten\KabupatenController;
 use App\Http\Controllers\PinjamanKelompokController;
+use App\Models\Kabupaten;
 use App\Models\Kecamatan;
 use App\Models\PinjamanKelompok;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Session;
 use Tests\TestCase;
 
 class SuratTagihanTtdTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Overlay: arahkan koneksi DB tenant ke SQLite in-memory (skema kosong)
+        // agar test tidak bergantung pada server MySQL tenant.
+        foreach (['mysql', 'mysql_b'] as $connection) {
+            $this->app['config']->set(
+                "database.connections.{$connection}",
+                [
+                    'driver' => 'sqlite',
+                    'database' => ':memory:',
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                ]
+            );
+            DB::purge($connection);
+        }
+
+        // Model PinjamanKelompok memakai suffix tenant; samakan dengan tabel di bawah.
+        config(['tenant.suffix' => '_9001']);
+
+        foreach (['mysql', 'mysql_b'] as $connection) {
+            Schema::connection($connection)->create('kabupaten', function ($table) {
+                $table->increments('id');
+                $table->string('kd_kab')->nullable();
+                $table->string('logo')->nullable();
+            });
+
+            Schema::connection($connection)->create('kelompok_9001', function ($table) {
+                $table->increments('id');
+                $table->string('nama_kelompok')->nullable();
+                $table->string('ketua')->nullable();
+                $table->string('alamat_kelompok')->nullable();
+            });
+
+            Schema::connection($connection)->create('pinjaman_kelompok_9001', function ($table) {
+                $table->increments('id');
+                $table->integer('id_kel')->nullable();
+            });
+
+            Schema::connection($connection)->create('pinjaman_anggota_9001', function ($table) {
+                $table->increments('id');
+                $table->integer('id_pinkel')->nullable();
+            });
+
+            Schema::connection($connection)->create('dokumen_pinjaman', function ($table) {
+                $table->increments('id');
+                $table->string('file')->nullable();
+                $table->string('jenis_dokumen')->nullable();
+            });
+        }
+
+        Storage::fake('enstorage');
+    }
+
     public function test_ttd_tagihan_image_helper_converts_supabase_file(): void
     {
         $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
@@ -91,6 +153,29 @@ class SuratTagihanTtdTest extends TestCase
         ]))->render();
 
         $this->assertStringNotContainsString('ttd_tagihan_img', $view);
+    }
+
+    public function test_simpan_logo_stores_upload_in_logo_directory(): void
+    {
+        Session::put('kd_kab', '301');
+        Session::put('lokasi', 301);
+        Kabupaten::forceCreate(['id' => 301, 'kd_kab' => '301', 'logo' => null]);
+
+        $disk = Storage::fake('enstorage');
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        $file = UploadedFile::fake()->createWithContent('logo.png', $png);
+
+        $response = app(KabupatenController::class)->simpanLogo(
+            \Illuminate\Http\Request::create('/kabupaten/logo', 'POST', [], [], ['logo' => $file])
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('/logo/', (string) $response->getData(true)['path']);
+        $files = $disk->allFiles('logo');
+        $this->assertCount(1, $files);
+        $this->assertStringStartsWith('logo/', $files[0]);
+        $this->assertStringContainsString('_301_', $files[0]);
+        $this->assertSame([], $disk->allFiles('logo_kab'));
     }
 
     private function fixture(array $kecamatan): array

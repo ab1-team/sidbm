@@ -225,7 +225,7 @@ class KabupatenController extends Controller
             $extension = $request->file('logo')->getClientOriginalExtension();
             $filename = time().'_'.$kab->id.'_'.date('Ymd').'.'.$extension;
             $disk = config('filesystems.cloud_disk', 'enstorage');
-            $path = $request->file('logo')->storeAs('logo_kab', $filename, $disk);
+            $path = $request->file('logo')->storeAs('logo', $filename, $disk);
 
             $publicUrl = Storage::disk($disk)->url($path);
             $baseUrl = rtrim(Storage::disk($disk)->url(''), '/');

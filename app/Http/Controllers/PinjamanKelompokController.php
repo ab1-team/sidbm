@@ -1645,9 +1645,14 @@ class PinjamanKelompokController extends Controller
         if (! $logoPath) {
             try {
                 $disk = \Illuminate\Support\Facades\Storage::disk('enstorage');
-                $legacyPath = 'logo_kab/'.$data['kab']->id.'.jpg';
+                $legacyPath = 'logo/'.$data['kab']->id.'.jpg';
                 if ($disk->exists($legacyPath)) {
                     $logoPath = $disk->url($legacyPath);
+                } else {
+                    $legacyKabPath = 'logo_kab/'.$data['kab']->id.'.jpg';
+                    if ($disk->exists($legacyKabPath)) {
+                        $logoPath = $disk->url($legacyKabPath);
+                    }
                 }
             } catch (\Throwable $e) {
                 $logoPath = null;
