@@ -19,8 +19,8 @@
     <meta name="theme-color" content="#4CAF50">
 
     <link rel="manifest" href="{{ url('/manifest.json') }}">
-    <link rel="apple-touch-icon" sizes="76x76" href="{{ $logo }}">
-    <link rel="icon" type="image/png" href="{{ $logo }}">
+    <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/icon/favicon-192x192.png">
+    <link rel="icon" type="image/png" href="/assets/img/icon/favicon.png">
     <title>
         SIDBM &mdash; {{ $kec->nama_lembaga_sort }}
     </title>
@@ -101,7 +101,7 @@
                             <div class="card card-plain">
                                 <div style="text-wrap: nowrap;"
                                     class="card-header mb-0 d-flex flex-column align-items-center">
-                                    <img src="{{ $logo }}" style="width: 150px;" alt="Avatar" />
+                                    <img src="{{ $logo }}" onerror="this.onerror=null;this.src='/assets/img/icon/favicon.png'" style="width: 150px;" alt="Avatar" />
                                     <h5 class="font-weight-bolder mb-0">
                                         {{ $kec->nama_lembaga_sort }}
                                     </h5>

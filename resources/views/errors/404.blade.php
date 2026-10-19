@@ -10,8 +10,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="apple-touch-icon" sizes="76x76" href="{{ Session::get('icon') }}">
-    <link rel="icon" type="image/png" href="{{ Session::get('icon') }}">
+    <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/icon/favicon-192x192.png">
+    <link rel="icon" type="image/png" href="/assets/img/icon/favicon.png">
     <title>
         Halaman Tidak Ditemukan &mdash; SIDBM
     </title>

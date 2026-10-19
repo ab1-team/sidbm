@@ -128,6 +128,9 @@ Route::group(['middleware' => 'tenant'], function () {
     Route::get('/app', [AuthController::class, 'app']);
     Route::get('/download-app', [AuthController::class, 'downloadApp']);
 
+    Route::get('/logo', [AuthController::class, 'logo'])->name('tenant.logo');
+    Route::get('/user-foto', [AuthController::class, 'userFoto'])->name('user.foto');
+
     Route::get('/pelaporan', [PelaporanController::class, 'index'])->middleware('basic');
     Route::get('/pelaporan/sub_laporan/{file}', [PelaporanController::class, 'subLaporan'])->middleware('basic');
     Route::post('/pelaporan/preview', [PelaporanController::class, 'preview'])->middleware('basic');

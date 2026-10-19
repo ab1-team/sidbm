@@ -9,8 +9,8 @@
         content="dbm, sidbm, sidbm.net, demo.sidbm.net, app.sidbm.net, asta brata teknologi, abt, dbm, kepmendesa 136, kepmendesa nomor 136 tahun 2022">
     <meta name="author" content="Enfii">
 
-    <link rel="apple-touch-icon" sizes="76x76" href="{{ $logo }}">
-    <link rel="icon" type="image/png" href="{{ $logo }}">
+    <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/icon/favicon-192x192.png">
+    <link rel="icon" type="image/png" href="/assets/img/icon/favicon.png">
     <title>
         GENERATE &mdash; Aplikasi Dana Bergulir Masyarakat
     </title>

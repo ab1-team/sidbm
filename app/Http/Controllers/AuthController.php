@@ -81,7 +81,7 @@ class AuthController extends Controller
 
         $app = AppUpdate::latest()->first();
 
-        $logo = $kec->logo;
+        $logo = '/logo';
 
         return view('auth.login')->with(compact('kec', 'logo', 'setting', 'app'));
     }
@@ -367,6 +367,114 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/')->with('pesan', 'Terima Kasih '.$user);
+    }
+
+    public function logo()
+    {
+        $url = request()->getHost();
+        $kec = Kecamatan::where('web_kec', $url)->orWhere('web_alternatif', $url)->first();
+
+        if ($kec && $kec->logo) {
+            $logo = $kec->logo;
+
+            // 1. Jika path lokal
+            if (! str_starts_with($logo, 'http://') && ! str_starts_with($logo, 'https://')) {
+                $localPath = public_path('storage/logo/'.$logo);
+                if (file_exists($localPath)) {
+                    return response()->file($localPath, [
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+                $storagePath = storage_path('app/public/logo/'.$logo);
+                if (file_exists($storagePath)) {
+                    return response()->file($storagePath, [
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+            } else {
+                // 2. Jika URL cloud (EnStorage / Supabase)
+                $cacheKey = md5($logo);
+                $cacheDir = storage_path('app/public/cache_logo');
+                $cacheFile = $cacheDir.'/'.$cacheKey;
+
+                if (file_exists($cacheFile) && filesize($cacheFile) > 0) {
+                    return response()->file($cacheFile, [
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+
+                try {
+                    $res = \Illuminate\Support\Facades\Http::withOptions(['verify' => false])->timeout(1)->get($logo);
+                    if ($res->successful() && strlen($res->body()) > 0) {
+                        if (! is_dir($cacheDir)) {
+                            @mkdir($cacheDir, 0755, true);
+                        }
+                        @file_put_contents($cacheFile, $res->body());
+
+                        return response()->file($cacheFile, [
+                            'Cache-Control' => 'public, max-age=86400',
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback ke default icon
+                }
+            }
+        }
+
+        return response()->file(public_path('assets/img/icon/favicon.png'), [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    public function userFoto()
+    {
+        $foto = \Illuminate\Support\Facades\Session::get('foto');
+        if (! $foto && \Illuminate\Support\Facades\Auth::check()) {
+            $foto = \Illuminate\Support\Facades\Auth::user()->foto;
+        }
+
+        if ($foto) {
+            if (! str_starts_with($foto, 'http://') && ! str_starts_with($foto, 'https://')) {
+                $localPath = public_path('storage/profil/'.$foto);
+                if (file_exists($localPath)) {
+                    return response()->file($localPath, [
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+            } else {
+                $cacheKey = md5($foto);
+                $cacheDir = storage_path('app/public/cache_profil');
+                $cacheFile = $cacheDir.'/'.$cacheKey;
+
+                if (file_exists($cacheFile) && filesize($cacheFile) > 0) {
+                    return response()->file($cacheFile, [
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+
+                try {
+                    $res = \Illuminate\Support\Facades\Http::withOptions(['verify' => false])->timeout(1)->get($foto);
+                    if ($res->successful() && strlen($res->body()) > 0) {
+                        if (! is_dir($cacheDir)) {
+                            @mkdir($cacheDir, 0755, true);
+                        }
+                        @file_put_contents($cacheFile, $res->body());
+
+                        return response()->file($cacheFile, [
+                            'Cache-Control' => 'public, max-age=86400',
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback ke avatar default
+                }
+            }
+        }
+
+        return response()->file(public_path('assets/img/avatar/male.jpg'), [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
     private function generateInvoice($kec)

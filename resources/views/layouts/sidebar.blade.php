@@ -19,7 +19,7 @@
         <ul class="navbar-nav">
             <li class="nav-item mb-2 mt-0">
                 <a href="/profil" class="nav-link text-white">
-                    <img src="{{ Session::get('foto') ?: '/assets/img/user.png' }}" onerror="this.onerror=null;this.src='/assets/img/user.png'" class="avatar" id="profil_avatar">
+                    <img src="/user-foto" onerror="this.onerror=null;this.src='/assets/img/avatar/male.jpg'" class="avatar" id="profil_avatar">
                     <span class="nav-link-text ms-2 ps-1 nama_user">{{ Session::get('nama') }}</span>
                 </a>
             </li>

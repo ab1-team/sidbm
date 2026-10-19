@@ -31,8 +31,8 @@
     <meta name="theme-color" content="#4CAF50">
 
     <link rel="manifest" href="{{ url('/manifest.json') }}">
-    <link rel="apple-touch-icon" sizes="76x76" href="{{ Session::get('icon') }}">
-    <link rel="icon" type="image/png" href="{{ Session::get('icon') }}">
+    <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/icon/favicon-192x192.png">
+    <link rel="icon" type="image/png" href="/assets/img/icon/favicon.png">
     <title>
         {{ $title }} &mdash; Aplikasi Dana Bergulir Masyarakat SI DBM
     </title>

@@ -12,20 +12,13 @@ class ServiceWorkerController extends Controller
         $url = request()->getHost();
         $kec = Kecamatan::where('web_kec', $url)->orwhere('web_alternatif', $url)->first();
 
-        $logo192 = $this->safeResize($kec->logo ?? null, 192, 192);
-        $logo512 = $this->safeResize($kec->logo ?? null, 512, 512);
+        $logo192 = file_exists(public_path('assets/img/icon/favicon-192x192.png'))
+            ? '/assets/img/icon/favicon-192x192.png'
+            : '/assets/img/icon/favicon.png';
 
-        if (empty($logo192)) {
-            $logo192 = file_exists(public_path('assets/img/icon/favicon-192x192.png'))
-                ? '/assets/img/icon/favicon-192x192.png'
-                : '/assets/img/icon/favicon.png';
-        }
-
-        if (empty($logo512)) {
-            $logo512 = file_exists(public_path('assets/img/icon/favicon-512x512.png'))
-                ? '/assets/img/icon/favicon-512x512.png'
-                : '/assets/img/icon/favicon.png';
-        }
+        $logo512 = file_exists(public_path('assets/img/icon/favicon-512x512.png'))
+            ? '/assets/img/icon/favicon-512x512.png'
+            : '/assets/img/icon/favicon.png';
 
         return response()->json([
             'name' => $kec->nama_lembaga_sort ?? 'SI DBM',
