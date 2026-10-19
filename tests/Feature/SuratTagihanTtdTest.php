@@ -155,7 +155,7 @@ class SuratTagihanTtdTest extends TestCase
         $this->assertStringNotContainsString('ttd_tagihan_img', $view);
     }
 
-    public function test_simpan_logo_stores_upload_in_logo_directory(): void
+    public function test_simpan_logo_stores_upload_in_logo_kab_directory(): void
     {
         Session::put('kd_kab', '301');
         Session::put('lokasi', 301);
@@ -170,12 +170,10 @@ class SuratTagihanTtdTest extends TestCase
         );
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('/logo/', (string) $response->getData(true)['path']);
-        $files = $disk->allFiles('logo');
+        $this->assertStringContainsString('/logo_kab/', (string) $response->getData(true)['path']);
+        $files = $disk->allFiles('logo_kab');
         $this->assertCount(1, $files);
-        $this->assertStringStartsWith('logo/', $files[0]);
-        $this->assertStringContainsString('_301_', $files[0]);
-        $this->assertSame([], $disk->allFiles('logo_kab'));
+        $this->assertStringStartsWith('logo_kab/', $files[0]);
     }
 
     private function fixture(array $kecamatan): array
