@@ -2892,6 +2892,7 @@ class PinjamanKelompokController extends Controller
             'jpp',
             'sis_pokok',
             'real',
+            'real.transaksi',
             'rencana' => function ($query) {
                 $query->where('angsuran_ke', '!=', '0');
             },

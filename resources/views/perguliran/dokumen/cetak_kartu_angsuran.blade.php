@@ -244,7 +244,7 @@
                     $jumlah++;
 
                     $sign = 'TF';
-                    if ($real->transaksi->rekening_debit == '1.1.01.01') {
+                    if ($real->transaksi && $real->transaksi->rekening_debit == '1.1.01.01') {
                         $sign = 'TN';
                     }
                 @endphp
@@ -261,7 +261,9 @@
                     </td>
                     <td align="right">{{ number_format($real->saldo_pokok) }}</td>
                     <td align="right">{{ number_format($real->saldo_jasa) }}</td>
-                    <td align="center">{{ $real->id }}</td>
+                    <td align="center">
+                        {{ $sign }}-{{ $real->id }}
+                    </td>
                 </tr>
             @endforeach
 
