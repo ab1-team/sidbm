@@ -56,7 +56,7 @@
             <td colspan="6">&nbsp;</td>
         </tr>
     </table>
-    <table border="1" width="100%" align="center"cellspacing="0" cellpadding="0" style="font-size: 14px;">
+    <table class="gp" width="100%" align="center"cellspacing="0" cellpadding="0" style="font-size: 14px;">
         <tr>
             <th width="10" height="20" align="center">No</th>
             <th width="130" align="center">Nama Lengkap</th>

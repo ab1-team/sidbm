@@ -92,7 +92,7 @@
         </tr>
     </table>
 
-    <table border="1" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px; margin-top: 12px;">
+    <table class="gp" width="100%" cellspacing="0" cellpadding="0" style="font-size: 11px; margin-top: 12px;">
         <tr style="background: rgb(232,232,232);">
             <th rowspan="2" width="10">No</th>
             <th rowspan="2">Nama Dokumen</th>
