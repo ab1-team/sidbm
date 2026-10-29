@@ -220,8 +220,8 @@
                         <td align="center">{{ $kec->nama_kec }}, {{ Tanggal::tglLatin($pinkel->tgl_proposal) }}</td>
                     </tr>
                     <tr>
-                        <td align="center" width="50%">Ketua Kelompok,</td>
-                        <td align="center" width="50%">Sekretaris Kelompok,</td>
+                        <td align="center" width="50%">{{ $pinkel->jenis_pp != '3' ? 'Ketua Kelompok' : 'Pimpinan' }},</td>
+                        <td align="center" width="50%">{{ $pinkel->jenis_pp != '3' ? 'Sekretaris Kelompok' : 'Penanggung Jawab' }},</td>
                     </tr>
                     <tr>
                         <td colspan="2" height="30"></td>
