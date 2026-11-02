@@ -1448,6 +1448,64 @@ class PelaporanController extends Controller
         }
     }
 
+    private function rekap_proposal_desa(array $data)
+    {
+        $thn = $data['tahun'];
+        $bln = $data['bulan'];
+        $hari = $data['hari'];
+
+        $tgl = $thn.'-'.$bln.'-'.$hari;
+        $data['sub_judul'] = 'Tahun '.Tanggal::tahun($tgl);
+        $data['tgl'] = Tanggal::tahun($tgl);
+        if ($data['bulanan']) {
+            $data['sub_judul'] = 'Bulan '.Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
+            $data['tgl'] = Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
+        }
+
+        // Filter per-periode: hanya proposal yang tgl_proposal-nya jatuh di dalam
+        // periode laporan (per-hari / per-bulan / per-tahun), bukan kumulatif.
+        $tgl_akhir = $data['tgl_kondisi'];
+        if ($data['harian']) {
+            $tgl_awal = $tgl_akhir;
+        } elseif ($data['bulanan']) {
+            $tgl_awal = $data['tahun'].'-'.$data['bulan'].'-01';
+        } else {
+            $tgl_awal = $data['tahun'].'-01-01';
+            $tgl_akhir = $data['tahun'].'-12-31';
+        }
+
+        $data['jenis_pp'] = JenisProdukPinjaman::where('lokasi', '0')->with([
+            'pinjaman_kelompok' => function ($query) use ($data, $tgl_awal, $tgl_akhir) {
+                $tb_pinkel = 'pinjaman_kelompok_'.$data['kec']->id;
+                $tb_kel = 'kelompok_'.$data['kec']->id;
+                $data['tb_pinkel'] = $tb_pinkel;
+
+                $query->select($tb_pinkel.'.*', $tb_kel.'.nama_kelompok', 'desa.nama_desa', 'desa.kd_desa', 'desa.kode_desa', 'sebutan_desa.sebutan_desa')
+                    ->join($tb_kel, $tb_kel.'.id', '=', $tb_pinkel.'.id_kel')
+                    ->join('desa', $tb_kel.'.desa', '=', 'desa.kd_desa')
+                    ->join('sebutan_desa', 'sebutan_desa.id', '=', 'desa.sebutan')
+                    ->where($tb_pinkel.'.sistem_angsuran', '!=', '12')->where(function ($query) use ($data, $tgl_awal, $tgl_akhir) {
+                        $query->where([
+                            [$data['tb_pinkel'].'.status', 'P'],
+                        ])->whereBetween($data['tb_pinkel'].'.tgl_proposal', [$tgl_awal, $tgl_akhir]);
+                    })
+                    ->orderBy($tb_kel.'.desa', 'ASC')
+                    ->orderBy($tb_pinkel.'.tgl_proposal', 'ASC');
+            },
+        ])->get();
+
+        $view = view('pelaporan.view.perkembangan_piutang.rekap_proposal_desa', $data)->render();
+        if ($data['type'] == 'pdf') {
+            $paperSize = session::get('lokasi') == 109 ? [0, 0, 595.28, 935.43] : 'A4';
+
+            $pdf = PDF::loadHTML($view)->setPaper($paperSize, 'landscape');
+
+            return $pdf->stream();
+        } else {
+            return $view;
+        }
+    }
+
     private function waiting_list(array $data)
     {
         $thn = $data['tahun'];

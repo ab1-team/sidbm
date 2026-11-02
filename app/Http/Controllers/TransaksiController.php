@@ -1768,7 +1768,9 @@ class TransaksiController extends Controller
                     ['kode_akun', '!=', '2.1.04.03'],
                     ['kode_akun', '!=', '2.1.02.01'],
                     ['kode_akun', '!=', '2.1.03.01'],
-                    ['kode_akun', 'NOT LIKE', '4.1.01%'],
+                    ['kode_akun', '!=', '4.1.01.01'],
+                    ['kode_akun', '!=', '4.1.01.02'],
+                    ['kode_akun', '!=', '4.1.01.03'],
                 ]);
             })->where(function ($query) use ($tgl_kondisi) {
                 $query->whereNull('tgl_nonaktif')->orwhere('tgl_nonaktif', '>', $tgl_kondisi);
