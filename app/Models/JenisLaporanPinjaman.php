@@ -9,4 +9,5 @@ class JenisLaporanPinjaman extends Model
 {
     use HasFactory;
     protected $table = 'jenis_laporan_pinjaman';
+    protected $guarded = ['id'];
 }
