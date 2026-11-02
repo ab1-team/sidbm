@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\JenisLaporanPinjaman;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +20,7 @@ return new class extends Migration
                     ->value('urut');
                 $urut = $cek_urut !== null ? $cek_urut : 2;
 
-                DB::connection($connection)->table('jenis_laporan_pinjaman')->firstOrCreate(
+                JenisLaporanPinjaman::on($connection)->firstOrCreate(
                     ['file' => 'rekap_proposal_desa'],
                     [
                         'nama_laporan' => 'Rekap Proposal Per Desa',
