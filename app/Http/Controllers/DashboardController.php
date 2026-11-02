@@ -25,7 +25,9 @@ class DashboardController extends Controller
         $kec = Kecamatan::where('id', Session::get('lokasi'))->with('wa_session')->first();
         if (Session::get('pesan')) {
             // $this->piutang();
-            $this->sync(Session::get('lokasi'));
+            // [2026-11] sync() dinonaktifkan: trigger DB saldo sudah menulis snapshot; sync menimpa/nolkan
+            //  bulan berjalan & berikutnya (bukti binlog & audit saldo_109_audit). Lihat BRIEF-saldo-sync-disable.md
+            // $this->sync(Session::get('lokasi'));
         }
 
         $tgl_pakai = $kec->tgl_pakai;
