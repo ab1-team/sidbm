@@ -460,6 +460,13 @@
                 saldo_rek = 0
             }
 
+            // Bulatkan ke 2 desimal (sen) sebelum perbandingan: saldo berasal
+            // dari SUM kolom varchar di tabel saldo sehingga muncul float
+            // artifact (mis. 8596179178.05 - 8585204178.05 = 10974999.999999046
+            // padahal tampil Rp 10.975.000,00). Tanpa ini nominal == saldo ditolak.
+            nominal = Math.round(nominal * 100) / 100
+            saldo_rek = Math.round(saldo_rek * 100) / 100
+
             // Akun lev1=1 (aset): debit-natural. Saldo natural = debit - kredit
             // sudah benar merepresentasikan sisa aset. Tidak perlu flip.
             //
