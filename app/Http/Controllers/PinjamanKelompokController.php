@@ -17,6 +17,7 @@ use App\Models\SistemAngsuran;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Services\GenerateService;
+use App\Services\ProvisiPencairanService;
 use App\Utils\Keuangan;
 use App\Utils\Pinjaman;
 use App\Utils\Tanggal;
@@ -825,6 +826,19 @@ class PinjamanKelompokController extends Controller
                 'relasi' => (string) $perguliran->kelompok->nama_kelompok.' ['.$perguliran->id.'] '.$perguliran->kelompok->ketua,
                 'jumlah' => str_replace(',', '', str_replace('.00', '', $data[$alokasi])),
                 'urutan' => '0',
+                'id_user' => auth()->user()->id,
+            ]);
+
+            // Provisi 0,5% khusus pencairan DBM Wedung (lokasi 15), W -> A.
+            ProvisiPencairanService::catat([
+                'lokasi' => Session::get('lokasi'),
+                'status_asal' => $perguliran->status,
+                'status_request' => $request->status,
+                'alokasi_pencairan' => $alokasi_pencairan,
+                'tgl_transaksi' => Tanggal::tglNasional($data[$tgl]),
+                'id_pinj' => $perguliran->id,
+                'nama_kelompok' => $perguliran->kelompok->nama_kelompok,
+                'ketua_kelompok' => $perguliran->kelompok->ketua,
                 'id_user' => auth()->user()->id,
             ]);
         } elseif ($request->status == 'W') {
