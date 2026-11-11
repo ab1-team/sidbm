@@ -29,7 +29,7 @@ class LaporanRekapProposalDesaTest extends TestCase
         $path = resource_path('views/pelaporan/view/perkembangan_piutang/rekap_proposal_desa.blade.php');
 
         $this->assertFileExists($path);
-        $this->assertStringContainsString("pelaporan.layout.base", file_get_contents($path));
+        $this->assertStringContainsString('pelaporan.layout.base', file_get_contents($path));
     }
 
     public function test_method_merender_view_rekap_proposal_desa(): void
@@ -37,6 +37,18 @@ class LaporanRekapProposalDesaTest extends TestCase
         $source = file_get_contents(base_path('app/Http/Controllers/PelaporanController.php'));
 
         $this->assertStringContainsString("view('pelaporan.view.perkembangan_piutang.rekap_proposal_desa'", $source);
+    }
+
+    public function test_rekap_memuat_proposal_aktif_sampai_tanggal_kondisi(): void
+    {
+        $source = file_get_contents(base_path('app/Http/Controllers/PelaporanController.php'));
+        $start = strpos($source, 'private function rekap_proposal_desa');
+        $end = strpos($source, 'private function waiting_list', $start);
+        $method = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString("whereDate(\$data['tb_pinkel'].'.tgl_proposal', '<=', \$data['tgl_kondisi'])", $method);
+        $this->assertStringNotContainsString('whereBetween', $method, 'Rekap adalah snapshot proposal aktif, bukan daftar proposal baru pada periode terpilih.');
+        $this->assertStringContainsString("sistem_angsuran', '!=', '12'", $method, 'Proposal mingguan tetap dipisahkan dari rekap bulanan.');
     }
 
     public function test_migration_mendaftarkan_rekap_proposal_desa(): void

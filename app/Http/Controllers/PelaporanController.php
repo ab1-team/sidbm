@@ -1462,20 +1462,11 @@ class PelaporanController extends Controller
             $data['tgl'] = Tanggal::namaBulan($tgl).' '.Tanggal::tahun($tgl);
         }
 
-        // Filter per-periode: hanya proposal yang tgl_proposal-nya jatuh di dalam
-        // periode laporan (per-hari / per-bulan / per-tahun), bukan kumulatif.
-        $tgl_akhir = $data['tgl_kondisi'];
-        if ($data['harian']) {
-            $tgl_awal = $tgl_akhir;
-        } elseif ($data['bulanan']) {
-            $tgl_awal = $data['tahun'].'-'.$data['bulan'].'-01';
-        } else {
-            $tgl_awal = $data['tahun'].'-01-01';
-            $tgl_akhir = $data['tahun'].'-12-31';
-        }
-
+        // Snapshot seluruh proposal aktif sampai tanggal kondisi. Rekap bukan daftar
+        // proposal baru pada periode tertentu; proposal dari periode sebelumnya yang
+        // masih berstatus P harus tetap muncul.
         $data['jenis_pp'] = JenisProdukPinjaman::where('lokasi', '0')->with([
-            'pinjaman_kelompok' => function ($query) use ($data, $tgl_awal, $tgl_akhir) {
+            'pinjaman_kelompok' => function ($query) use ($data) {
                 $tb_pinkel = 'pinjaman_kelompok_'.$data['kec']->id;
                 $tb_kel = 'kelompok_'.$data['kec']->id;
                 $data['tb_pinkel'] = $tb_pinkel;
@@ -1484,10 +1475,10 @@ class PelaporanController extends Controller
                     ->join($tb_kel, $tb_kel.'.id', '=', $tb_pinkel.'.id_kel')
                     ->join('desa', $tb_kel.'.desa', '=', 'desa.kd_desa')
                     ->join('sebutan_desa', 'sebutan_desa.id', '=', 'desa.sebutan')
-                    ->where($tb_pinkel.'.sistem_angsuran', '!=', '12')->where(function ($query) use ($data, $tgl_awal, $tgl_akhir) {
+                    ->where($tb_pinkel.'.sistem_angsuran', '!=', '12')->where(function ($query) use ($data) {
                         $query->where([
                             [$data['tb_pinkel'].'.status', 'P'],
-                        ])->whereBetween($data['tb_pinkel'].'.tgl_proposal', [$tgl_awal, $tgl_akhir]);
+                        ])->whereDate($data['tb_pinkel'].'.tgl_proposal', '<=', $data['tgl_kondisi']);
                     })
                     ->orderBy($tb_kel.'.desa', 'ASC')
                     ->orderBy($tb_pinkel.'.tgl_proposal', 'ASC');
