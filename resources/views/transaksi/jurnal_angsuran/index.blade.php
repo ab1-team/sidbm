@@ -471,8 +471,11 @@
                             })
 
                             if (result.whatsapp) {
-                                sendMsg(result.number, result.nama_kelompok, result
-                                    .pesan)
+                                if (result.wa_sent) {
+                                    MultiToast('success', 'Pesan untuk kelompok ' + result.nama_kelompok + ' berhasil dikirim')
+                                } else {
+                                    MultiToast('error', 'Pesan untuk kelompok ' + result.nama_kelompok + ' gagal dikirim')
+                                }
                             }
                         } else {
                             loading.close()
@@ -672,43 +675,5 @@
             });
         })
 
-        const ANGSURAN_INSTANCE = @json($wa_instance_name ?? '');
-        function sendMsg(number, nama, msg, repeat = 0) {
-            $.ajax({
-                type: 'POST',
-                url: '/wa/send',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                data: {
-                    number: number,
-                    text: msg,
-                    instance: ANGSURAN_INSTANCE
-                },
-                success: function(result) {
-                    if (result.success) {
-                        MultiToast('success', 'Pesan untuk kelompok ' + nama + ' berhasil dikirim')
-                    } else {
-                        if (repeat < 1) {
-                            setTimeout(function() {
-                                sendMsg(number, nama, msg, repeat + 1)
-                            }, 2000)
-                        } else {
-                            MultiToast('error', 'Pesan untuk kelompok ' + nama + ' gagal dikirim')
-                        }
-                    }
-                },
-                error: function(result) {
-                    if (repeat < 1) {
-                        setTimeout(function() {
-                            sendMsg(number, nama, msg, repeat + 1)
-                        }, 2000)
-                    } else {
-                        MultiToast('error', 'Pesan untuk kelompok ' + nama + ' gagal dikirim')
-                    }
-                }
-            })
-        }
     </script>
 @endsection

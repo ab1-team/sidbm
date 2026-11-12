@@ -10,8 +10,8 @@ class WhatsappController extends Controller
     private function client()
     {
         return new \GuzzleHttp\Client([
-            'timeout' => 4,
-            'connect_timeout' => 2,
+            'timeout' => 30,
+            'connect_timeout' => 5,
             'http_errors' => false,
             'headers' => [
                 'Authorization' => 'Basic '.base64_encode(env('WA_GATEWAY_API_KEY')),

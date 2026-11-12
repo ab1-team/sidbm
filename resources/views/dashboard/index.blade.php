@@ -1076,13 +1076,10 @@
                         instance: INVOICE_INSTANCE
                     },
                     success: function(result) {
-                        if (!result.success) {
-                            setTimeout(function() {
-                                msgInvoice(number, msg, repeat + 1)
-                            }, 2000)
-                        }
+                        // Respons server adalah keputusan final (422/500 tidak di-retry).
                     },
                     error: function(result) {
+                        // Hanya retry saat network error, maksimal 2 percobaan.
                         if (repeat < 1) {
                             setTimeout(function() {
                                 msgInvoice(number, msg, repeat + 1)

@@ -1629,6 +1629,8 @@ class TransaksiController extends Controller
 
             $whatsapp = false;
             $pesan = '';
+            $wa_sent = false;
+            $wa_error = null;
             if (strlen($pinkel->kelompok->telpon) >= 11 && strlen(auth()->user()->hp) >= 11 && (Keuangan::startWith($pinkel->kelompok->telpon, '08') || Keuangan::startWith($pinkel->kelompok->telpon, '628'))) {
                 $nama_kelompok = $pinkel->kelompok->nama_kelompok;
                 $desa = $pinkel->kelompok->d->sebutan_desa->sebutan_desa.' '.$pinkel->kelompok->d->nama_desa;
@@ -1645,6 +1647,45 @@ class TransaksiController extends Controller
                     '{User Login}' => auth()->user()->namadepan.' '.auth()->user()->namabelakang,
                     '{Telpon}' => auth()->user()->hp,
                 ]);
+
+                // Kirim WA di server. Jangan di-retry: n8n tetap memproses
+                // walau client timeout, retry menyebabkan pesan dobel.
+                try {
+                    $instance = optional(\App\Models\Whatsapp::where('lokasi', Session::get('lokasi'))->first())->instance_name;
+
+                    if (! $instance) {
+                        $wa_error = 'Instance WhatsApp belum disetel';
+                    } else {
+                        $res = (new \GuzzleHttp\Client([
+                            'timeout' => 30,
+                            'connect_timeout' => 5,
+                            'http_errors' => false,
+                            'headers' => [
+                                'Authorization' => 'Basic '.base64_encode(env('WA_GATEWAY_API_KEY')),
+                                'Content-Type' => 'application/json',
+                                'Accept' => 'application/json',
+                            ],
+                        ]))->post(rtrim(env('WA_GATEWAY_BASE', 'https://wa-gateway.enpiistudio.com'), '/').'/send-message', [
+                            'body' => json_encode([
+                                'instance' => $instance,
+                                'number' => $pinkel->kelompok->telpon,
+                                'text' => $pesan,
+                                'delay' => 1500 + random_int(0, 2000),
+                            ]),
+                        ]);
+
+                        $body = json_decode((string) $res->getBody(), true) ?? [];
+                        $wa_sent = (bool) ($body['success'] ?? ($res->getStatusCode() === 200));
+
+                        if (! $wa_sent) {
+                            $wa_error = 'Gagal mengirim pesan WhatsApp';
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $wa_sent = false;
+                    $wa_error = $e->getMessage();
+                    Log::error('Gagal kirim WA angsuran kelompok '.$pinkel->id.': '.$e->getMessage());
+                }
             }
 
             return response()->json([
@@ -1654,6 +1695,8 @@ class TransaksiController extends Controller
                 'idtp' => $idtp,
                 'tgl_transaksi' => $tgl_transaksi,
                 'whatsapp' => $whatsapp,
+                'wa_sent' => $wa_sent,
+                'wa_error' => $wa_error,
                 'number' => $pinkel->kelompok->telpon,
                 'nama_kelompok' => $pinkel->kelompok->nama_kelompok,
                 'pesan' => $pesan,
