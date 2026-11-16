@@ -167,36 +167,28 @@
                             <b>Rp. {{ number_format($tunggakan_jasa) }}</b>
                         </td>
                     </tr>
+                    @php
+                        $denda = ceil(0.05 * ($tunggakan_pokok + $tunggakan_jasa));
+                        $total_dengan_denda = $tunggakan_pokok + $tunggakan_jasa + $denda;
+                    @endphp
                     <tr>
                         <td>3.</td>
-                        <td><b>Total Tunggakan (Pokok+jasa)</b></td>
+                        <td><b>Denda (5% x Tunggakan)</b></td>
                         <td>:</td>
                         <td>
-                            <b>Rp. {{ number_format($tunggakan_pokok + $tunggakan_jasa) }}</b>
+                            <b>Rp. {{ number_format($denda) }}</b>
                         </td>
                     </tr>
-                    @if(session('lokasi') == 220)
-                        @php
-                            $denda = ceil(0.02 * ($tunggakan_pokok + $tunggakan_jasa));
-                            $total_dengan_denda = $tunggakan_pokok + $tunggakan_jasa + $denda;
-                        @endphp
-                        <tr>
-                            <td>4.</td>
-                            <td>Denda (2% x Total Tunggakan)</td>
-                            <td>:</td>
-                            <td>
-                                <b>Rp. {{ number_format($denda) }}</b>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>5.</td>
-                            <td><b>Total (Tunggakan + Denda)</b></td>
-                            <td>:</td>
-                            <td>
-                                <b>Rp. {{ number_format($total_dengan_denda) }}</b>
-                            </td>
-                        </tr>
-                    @endif
+                </table>
+                <table>
+                    <tr>
+                        <td width="10">&nbsp;</td>
+                        <td width="140"><b>Total Tunggakan</b></td>
+                        <td width="5">:</td>
+                        <td>
+                            <b>Rp. {{ number_format($total_dengan_denda) }}</b>
+                        </td>
+                    </tr>
                 </table>
 
                 <p style="text-align: justify;">
