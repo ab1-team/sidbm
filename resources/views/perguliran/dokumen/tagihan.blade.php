@@ -31,6 +31,9 @@
     if ($tunggakan_jasa < 0) {
         $tunggakan_jasa = 0;
     }
+
+    // Denda hanya untuk Kecamatan Manisrenggo.
+    $kenaDenda = strtoupper(trim((string) ($kec->nama_kec ?? ''))) === 'MANISRENGGO';
 @endphp
 
 @extends('perguliran.dokumen.layout.base')
@@ -167,29 +170,42 @@
                             <b>Rp. {{ number_format($tunggakan_jasa) }}</b>
                         </td>
                     </tr>
-                    @php
-                        $denda = ceil(0.05 * ($tunggakan_pokok + $tunggakan_jasa));
-                        $total_dengan_denda = $tunggakan_pokok + $tunggakan_jasa + $denda;
-                    @endphp
-                    <tr>
-                        <td>3.</td>
-                        <td><b>Denda (5% x Tunggakan)</b></td>
-                        <td>:</td>
-                        <td>
-                            <b>Rp. {{ number_format($denda) }}</b>
-                        </td>
-                    </tr>
+                    @if ($kenaDenda)
+                        @php
+                            $denda = ceil(0.05 * ($tunggakan_pokok + $tunggakan_jasa));
+                            $total_dengan_denda = $tunggakan_pokok + $tunggakan_jasa + $denda;
+                        @endphp
+                        <tr>
+                            <td>3.</td>
+                            <td><b>Denda (5% x Tunggakan)</b></td>
+                            <td>:</td>
+                            <td>
+                                <b>Rp. {{ number_format($denda) }}</b>
+                            </td>
+                        </tr>
+                    @else
+                        <tr>
+                            <td>3.</td>
+                            <td><b>Total Tunggakan (Pokok+jasa)</b></td>
+                            <td>:</td>
+                            <td>
+                                <b>Rp. {{ number_format($tunggakan_pokok + $tunggakan_jasa) }}</b>
+                            </td>
+                        </tr>
+                    @endif
                 </table>
-                <table>
-                    <tr>
-                        <td width="10">&nbsp;</td>
-                        <td width="140"><b>Total Tunggakan</b></td>
-                        <td width="5">:</td>
-                        <td>
-                            <b>Rp. {{ number_format($total_dengan_denda) }}</b>
-                        </td>
-                    </tr>
-                </table>
+                @if ($kenaDenda)
+                    <table>
+                        <tr>
+                            <td width="10">&nbsp;</td>
+                            <td width="140"><b>Total Tunggakan</b></td>
+                            <td width="5">:</td>
+                            <td>
+                                <b>Rp. {{ number_format($total_dengan_denda) }}</b>
+                            </td>
+                        </tr>
+                    </table>
+                @endif
 
                 <p style="text-align: justify;">
                     Demikian surat ini kami sampaikan, apabila terjadi perbedaan hasil perhitungan angsuran/ tunggakan
