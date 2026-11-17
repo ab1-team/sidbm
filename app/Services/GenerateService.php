@@ -310,7 +310,15 @@ class GenerateService
 
         $target_p = 0;
         $target_j = 0;
-        $total_jasa = $alokasi_total * ($pinkel->pros_jasa / 100);
+        $total_jasa = Keuangan::totalJasaPinjaman((object) [
+            'status' => $pinkel->status,
+            'alokasi' => $alokasi_total,
+            'proposal' => $pinkel->proposal ?? $alokasi_total,
+            'verifikasi' => $pinkel->verifikasi ?? $alokasi_total,
+            'pros_jasa' => $pinkel->pros_jasa,
+            'jangka' => $pinkel->jangka,
+            'jenis_jasa' => $pinkel->jenis_jasa,
+        ], $kec->pembulatan);
 
         $rencana_anggota = [];
         if ($anggota) {
@@ -457,7 +465,16 @@ class GenerateService
         $sum_j = 0;
         $data_idtp = [];
         $alokasi_p = $this->getAlokasi($pinkel);
-        $alokasi_j = $alokasi_p * ($pinkel->pros_jasa / 100);
+        // Total jasa mengikuti METODE pinjaman (flat vs anuitas menurun).
+        $alokasi_j = Keuangan::totalJasaPinjaman((object) [
+            'status' => $pinkel->status,
+            'alokasi' => $alokasi_p,
+            'proposal' => $pinkel->proposal ?? $alokasi_p,
+            'verifikasi' => $pinkel->verifikasi ?? $alokasi_p,
+            'pros_jasa' => $pinkel->pros_jasa,
+            'jangka' => $pinkel->jangka,
+            'jenis_jasa' => $pinkel->jenis_jasa,
+        ], '500');
 
         ksort($data_rencana);
         foreach ($pinkel->trx as $trx) {
@@ -629,6 +646,20 @@ class GenerateService
 
     protected function rencana_angsuran($pinkel, $ang_pokok, $ang_jasa, $alokasi, $pembulatan = '500', $pros_jasa_override = null)
     {
+        // Anuitas = angsuran total (pokok+jasa) TETAP, jasa dihitung dari saldo
+        // pokok berjalan (menurun), pokok naik. Wajib punya jalur sendiri —
+        // rumus flat/efektif tidak bisa menghasilkan angsuran tetap.
+        // Sumber tunggal matematikanya ada di Keuangan::jadwalAnuitas() agar
+        // jadwal, saldo jasa, dan laporan memakai angka yang sama.
+        if ((string) $pinkel->jenis_jasa === '3') {
+            return Keuangan::jadwalAnuitas(
+                $alokasi,
+                $pros_jasa_override ?? $pinkel->pros_jasa,
+                (int) $pinkel->jangka,
+                $pembulatan
+            );
+        }
+
         $rencana = ['pokok' => [], 'jasa' => []];
         $alokasi_pokok = $alokasi;
         $temp_alokasi = $alokasi;

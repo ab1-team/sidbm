@@ -727,6 +727,53 @@ class PinjamanAnggotaController extends Controller
 
         $rencana = [];
 
+        // ANUITAS (jenis_jasa = 3): angsuran total tetap, jasa menurun dari
+        // saldo pokok, pokok naik. Jadwal flat/efektif di bawah TIDAK bisa
+        // menirunya, jadi metode ini punya jalur sendiri. Matematikanya tetap
+        // satu sumber: Keuangan::jadwalAnuitas().
+        if ((string) $pinkel->jenis_jasa === '3') {
+            $kecamatan = \App\Models\Kecamatan::where('id', Session::get('lokasi'))->first();
+            $jadwal = Keuangan::jadwalAnuitas(
+                $alokasi,
+                $pros_jasa,
+                (int) $jangka,
+                (string) ($kecamatan->pembulatan ?? '500')
+            );
+
+            $baris = [];
+            $akum_p = 0;
+            $akum_j = 0;
+            for ($i = 1; $i <= $jangka; $i++) {
+                if ($sa_pokok == 12) {
+                    $penambahan = '+'.($i * 7).' days';
+                } else {
+                    $penambahan = "+$i month";
+                }
+                $jatuh_tempo = date('Y-m-d', strtotime($penambahan, strtotime($tgl)));
+
+                $pokok = $jadwal['pokok'][$i] ?? 0;
+                $jasa = $jadwal['jasa'][$i] ?? 0;
+                $akum_p += $pokok;
+                $akum_j += $jasa;
+
+                $baris[] = [
+                    'loan_id' => $id_pinj,
+                    'angsuran_ke' => $i,
+                    'jatuh_tempo' => $jatuh_tempo,
+                    'wajib_pokok' => $pokok,
+                    'wajib_jasa' => $jasa,
+                    'target_pokok' => $akum_p,
+                    'target_jasa' => $akum_j,
+                    'lu' => date('Y-m-d H:i:s'),
+                    'id_user' => auth()->user()->id,
+                ];
+            }
+
+            RencanaAngsuran::insert($baris);
+
+            return true;
+        }
+
         $wajib_pokok = 0;
         $wajib_jasa = 0;
         $target_pokok = 0;

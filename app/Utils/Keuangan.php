@@ -13,6 +13,113 @@ use Session;
 
 class Keuangan
 {
+    /**
+     * Jadwal ANUITAS (jenis_jasa = 3): angsuran total (pokok + jasa) TETAP,
+     * jasa menurun mengikuti saldo pokok, pokok naik.
+     *
+     * Konvensi legacy yang dipertahankan (paritas `/root/workspace/lkm`):
+     *   - `pros_jasa` adalah persentase TOTAL sepanjang tenor, bukan per bulan.
+     *     Suku bunga periodik i = (pros_jasa / 100) / jangka.
+     *   - PMT = alokasi * i / (1 - (1+i)^-n), dibulatkan lewat pembulatan().
+     *   - Jasa periode ke-k = pembulatan(saldo_pokok_awal * i).
+     *   - Pokok periode terakhir = sisa saldo (amortisasi penutup) sehingga
+     *     Σ pokok == alokasi PERSIS.
+     *   - Interval `sistem_angsuran`/`sa_jasa` TIDAK dipakai: anuitas selalu
+     *     dipecah per bulan sebanyak $jangka periode (sama seperti legacy).
+     *
+     * Method ini adalah SATU-SATUNYA sumber matematika anuitas. GenerateService
+     * (jadwal), totalJasaPinjaman() (saldo jasa), dan laporan wajib memanggilnya
+     * agar tidak ada dua rumus yang bisa berbeda.
+     *
+     * @return array{pokok: array<int,float|int>, jasa: array<int,float|int>, angsuran: float|int, total_jasa: float}
+     */
+    public static function jadwalAnuitas($alokasi, $pros_jasa, int $jangka, $pembulatan = '500'): array
+    {
+        $alokasi = (float) $alokasi;
+        $jangka = max(1, $jangka);
+
+        // i = (pros_jasa/100) / jangka ; pros_jasa legacy = total sepanjang tenor
+        $i = ((float) $pros_jasa / 100) / $jangka;
+
+        if ($i > 0) {
+            $pmt = ($alokasi * $i) / (1 - (1 + $i) ** (-$jangka));
+        } else {
+            $pmt = $alokasi / $jangka;
+        }
+        $angsuran = (float) self::pembulatan($pmt, (string) $pembulatan);
+
+        $pokok = [];
+        $jasa = [];
+        $sisa = $alokasi;
+
+        for ($k = 1; $k <= $jangka; $k++) {
+            $jasa[$k] = (float) self::pembulatan($sisa * $i, (string) $pembulatan);
+
+            if ($k === $jangka) {
+                // Amortisasi penutup: pakai seluruh sisa supaya Σ pokok tepat.
+                $pokok[$k] = $sisa;
+            } else {
+                $pokok[$k] = round($angsuran - $jasa[$k], 2);
+                if ($pokok[$k] > $sisa) {
+                    $pokok[$k] = $sisa;
+                }
+            }
+
+            $sisa = round($sisa - $pokok[$k], 2);
+        }
+
+        // Jaga-jaga pembulatan: bila sisa meleset tipis, koreksi periode terakhir.
+        if (abs($sisa) > 0.5 && $jangka > 0) {
+            $pokok[$jangka] = round($pokok[$jangka] + $sisa, 2);
+        }
+
+        return [
+            'pokok' => $pokok,
+            'jasa' => $jasa,
+            'angsuran' => $angsuran,
+            'total_jasa' => (float) array_sum($jasa),
+        ];
+    }
+
+    /**
+     * Total jasa pinjaman sesuai metode (jenis_jasa). Untuk anuitas/efektif
+     * total jasa TIDAK sama dengan pros_jasa% x alokasi — nilainya harus
+     * diambil dari Σ jasa jadwal, karena bunga menurun dari saldo pokok.
+     *
+     * Dipakai oleh penyimpanan saldo jasa (real_angsuran), laporan, dan
+     * dokumen agar angka konsisten dengan jadwal yang benar-benar ditagih.
+     *
+     * @param  object  $pinkel  butuh: alokasi/proposal/verifikasi, pros_jasa, jangka, jenis_jasa, status
+     */
+    public static function totalJasaPinjaman($pinkel, $pembulatan = '500'): float
+    {
+        $alokasi = self::alokasiPinjaman($pinkel);
+        $jenis = (string) ($pinkel->jenis_jasa ?? '1');
+
+        if ($jenis === '3') {
+            $jadwal = self::jadwalAnuitas($alokasi, $pinkel->pros_jasa ?? 0, (int) ($pinkel->jangka ?? 0), $pembulatan);
+
+            return (float) $jadwal['total_jasa'];
+        }
+
+        return (float) ($alokasi * ((float) ($pinkel->pros_jasa ?? 0) / 100));
+    }
+
+    /**
+     * Alokasi pinjaman sesuai status (paritas GenerateService::getAlokasi).
+     */
+    public static function alokasiPinjaman($pinjaman): float
+    {
+        if (($pinjaman->status ?? null) === 'P') {
+            return (float) ($pinjaman->proposal ?? 0);
+        }
+        if (($pinjaman->status ?? null) === 'V') {
+            return (float) ($pinjaman->verifikasi ?? 0);
+        }
+
+        return (float) ($pinjaman->alokasi ?? 0);
+    }
+
     public static function bulatkan($angka)
     {
         $angka = round($angka);

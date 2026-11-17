@@ -1521,7 +1521,8 @@ class TransaksiController extends Controller
         $transaksi = $trx['transaksi'];
 
         if ($transaksi) {
-            $jasa_pinjaman = ($pinkel->pros_jasa / 100) * $pinkel->alokasi;
+            // Total jasa mengikuti METODE: anuitas berbunga menurun, bukan flat.
+            $jasa_pinjaman = Keuangan::totalJasaPinjaman($pinkel, '500');
             foreach ($pinjaman_anggota as $pa) {
                 $pokok_anggota = 0;
                 if ($request->pokok_anggota) {
@@ -1577,7 +1578,8 @@ class TransaksiController extends Controller
             $rek_jasa = ['1.1.03.04', '1.1.03.05', '1.1.03.06', '4.1.01.01', '4.1.01.02', '4.1.01.03'];
 
             $alokasi_pokok = round($pinkel->alokasi, 2);
-            $alokasi_jasa = round($pinkel->pros_jasa == 0 ? 0 : $pinkel->alokasi * ($pinkel->pros_jasa / 100), 2);
+            // Total jasa mengikuti METODE: anuitas berbunga menurun, bukan flat.
+            $alokasi_jasa = round(Keuangan::totalJasaPinjaman($pinkel), 2);
 
             $real_angsuran = [
                 'id' => $idtp,
@@ -2030,7 +2032,8 @@ class TransaksiController extends Controller
             ['tgl_transaksi', '<=', date('Y-m-d')],
         ])->orderBy('tgl_transaksi', 'DESC')->orderBy('id', 'DESC');
 
-        $alokasi_jasa = round($pinkel->alokasi * ($pinkel->pros_jasa / 100), 2);
+        // Total jasa mengikuti METODE: anuitas berbunga menurun, bukan flat.
+        $alokasi_jasa = round(Keuangan::totalJasaPinjaman($pinkel), 2);
 
         if ($real->count() > 0) {
             $real = $real->first();
@@ -2144,7 +2147,8 @@ class TransaksiController extends Controller
         $saldo_pokok = round(($target_pokok - $real->sum_pokok > 0) ? $target_pokok - $real->sum_pokok : 0, 2);
         $saldo_jasa = round(($target_jasa - $real->sum_jasa > 0) ? $target_jasa - $real->sum_jasa : 0, 2);
 
-        $alokasi_jasa = round($pinkel->alokasi * ($pinkel->pros_jasa / 100), 2);
+        // Total jasa mengikuti METODE: anuitas berbunga menurun, bukan flat.
+        $alokasi_jasa = round(Keuangan::totalJasaPinjaman($pinkel), 2);
         $sisa_pokok = round($pinkel->alokasi - $real->sum_pokok, 2);
         $sisa_jasa = round($alokasi_jasa - $real->sum_jasa, 2);
 

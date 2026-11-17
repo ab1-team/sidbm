@@ -1248,7 +1248,8 @@ class PinjamanKelompokController extends Controller
         }
 
         $alokasi_pokok = intval($pinkel->alokasi);
-        $alokasi_jasa = intval($pinkel->pros_jasa == 0 ? 0 : $pinkel->alokasi * ($pinkel->pros_jasa / 100));
+        // Total jasa mengikuti METODE: anuitas berbunga menurun, bukan flat.
+        $alokasi_jasa = intval(round(Keuangan::totalJasaPinjaman($pinkel)));
 
         if ($pinkel->jenis_pp == '1') {
             $rekening_1 = '1.1.01.01';

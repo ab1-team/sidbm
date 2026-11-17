@@ -328,7 +328,16 @@ class AngsuranController extends Controller
         $idtp = $angsuran['idtp'];
         $transaksi = $angsuran['transaksi'];
 
-        $jasaPinjaman = ($data['pros_jasa'] / 100) * $data['alokasi'];
+        // Total jasa pinjaman mengikuti METODE (flat vs anuitas menurun).
+        // Pinjaman diambil dari DB agar `jenis_jasa` tersedia — payload client
+        // tidak membawa kolom itu, dan memakai flat% membuat saldo jasa anuitas
+        // kelebihan (23.800.000 vs 14.926.500 pada loan 5835).
+        $pinjamanDb = PinjamanKelompok::where('id', $data['id'])->first();
+        if ($pinjamanDb) {
+            $jasaPinjaman = Keuangan::totalJasaPinjaman($pinjamanDb, '500');
+        } else {
+            $jasaPinjaman = ($data['pros_jasa'] / 100) * $data['alokasi'];
+        }
 
         foreach ($pinjamanAnggota as $pa) {
             $prosPokokAnggota = ($pa->alokasi / $data['alokasi']) * 100;
@@ -356,7 +365,8 @@ class AngsuranController extends Controller
         $rekJasa = ['1.1.03.04', '1.1.03.05', '1.1.03.06', '4.1.01.01', '4.1.01.02', '4.1.01.03'];
 
         $alokasiPokok = (int) $data['alokasi'];
-        $alokasiJasa = (int) ($data['pros_jasa'] == 0 ? 0 : $data['alokasi'] * ($data['pros_jasa'] / 100));
+        // Saldo jasa awal = total jasa sesuai metode, bukan flat% × alokasi.
+        $alokasiJasa = (int) ($jasaPinjaman ?: 0);
 
         $realAngsuran = [
             'id' => $idtp,
