@@ -34,7 +34,21 @@
 
     $saldo_pokok = $alokasi;
     $alokasi_pinjaman = $alokasi;
-    $saldo_jasa = $saldo_pokok * ($pros_jasa / 100);
+    // Saldo jasa awal HARUS total jasa metode, bukan flat% x alokasi.
+    // Anuitas (jenis_jasa=3) berbunga menurun dari saldo pokok, sehingga
+    // total jasa (14.926.500 pada loan 5835) jauh di bawah flat (23.800.000).
+    $saldo_jasa = \App\Utils\Keuangan::totalJasaPinjaman(
+        (object) [
+            'status' => $pinkel->status,
+            'alokasi' => $pinkel->alokasi,
+            'proposal' => $pinkel->proposal,
+            'verifikasi' => $pinkel->verifikasi,
+            'pros_jasa' => $pros_jasa,
+            'jangka' => $pinkel->jangka,
+            'jenis_jasa' => $pinkel->jenis_jasa,
+        ],
+        (string) (($pinkel->kelompok->d->kec->pembulatan ?? null) ?: '500')
+    );
 
     $sum_pokok = 0;
     $sum_jasa = 0;

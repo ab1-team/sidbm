@@ -174,7 +174,7 @@
                         $sum_pokok = 0;
                         $sum_jasa = 0;
                         $saldo_pokok = $pinkel->alokasi;
-                        $saldo_jasa = $pinkel->pros_jasa == 0 ? 0 : $pinkel->alokasi * ($pinkel->pros_jasa / 100);
+                        $saldo_jasa = \App\Utils\Keuangan::totalJasaPinjaman($pinkel); // total jasa ikut METODE (anuitas menurun, bukan flat)
                         if ($pinkel->saldo) {
                             $real_pokok = $pinkel->saldo->realisasi_pokok;
                             $real_jasa = $pinkel->saldo->realisasi_jasa;
