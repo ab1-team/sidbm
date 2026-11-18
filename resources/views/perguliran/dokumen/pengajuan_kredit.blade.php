@@ -6,6 +6,14 @@
 
     $ketua = $pinkel->kelompok->ketua;
     $sekretaris = $pinkel->kelompok->sekretaris;
+
+    // Keterangan fungsi kelompok pada kalimat pengajuan:
+    // executing (fungsi_kelompok = '2') -> (executing)
+    // channeling (fungsi_kelompok = '1') -> (daftar anggota terlampir)
+    $keteranganFungsi = $pinkel->kelompok->fungsi_kelompok == '2'
+        ? '(executing)'
+        : '(daftar anggota terlampir)';
+
     if ($pinkel->struktur_kelompok) {
         $struktur_kelompok = json_decode($pinkel->struktur_kelompok, true);
         $ketua = isset($struktur_kelompok['ketua']) ? $struktur_kelompok['ketua'] : '';
@@ -184,7 +192,7 @@
                     <div>
                         Dalam hal ini bertindak untuk dan atas nama seluruh anggota kelompok
                         {{ $pinkel->jpp->deskripsi_jpp }} ({{ $pinkel->jpp->nama_jpp }})
-                        {{ $pinkel->kelompok->nama_kelompok }} (daftar anggota terlampir), dengan ini bermaksud
+                        {{ $pinkel->kelompok->nama_kelompok }} {{ $keteranganFungsi }}, dengan ini bermaksud
                         mengajukan
                         permohonan kredit sebesar Rp. {{ number_format($pinkel->proposal) }}
                         ({{ $keuangan->terbilang($pinkel->proposal) }}) untuk memenuhi kebutuhan tambahan modal usaha
