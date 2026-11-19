@@ -128,9 +128,16 @@
             <div class="my-2">
                 <label class="form-label" for="pembulatan">Pembulatan (opsional)</label>
                 <select class="form-control" name="pembulatan" id="pembulatan">
-                    <option value="" {{ $bul_nilai === '' ? 'selected' : '' }}>Ikuti pengaturan kecamatan</option>
+                    <option value="" {{ $bul_nilai === '' ? 'selected' : '' }}>Ikuti pengaturan kecamatan ({{ $kec->pembulatan ?? '' }})</option>
+                    <option value="100" {{ $bul_nilai === '100' ? 'selected' : '' }}>100</option>
+                    <option value="250" {{ $bul_nilai === '250' ? 'selected' : '' }}>250</option>
                     <option value="500" {{ $bul_nilai === '500' ? 'selected' : '' }}>500</option>
+                    <option value="750" {{ $bul_nilai === '750' ? 'selected' : '' }}>750</option>
                     <option value="1000" {{ $bul_nilai === '1000' ? 'selected' : '' }}>1000</option>
+                    <option value="2000" {{ $bul_nilai === '2000' ? 'selected' : '' }}>2000</option>
+                    <option value="2500" {{ $bul_nilai === '2500' ? 'selected' : '' }}>2500</option>
+                    <option value="5000" {{ $bul_nilai === '5000' ? 'selected' : '' }}>5000</option>
+                    <option value="10000" {{ $bul_nilai === '10000' ? 'selected' : '' }}>10000</option>
                 </select>
                 <small class="form-text">Berlaku hanya untuk pinjaman ini.</small>
                 <small class="text-danger" id="msg_pembulatan"></small>

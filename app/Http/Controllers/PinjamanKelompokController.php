@@ -620,7 +620,10 @@ class PinjamanKelompokController extends Controller
         $sistem_angsuran_jasa = $perguliran->sa_jasa;
         $jenis_pp_dipilih = $perguliran->jenis_pp;
 
-        return view('perguliran.partials.edit_proposal')->with(compact('perguliran', 'jenis_jasa', 'sistem_angsuran', 'jenis_pp', 'jenis_jasa_dipilih', 'sistem_angsuran_pokok', 'sistem_angsuran_jasa', 'jenis_pp_dipilih'));
+        // Pembulatan: nilai default di form mengikuti pengaturan kecamatan.
+        $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
+
+        return view('perguliran.partials.edit_proposal')->with(compact('perguliran', 'jenis_jasa', 'sistem_angsuran', 'jenis_pp', 'jenis_jasa_dipilih', 'sistem_angsuran_pokok', 'sistem_angsuran_jasa', 'jenis_pp_dipilih', 'kec'));
     }
 
     /**
