@@ -189,6 +189,17 @@ class GenerateService
             $target_p += $pokok;
             $target_j += $jasa;
 
+            // Sistem angsuran interval-N (mis. id 8 = "8 Bulan", kolom sistem
+            // = 8): angsuran jatuh hanya di bulan kelipatan interval. Bulan
+            // tanpa pokok DAN tanpa jasa bukan angsuran — jangan dibuat baris.
+            // Sistem grace (M24/M12/...) punya sistem=1: baris nolnya tetap
+            // dipertahankan (dipakai rumus kolektibilitas & penanda lunas).
+            // angsuran_ke TETAP nomor bulan.
+            $intervalN = ($ang_p['sistem'] > 1 || $ang_j['sistem'] > 1);
+            if ($intervalN && $pokok == 0 && $jasa == 0) {
+                continue;
+            }
+
             $data_rencana[strtotime($jatuh_tempo)] = $this->fmtRencana(
                 $pinkel->id, $i, $jatuh_tempo, $pokok, $jasa, $target_p, $target_j
             );
@@ -433,10 +444,20 @@ class GenerateService
             }
             $target_p += $cur_p;
             $target_j += $cur_j;
-            $data_rencana[$tempo_ts] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
-            $rencana[] = $data_rencana[$tempo_ts];
+
+            // Sistem interval-N (kolom sistem > 1): lewati bulan tanpa pokok
+            // DAN tanpa jasa. Sistem grace (sistem=1) tetap membuat baris nol.
+            // (Lihat catatan di buildRencanaV1.) Saldo pascahapus ikut
+            // dikurangi dulu agar akumulasi target tetap benar.
             $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
             $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
+            $intervalN = ($sis_p['sistem'] > 1 || $sis_j['sistem'] > 1);
+            if ($intervalN && $cur_p == 0 && $cur_j == 0) {
+                continue;
+            }
+
+            $data_rencana[$tempo_ts] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
+            $rencana[] = $data_rencana[$tempo_ts];
             if ($post_hapus && $sisa_tempo > 0) {
                 $sisa_tempo--;
                 if ($sisa_tempo > 0) {

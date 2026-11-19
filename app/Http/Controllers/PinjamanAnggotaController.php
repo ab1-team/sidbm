@@ -875,6 +875,14 @@ class PinjamanAnggotaController extends Controller
             $target_pokok += $pokok;
             $target_jasa += $jasa;
 
+            // Sistem angsuran interval-N (kolom sistem > 1): lewati bulan tanpa
+            // pokok DAN tanpa jasa. Sistem grace (sistem=1) tetap membuat
+            // baris nol. angsuran_ke TETAP nomor bulan (konsisten GenerateService).
+            $intervalN = ($sistem_pokok > 1 || $sistem_jasa > 1);
+            if ($intervalN && $pokok == 0 && $jasa == 0) {
+                continue;
+            }
+
             $rencana[] = [
                 'loan_id' => $id_pinj,
                 'angsuran_ke' => $x,
