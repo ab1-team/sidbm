@@ -223,6 +223,80 @@ class Keuangan
         return ($nilai === null || $nilai === '') ? null : (string) $nilai;
     }
 
+    /**
+     * Normalisasi nilai pembulatan hasil form ke format kolom.
+     *
+     * - profil rasio `r85-15` dan nilai bertanda `+1000`/`-500` dipakai apa adanya;
+     * - angka polos digabung dengan sistem ('+' ke atas, '-' ke bawah);
+     * - kosong → NULL (warisan kecamatan).
+     */
+    public static function normalisasiPembulatan($nilai, $sistem = null)
+    {
+        $nilai = trim((string) $nilai);
+        if ($nilai === '') {
+            return null;
+        }
+        if ($nilai[0] === 'r' || $nilai[0] === '+' || $nilai[0] === '-') {
+            return $nilai;
+        }
+
+        return ((string) $sistem).$nilai;
+    }
+
+    /**
+     * Profil angsuran RASIO TETAP yang mengikat SATU pinjaman (NULL = tidak ada).
+     *
+     * Format kolom `pembulatan`: `r<pokok_ribu>-<jasa_ribu>` — angka dalam
+     * ribuan rupiah per Rp1 juta alokasi per bulan (muat di VARCHAR(11)).
+     * Contoh lokasi 476: `r85-15` → pokok rutin Rp85.000 dan jasa bulanan
+     * Rp15.000 per Rp1 juta; nominal mengikuti kelipatan alokasi (Rp2 juta →
+     * pokok Rp170.000 + jasa Rp30.000); pokok angsuran terakhir = sisa pokok
+     * sehingga Σ pokok TEPAT alokasi.
+     *
+     * Mengembalikan ['pokok_per_juta', 'jasa_per_juta'] dalam rupiah, atau null.
+     */
+    public static function profilAngsuranRasio($pinjaman)
+    {
+        $nilai = (string) ($pinjaman->pembulatan ?? '');
+
+        if (! preg_match('/^r(\d+)-(\d+)$/', $nilai, $m)) {
+            return null;
+        }
+
+        return [
+            'pokok_per_juta' => (int) $m[1] * 1000,
+            'jasa_per_juta' => (int) $m[2] * 1000,
+        ];
+    }
+
+    /**
+     * Jadwal angsuran profil rasio tetap (format `r<pokok>-<jasa>`).
+     *
+     * Pokok rutin = alokasi * pokok_per_juta / 1.000.000; jasa bulan sama,
+     * sehingga nominal mengikuti kelipatan alokasi. Angsuran terakhir pokok =
+     * sisa sehingga Σ pokok == alokasi persis.
+     */
+    public static function jadwalProfilRasio($alokasi, $jangka, $profil)
+    {
+        $pokok_rutin = round(($alokasi / 1000000) * $profil['pokok_per_juta']);
+        $jasa_rutin = round(($alokasi / 1000000) * $profil['jasa_per_juta']);
+
+        if ($jangka < 1) {
+            return null;
+        }
+
+        $rencana = ['pokok' => [], 'jasa' => []];
+        for ($j = 1; $j <= $jangka; $j++) {
+            $pokok = ($j === $jangka)
+                ? max(0, $alokasi - ($pokok_rutin * ($jangka - 1)))
+                : $pokok_rutin;
+            $rencana['pokok'][$j] = $pokok;
+            $rencana['jasa'][$j] = $jasa_rutin;
+        }
+
+        return $rencana;
+    }
+
     public static function bulatkan($angka, $pembulatanOverride = null)
     {
         $angka = round($angka);

@@ -659,6 +659,17 @@ class GenerateService
 
     protected function rencana_angsuran($pinkel, $ang_pokok, $ang_jasa, $alokasi, $pembulatan = '500', $pros_jasa_override = null)
     {
+        // Profil angsuran rasio tetap (format `r<pokok>-<jasa>` per juta) —
+        // mengikat pinjaman, menghasilkan pokok/jasa proporsional alokasi dan
+        // pokok terakhir = sisa. Dipakai mis. lokasi 476 tanpa hardcode lokasi.
+        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel);
+        if ($profil_rasio !== null) {
+            $jadwal_rasio = Keuangan::jadwalProfilRasio($alokasi, (int) $pinkel->jangka, $profil_rasio);
+            if ($jadwal_rasio !== null) {
+                return $jadwal_rasio;
+            }
+        }
+
         // Anuitas = angsuran total (pokok+jasa) TETAP, jasa dihitung dari saldo
         // pokok berjalan (menurun), pokok naik. Wajib punya jalur sendiri —
         // rumus flat/efektif tidak bisa menghasilkan angsuran tetap.

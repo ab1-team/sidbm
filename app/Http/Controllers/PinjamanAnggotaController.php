@@ -731,7 +731,51 @@ class PinjamanAnggotaController extends Controller
         // saldo pokok, pokok naik. Jadwal flat/efektif di bawah TIDAK bisa
         // menirunya, jadi metode ini punya jalur sendiri. Matematikanya tetap
         // satu sumber: Keuangan::jadwalAnuitas().
-        if ((string) $pinkel->jenis_jasa === '3') {
+        // Profil angsuran rasio tetap (`r<pokok>-<jasa>`) menang sebelum
+        // anuitas — mengikat pinjaman tanpa hardcode lokasi.
+        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel);
+        $jadwal_rasio = null;
+        if ($profil_rasio !== null) {
+            $jadwal_rasio = Keuangan::jadwalProfilRasio($alokasi, (int) $jangka, $profil_rasio);
+            if ($jadwal_rasio !== null) {
+                // Suntik jadwal rasio ke loop flat/efektif di bawah: pakai
+                // nilai pokok/jasa per bulan dari profil, bukan bulatkan().
+                $rencana = [];
+                for ($i = 1; $i <= (int) $jangka; $i++) {
+                    $bulan = substr($tgl, 5, 2);
+                    $tahun = substr($tgl, 0, 4);
+                    $penambahan = ($sa_pokok == 12) ? '+'.($i * 7).' days' : "+{$i} month";
+                    $jatuh_tempo = date('Y-m-d', strtotime($penambahan, strtotime($tgl)));
+
+                    $pokok = (float) ($jadwal_rasio['pokok'][$i] ?? 0);
+                    $jasa = (float) ($jadwal_rasio['jasa'][$i] ?? 0);
+                    $target_pokok = 0;
+                    $target_jasa = 0;
+                    for ($k = 1; $k <= $i; $k++) {
+                        $target_pokok += (float) ($jadwal_rasio['pokok'][$k] ?? 0);
+                        $target_jasa += (float) ($jadwal_rasio['jasa'][$k] ?? 0);
+                    }
+
+                    $rencana[] = [
+                        'loan_id' => $id_pinj,
+                        'angsuran_ke' => $i,
+                        'jatuh_tempo' => $jatuh_tempo,
+                        'wajib_pokok' => $pokok,
+                        'wajib_jasa' => $jasa,
+                        'target_pokok' => $target_pokok,
+                        'target_jasa' => $target_jasa,
+                        'lu' => date('Y-m-d H:i:s'),
+                        'id_user' => auth()->user()->id,
+                    ];
+                }
+
+                RencanaAngsuran::insert($rencana);
+
+                return true;
+            }
+        }
+
+        if ((string) $pinkel->jenis_jasa === '3' && $profil_rasio === null) {
             $kecamatan = \App\Models\Kecamatan::where('id', Session::get('lokasi'))->first();
             $jadwal = Keuangan::jadwalAnuitas(
                 $alokasi,
