@@ -131,7 +131,6 @@
                     <option value="" {{ $bul_nilai === '' ? 'selected' : '' }}>Ikuti pengaturan kecamatan</option>
                     <option value="500" {{ $bul_nilai === '500' ? 'selected' : '' }}>500</option>
                     <option value="1000" {{ $bul_nilai === '1000' ? 'selected' : '' }}>1000</option>
-                    <option value="r85-15" {{ $bul_nilai === 'r85-15' ? 'selected' : '' }}>85rb pokok + 15rb jasa per 1jt</option>
                 </select>
                 <small class="form-text">Berlaku hanya untuk pinjaman ini.</small>
                 <small class="text-danger" id="msg_pembulatan"></small>

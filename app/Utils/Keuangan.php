@@ -226,9 +226,12 @@ class Keuangan
     /**
      * Normalisasi nilai pembulatan hasil form ke format kolom.
      *
-     * - profil rasio `r85-15` dan nilai bertanda `+1000`/`-500` dipakai apa adanya;
+     * - nilai bertanda `+1000`/`-500` dipakai apa adanya;
      * - angka polos digabung dengan sistem ('+' ke atas, '-' ke bawah);
      * - kosong → NULL (warisan kecamatan).
+     *
+     * Hanya menangani pembulatan. Aturan angsuran khusus lokasi tidak
+     * lewat kolom ini — lihat config/angsuran_khusus.php.
      */
     public static function normalisasiPembulatan($nilai, $sistem = null)
     {
@@ -236,7 +239,7 @@ class Keuangan
         if ($nilai === '') {
             return null;
         }
-        if ($nilai[0] === 'r' || $nilai[0] === '+' || $nilai[0] === '-') {
+        if ($nilai[0] === '+' || $nilai[0] === '-') {
             return $nilai;
         }
 
@@ -244,29 +247,51 @@ class Keuangan
     }
 
     /**
-     * Profil angsuran RASIO TETAP yang mengikat SATU pinjaman (NULL = tidak ada).
+     * Profil angsuran KHUSUS untuk lokasi/kecamatan tempat pinjaman ini
+     * berada (NULL = tidak ada aturan khusus).
      *
-     * Format kolom `pembulatan`: `r<pokok_ribu>-<jasa_ribu>` — angka dalam
-     * ribuan rupiah per Rp1 juta alokasi per bulan (muat di VARCHAR(11)).
-     * Contoh lokasi 476: `r85-15` → pokok rutin Rp85.000 dan jasa bulanan
-     * Rp15.000 per Rp1 juta; nominal mengikuti kelipatan alokasi (Rp2 juta →
-     * pokok Rp170.000 + jasa Rp30.000); pokok angsuran terakhir = sisa pokok
-     * sehingga Σ pokok TEPAT alokasi.
+     * Sumber kebenaran: config/angsuran_khusus.php — bukan kolom
+     * `pembulatan` (itu khusus pembulatan per pinjaman: 500/+/-/NULL).
+     * Menambah perlakuan khusus lokasi lain = tambah entri config,
+     * tanpa mengubah logika dan tanpa hardcode di kode perhitungan.
      *
-     * Mengembalikan ['pokok_per_juta', 'jasa_per_juta'] dalam rupiah, atau null.
+     * Lokasi diambil dari $pinjaman->lokasi bila ada, otherwise Session
+     * 'lokasi', otherwise field relasi kecamatan.
+     *
+     * Mengembalikan ['pokok_per_juta', 'jasa_per_juta', 'jangka'] atau null.
      */
-    public static function profilAngsuranRasio($pinjaman)
+    public static function profilAngsuranRasio($pinjaman, $jangkaPinjaman = null)
     {
-        $nilai = (string) ($pinjaman->pembulatan ?? '');
-
-        if (! preg_match('/^r(\d+)-(\d+)$/', $nilai, $m)) {
+        // Lokasi: preferensi dari pinjaman, lalu relasi kecamatan.
+        // Session hanya dibaca bila container Laravel & session terikat
+        // (test unit murni PHPUnit tidak punya keduanya → aman return null).
+        $lokasi = $pinjaman->lokasi ?? null;
+        if ($lokasi === null && isset($pinjaman->kec)) {
+            $lokasi = $pinjaman->kec->id ?? null;
+        }
+        $hasApp = function_exists('app') && \Illuminate\Container\Container::getInstance();
+        if ($lokasi === null && $hasApp && app()->bound('session')) {
+            $lokasi = \Illuminate\Support\Facades\Session::get('lokasi');
+        }
+        if ($lokasi === null) {
             return null;
         }
 
-        return [
-            'pokok_per_juta' => (int) $m[1] * 1000,
-            'jasa_per_juta' => (int) $m[2] * 1000,
-        ];
+        $profil = ($hasApp && app()->bound('config'))
+            ? config("angsuran_khusus.profil_rasio.{$lokasi}")
+            : null;
+        if (! is_array($profil)) {
+            return null;
+        }
+
+        // Profil hanya berlaku untuk tenor yang ditentukan. Pinjaman lokasi
+        // yang sama dengan tenor lain memakai perhitungan normal.
+        if (isset($profil['jangka']) && $jangkaPinjaman !== null
+            && (int) $profil['jangka'] !== (int) $jangkaPinjaman) {
+            return null;
+        }
+
+        return $profil;
     }
 
     /**

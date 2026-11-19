@@ -733,7 +733,7 @@ class PinjamanAnggotaController extends Controller
         // satu sumber: Keuangan::jadwalAnuitas().
         // Profil angsuran rasio tetap (`r<pokok>-<jasa>`) menang sebelum
         // anuitas — mengikat pinjaman tanpa hardcode lokasi.
-        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel);
+        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel, $jangka);
         $jadwal_rasio = null;
         if ($profil_rasio !== null) {
             $jadwal_rasio = Keuangan::jadwalProfilRasio($alokasi, (int) $jangka, $profil_rasio);

@@ -12,16 +12,20 @@ use Session;
 use Tests\TestCase;
 
 /**
- * Profil angsuran rasio tetap (`r85-15`) pada jalur generate() NYATA.
+ * Aturan angsuran KHUSUS lokasi 476 (dari config/angsuran_khusus.php)
+ * pada jalur generate() NYATA — terpisah dari pembulatan per pinjaman.
  *
- * Skenario aturan lokasi 476: tenor 12 bulan, per Rp1 juta alokasi →
- * pokok rutin Rp85.000 + jasa Rp15.000; pokok bulan ke-12 = sisa.
- * Harness meniru RencanaAngsuranAnggotaTest (SQLite in-memory, tenant 301)
- * dengan kolom pembulatan di tabel pinjaman diisi 'r85-15'.
+ * Tenor 12 bulan, per Rp1 juta alokasi → pokok rutin Rp85.000 +
+ * jasa Rp15.000; pokok bulan ke-12 = sisa. Meniru
+ * RencanaAngsuranAnggotaTest (SQLite in-memory, tabel tenant 301) dengan
+ * Session lokasi=476 supaya config profil 476 aktif; kolom `pembulatan`
+ * pinjaman sengaja NULL — profil TIDAK berasal dari kolom itu.
  */
 class ProfilRasio476GenerateTest extends TestCase
 {
-    private const LOKASI = 301;
+    private const LOKASI = 301;       // suffix tabel (skema uji)
+
+    private const LOKASI_ATURAN = 476; // lokasi dengan aturan khusus di config
 
     private const PINJEL_ID = 1;
 
@@ -43,7 +47,7 @@ class ProfilRasio476GenerateTest extends TestCase
         $this->buildSchema();
         $this->seedData();
 
-        Session::put('lokasi', self::LOKASI);
+        Session::put('lokasi', self::LOKASI_ATURAN);
         Session::put('tgl_penghapusan', self::BASIS);
         Session::put('hapus_pokok', 0);
         Session::put('hapus_jasa', 0);
@@ -156,7 +160,7 @@ class ProfilRasio476GenerateTest extends TestCase
             'pros_jasa' => 18,
             'status' => 'A',
             'alokasi' => self::ALOKASI,
-            'pembulatan' => 'r85-15',
+            'pembulatan' => null,
             'tgl_cair' => '2025-01-15',
         ]);
     }

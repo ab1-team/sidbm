@@ -662,7 +662,7 @@ class GenerateService
         // Profil angsuran rasio tetap (format `r<pokok>-<jasa>` per juta) —
         // mengikat pinjaman, menghasilkan pokok/jasa proporsional alokasi dan
         // pokok terakhir = sisa. Dipakai mis. lokasi 476 tanpa hardcode lokasi.
-        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel);
+        $profil_rasio = Keuangan::profilAngsuranRasio($pinkel, $pinkel->jangka);
         if ($profil_rasio !== null) {
             $jadwal_rasio = Keuangan::jadwalProfilRasio($alokasi, (int) $pinkel->jangka, $profil_rasio);
             if ($jadwal_rasio !== null) {

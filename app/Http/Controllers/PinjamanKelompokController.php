@@ -367,9 +367,11 @@ class PinjamanKelompokController extends Controller
             return response()->json($validate->errors(), Response::HTTP_MOVED_PERMANENTLY);
         }
 
-        // Pembulatan per pinjaman: profil rasio (r85-15) / bertanda (+1000,
-        // -500) dipakai apa adanya; angka polos digabung dengan sistem.
+        // Pembulatan per pinjaman: nilai bertanda (+1000, -500) dipakai apa
+        // adanya; angka polos digabung dengan sistem.
         // Tanpa angka → NULL (pinjaman mewarisi kecamatan.pembulatan).
+        // Aturan angsuran khusus lokasi TIDAK lewat kolom ini —
+        // lihat config/angsuran_khusus.php.
         $pembulatan_pinjaman = Keuangan::normalisasiPembulatan(
             $request->pembulatan,
             $request->sistem_pembulatan

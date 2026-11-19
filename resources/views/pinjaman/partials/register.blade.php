@@ -127,7 +127,6 @@
                             <option value="">Ikuti pengaturan kecamatan ({{ $kec->pembulatan }})</option>
                             <option value="500">500</option>
                             <option value="1000">1000</option>
-                            <option value="r85-15">85rb pokok + 15rb jasa per 1jt</option>
                         </select>
                         <small class="form-text">Berlaku hanya untuk pinjaman ini.</small>
                         <small class="text-danger" id="msg_pembulatan"></small>

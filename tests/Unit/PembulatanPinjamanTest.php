@@ -3,63 +3,43 @@
 namespace Tests\Unit;
 
 use App\Utils\Keuangan;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
-/**
- * Pembulatan yang MENGIKAT satu pinjaman.
- *
- * Kontrak:
- *   1. pinjaman.pembulatan = NULL/kosong → pakai kecamatan.pembulatan
- *      (perilaku lama, seluruh pinjaman existing tidak berubah).
- *   2. pinjaman.pembulatan terisi → pakai nilai itu, mengabaikan kecamatan.
- *   3. format legacy '+1000' (ke atas) / '-500' (ke bawah) dipahami.
- */
 class PembulatanPinjamanTest extends TestCase
 {
-    private function pinjaman($pembulatan)
-    {
-        return new class($pembulatan)
-        {
-            public $pembulatan;
-
-            public function __construct($pembulatan)
-            {
-                $this->pembulatan = $pembulatan;
-            }
-        };
-    }
-
-    private function kecamatan($pembulatan)
+    private function pinjaman($pembulatan): object
     {
         return (object) ['pembulatan' => $pembulatan];
     }
 
+    /** NULL → warisi kecamatan.pembulatan (Session lokasi 301 = '500'). */
     public function test_null_mewarisi_kecamatan(): void
     {
-        $this->assertSame('1000', Keuangan::pembulatanPinjaman($this->pinjaman(null), $this->kecamatan('1000')));
-        $this->assertSame('1000', Keuangan::pembulatanPinjaman($this->pinjaman(''), $this->kecamatan('1000')));
+        config(['angsuran_khusus.profil_rasio' => []]);
+        session(['lokasi' => 301]);
+
+        $this->assertSame(1500.0, Keuangan::pembulatan(1550, Keuangan::pembulatanPinjaman($this->pinjaman(null), (object) ['pembulatan' => '500'])));
     }
 
-    public function test_nilai_eksplisit_mengalahkan_kecamatan(): void
+    /** Pinjaman eksplisit menang atas kecamatan. */
+    public function test_override_pinjaman_menang(): void
     {
-        $this->assertSame('500', Keuangan::pembulatanPinjaman($this->pinjaman('500'), $this->kecamatan('1000')));
-        $this->assertSame('+1000', Keuangan::pembulatanPinjaman($this->pinjaman('+1000'), $this->kecamatan('500')));
-        $this->assertSame('-500', Keuangan::pembulatanPinjaman($this->pinjaman('-500'), $this->kecamatan('1000')));
+        $this->assertSame(2000.0, Keuangan::pembulatan(1550, '+1000'));
+        $this->assertSame(2000.0, Keuangan::pembulatan(1550, '1000'));
+        $this->assertSame(1000.0, Keuangan::pembulatan(1550, '-500'));
     }
 
-    public function test_eksplisit_null_tanpa_fallback_ke_kecamatan(): void
+    public function test_pembulatan_eksplisit_tanpa_fallback(): void
     {
         $this->assertNull(Keuangan::pembulatanEksplisit($this->pinjaman(null)));
-        $this->assertNull(Keuangan::pembulatanEksplisit($this->pinjaman('')));
         $this->assertSame('+1000', Keuangan::pembulatanEksplisit($this->pinjaman('+1000')));
+        $this->assertSame('-500', Keuangan::pembulatanEksplisit($this->pinjaman('-500')));
+        $this->assertSame('500', Keuangan::pembulatanEksplisit($this->pinjaman('500')));
     }
 
-    public function test_efek_angka_override_mengubah_hasil_bulatkan(): void
+    public function test_bulatkan_menghormati_override(): void
     {
-        // Angka acuan diukur dari rumus legacy (tests dijalankan pada nilai
-        // pembulatan() murni): 1234 auto500=1000, +500=1500, -500=1000.
-        $this->assertSame(1000.0, Keuangan::bulatkan(1234, '500'));
-        $this->assertSame(1500.0, Keuangan::bulatkan(1234, '+500'));
+        $this->assertSame(2000.0, Keuangan::bulatkan(1234, '+1000'));
         $this->assertSame(1000.0, Keuangan::bulatkan(1234, '-500'));
     }
 
@@ -75,17 +55,33 @@ class PembulatanPinjamanTest extends TestCase
         $this->assertSame(1000.0, Keuangan::pembulatan(1550, '-1000'));
     }
 
-    public function test_profil_rasio_476_cocok_tabel_acuan(): void
+    /**
+     * Profil angsuran khusus datang dari config per lokasi, BUKAN dari
+     * kolom pembulatan pinjaman (pemisahan dua request owner).
+     */
+    public function test_profil_angsuran_dari_config_bukan_kolom_pembulatan(): void
     {
-        // Tabel acuan owner: per Rp1 juta → pokok rutin 85rb, jasa 15rb;
-        // pokok bulan ke-12 = sisa (65rb per juta); total bulan ke-12 = 80rb/juta;
-        // Σ pokok = alokasi persis.
-        $pinjaman = $this->pinjaman('r85-15');
-        $profil = Keuangan::profilAngsuranRasio($pinjaman);
+        // Kolom pembulatan 'r85-15' TIDAK lagi dikenali sebagai profil.
+        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('r85-15'), 12));
+        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('500'), 12));
+
+        // Config 476 menghasilkan profil untuk tenor 12.
+        $pin476 = (object) [];
+        session(['lokasi' => 476]);
+        $profil = Keuangan::profilAngsuranRasio($pin476, 12);
 
         $this->assertNotNull($profil);
         $this->assertSame(85000, $profil['pokok_per_juta']);
         $this->assertSame(15000, $profil['jasa_per_juta']);
+        $this->assertSame(12, $profil['jangka']);
+    }
+
+    public function test_profil_angsuran_tabel_acuan(): void
+    {
+        // Tabel acuan owner: per Rp1 juta → pokok rutin 85rb, jasa 15rb;
+        // pokok bulan ke-12 = sisa (65rb per juta); total bulan ke-12 = 80rb/juta;
+        // Σ pokok = alokasi persis.
+        $profil = ['pokok_per_juta' => 85000, 'jasa_per_juta' => 15000, 'jangka' => 12];
 
         foreach ([1000000 => [85000, 15000, 65000, 80000],
                   10000000 => [850000, 150000, 650000, 800000],
@@ -97,7 +93,6 @@ class PembulatanPinjamanTest extends TestCase
             $this->assertSame((float) $p12, $j['pokok'][12], "pokok bulan 12 alokasi $a");
             $this->assertSame((float) $t12, $j['pokok'][12] + $j['jasa'][12], "total bulan 12 alokasi $a");
             $this->assertSame((float) $a, array_sum($j['pokok']), "Σ pokok = alokasi $a");
-            // 11 bulan rutin identik.
             for ($i = 1; $i <= 11; $i++) {
                 $this->assertSame((float) $rp, $j['pokok'][$i]);
                 $this->assertSame((float) $rj, $j['jasa'][$i]);
@@ -105,25 +100,21 @@ class PembulatanPinjamanTest extends TestCase
         }
     }
 
-    public function test_profil_rasio_tidak_aktif_pada_format_lain(): void
+    public function test_profil_angsuran_tenor_lain_tidak_aktif(): void
     {
-        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman(null)));
-        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('500')));
-        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('+1000')));
-        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('-500')));
-        $this->assertNull(Keuangan::profilAngsuranRasio($this->pinjaman('rx-y')));
+        session(['lokasi' => 476]);
+        $this->assertNull(Keuangan::profilAngsuranRasio((object) [], 24));
     }
 
     public function test_normalisasi_pembulatan_dari_form(): void
     {
-        // Profil rasio & bertanda: dipakai apa adanya (sistem diabaikan).
-        $this->assertSame('r85-15', Keuangan::normalisasiPembulatan('r85-15', '+'));
+        // Bertanda: apa adanya. Polos: digabung sistem. Kosong: NULL.
         $this->assertSame('+1000', Keuangan::normalisasiPembulatan('1000', '+'));
         $this->assertSame('-500', Keuangan::normalisasiPembulatan('500', '-'));
-        // Angka polos tanpa sistem → polos juga (format legacy sah).
         $this->assertSame('1000', Keuangan::normalisasiPembulatan('1000', null));
-        // Kosong → NULL (warisan kecamatan).
         $this->assertNull(Keuangan::normalisasiPembulatan('', '+'));
         $this->assertNull(Keuangan::normalisasiPembulatan(null, '+'));
+        // 'r85-15' bukan lagi format pembulatan sah — diperlakukan polos.
+        $this->assertSame('+r85-15', Keuangan::normalisasiPembulatan('r85-15', '+'));
     }
 }
