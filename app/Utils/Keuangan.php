@@ -183,9 +183,56 @@ class Keuangan
         return (float) ($pinjaman->alokasi ?? 0);
     }
 
-    public static function bulatkan($angka)
+    /**
+     * Nilai pembulatan yang mengikat SATU pinjaman.
+     *
+     * Kolom `pembulatan` di tabel pinjaman (format legacy: '500' | '+1000' |
+     * '-500') dipakai bila terisi. Bila NULL/kosong, mewarisi
+     * kecamatan.pembulatan seperti perilaku lama — sehingga seluruh pinjaman
+     * existing tetap identik sampai ada override per pinjaman.
+     *
+     * @param  object  $pinjaman  butuh properti `pembulatan`
+     * @param  object|null  $kec  opsional, menghindari query ulang
+     */
+    public static function pembulatanPinjaman($pinjaman, $kec = null)
+    {
+        $nilai = $pinjaman->pembulatan ?? null;
+        if ($nilai !== null && $nilai !== '') {
+            return (string) $nilai;
+        }
+
+        if (! $kec) {
+            $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
+        }
+
+        return (string) ($kec->pembulatan ?? '500');
+    }
+
+    /**
+     * Nilai override pembulatan yang EKSPLISIT di pinjaman, atau null.
+     *
+     * Beda dengan pembulatanPinjaman(): helper ini TIDAK jatuh ke kecamatan.
+     * Dipakai jalur yang memanggil bulatkan() legacy — rumusnya beda dengan
+     * pembulatan(), jadi bila pinjaman tak punya override harus tetap memanggil
+     * bulatkan() tanpa argumen agar perilaku lama identik.
+     */
+    public static function pembulatanEksplisit($pinjaman)
+    {
+        $nilai = $pinjaman->pembulatan ?? null;
+
+        return ($nilai === null || $nilai === '') ? null : (string) $nilai;
+    }
+
+    public static function bulatkan($angka, $pembulatanOverride = null)
     {
         $angka = round($angka);
+
+        // Override per pinjaman memakai satu rumus dengan pembulatan() supaya
+        // tanda '+' (ke atas) / '-' (ke bawah) berlaku identik di semua jalur.
+        // Tanpa override, pertahankan perilaku legacy apa adanya.
+        if ($pembulatanOverride !== null && $pembulatanOverride !== '') {
+            return self::pembulatan($angka, (string) $pembulatanOverride);
+        }
 
         $kec = Kecamatan::where('id', Session::get('lokasi'))->first();
         $pembulatan = number_format($kec->pembulatan, 0, '', '');

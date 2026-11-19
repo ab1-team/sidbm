@@ -119,6 +119,32 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="my-2">
+                        <label class="form-label" for="pembulatan">Pembulatan (opsional)</label>
+                        <select class="form-control" name="pembulatan" id="pembulatan">
+                            <option value="">Ikuti pengaturan kecamatan ({{ $kec->pembulatan }})</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                        </select>
+                        <small class="form-text">Berlaku hanya untuk pinjaman ini.</small>
+                        <small class="text-danger" id="msg_pembulatan"></small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="my-2">
+                        <label class="form-label" for="sistem_pembulatan">Sistem Pembulatan</label>
+                        <select class="form-control" name="sistem_pembulatan" id="sistem_pembulatan">
+                            <option value="" selected>Auto</option>
+                            <option value="+">Keatas</option>
+                            <option value="-">Kebawah</option>
+                        </select>
+                        <small class="text-danger" id="msg_sistem_pembulatan"></small>
+                    </div>
+                </div>
+            </div>
+
             <div class="card mb-3">
                 <div class="card-body p-2">
                     <div class="text-center fw-bold">
@@ -207,6 +233,8 @@
             distance: 1000
         }
     })
+    new Choices($('#pembulatan')[0], { shouldSort: false })
+    new Choices($('#sistem_pembulatan')[0], { shouldSort: false })
 
     $("#pengajuan").maskMoney();
 

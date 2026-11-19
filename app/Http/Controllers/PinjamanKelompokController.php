@@ -322,6 +322,8 @@ class PinjamanKelompokController extends Controller
             'sistem_angsuran_pokok',
             'sistem_angsuran_jasa',
             'jenis_produk_pinjaman',
+            'pembulatan',
+            'sistem_pembulatan',
         ];
 
         $validasi = [
@@ -365,6 +367,15 @@ class PinjamanKelompokController extends Controller
             return response()->json($validate->errors(), Response::HTTP_MOVED_PERMANENTLY);
         }
 
+        // Pembulatan per pinjaman: sistem '+' (ke atas) / '-' (ke bawah)
+        // digabung jadi format legacy '+1000' / '-500'. Tanpa angka → NULL
+        // (pinjaman mewarisi kecamatan.pembulatan).
+        $nilai_pembulatan = trim((string) $request->pembulatan);
+        $pembulatan_pinjaman = null;
+        if ($nilai_pembulatan !== '') {
+            $pembulatan_pinjaman = ((string) $request->sistem_pembulatan).$nilai_pembulatan;
+        }
+
         $pinjaman_ke = PinjamanKelompok::where([
             ['id_kel', $request->id_kel],
             ['tgl_proposal', '<=', Tanggal::tglNasional($request->tgl_proposal)],
@@ -393,6 +404,7 @@ class PinjamanKelompokController extends Controller
             'status' => 'P',
             'catatan_verifikasi' => '0',
             'struktur_kelompok' => json_encode($struktur_kelompok),
+            'pembulatan' => $pembulatan_pinjaman,
             'wt_cair' => '0',
             'lu' => date('Y-m-d H:i:s'),
             'user_id' => auth()->user()->id,
@@ -976,6 +988,16 @@ class PinjamanKelompokController extends Controller
             ['tgl_proposal', '<=', $perguliran->tgl_proposal],
         ])->count();
         $update['pinjaman_ke'] = $pinjaman_ke + 1;
+
+        // Pembulatan per pinjaman: gabung sistem + angka ke format legacy.
+        // Hanya diubah bila form mengirim field ini (form edit proposal P).
+        // Transisi status lain (W/A/V) tidak boleh menghapus nilai tersimpan.
+        if ($request->has('pembulatan')) {
+            $nilai_pembulatan = trim((string) $request->pembulatan);
+            $update['pembulatan'] = ($nilai_pembulatan !== '')
+                ? ((string) $request->sistem_pembulatan).$nilai_pembulatan
+                : null;
+        }
 
         $pinkel = PinjamanKelompok::where('id', $perguliran->id)->update($update);
 

@@ -8,6 +8,17 @@
         $sekretaris = $struktur_kelompok['sekretaris'] ?? '';
         $bendahara = $struktur_kelompok['bendahara'] ?? '';
     }
+
+    // Pembulatan per pinjaman: pecah format legacy ('+1000' / '-500' / '500').
+    $bul_nilai = (string) ($perguliran->pembulatan ?? '');
+    $bul_sistem = '';
+    if (\App\Utils\Keuangan::startWith($bul_nilai, '+')) {
+        $bul_sistem = '+';
+        $bul_nilai = substr($bul_nilai, 1);
+    } elseif (\App\Utils\Keuangan::startWith($bul_nilai, '-')) {
+        $bul_sistem = '-';
+        $bul_nilai = substr($bul_nilai, 1);
+    }
 @endphp
 
 <form action="/perguliran/{{ $perguliran->id }}" method="post" id="FormEditProposal">
@@ -110,6 +121,32 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="col-md-6">
+            <div class="my-2">
+                <label class="form-label" for="pembulatan">Pembulatan (opsional)</label>
+                <select class="form-control" name="pembulatan" id="pembulatan">
+                    <option value="" {{ $bul_nilai === '' ? 'selected' : '' }}>Ikuti pengaturan kecamatan</option>
+                    <option value="500" {{ $bul_nilai === '500' ? 'selected' : '' }}>500</option>
+                    <option value="1000" {{ $bul_nilai === '1000' ? 'selected' : '' }}>1000</option>
+                </select>
+                <small class="form-text">Berlaku hanya untuk pinjaman ini.</small>
+                <small class="text-danger" id="msg_pembulatan"></small>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="my-2">
+                <label class="form-label" for="sistem_pembulatan">Sistem Pembulatan</label>
+                <select class="form-control" name="sistem_pembulatan" id="sistem_pembulatan">
+                    <option value="" {{ $bul_sistem === '' ? 'selected' : '' }}>Auto</option>
+                    <option value="+" {{ $bul_sistem === '+' ? 'selected' : '' }}>Keatas</option>
+                    <option value="-" {{ $bul_sistem === '-' ? 'selected' : '' }}>Kebawah</option>
+                </select>
+                <small class="text-danger" id="msg_sistem_pembulatan"></small>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-body p-2">
             <div class="text-center fw-bold">
@@ -186,6 +223,8 @@
             distance: 1000
         }
     })
+    new Choices($('#pembulatan')[0], { shouldSort: false })
+    new Choices($('#sistem_pembulatan')[0], { shouldSort: false })
 
     $(".money").maskMoney();
 

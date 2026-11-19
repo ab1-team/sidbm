@@ -174,7 +174,8 @@ class GenerateService
         $ang_j = $this->sistem($pinkel->sa_jasa, $jangka, $sis_j);
 
         // ALWAYS calculate based on total alokasi to ensure correct group-level rounding
-        $ra_data = $this->rencana_angsuran($pinkel, $ang_p, $ang_j, $alokasi, $kec->pembulatan);
+        // Pembulatan mengikat pinjaman ini (NULL → warisan kecamatan).
+        $ra_data = $this->rencana_angsuran($pinkel, $ang_p, $ang_j, $alokasi, Keuangan::pembulatanPinjaman($pinkel, $kec));
 
         // Row 0 = tanggal cair ASLI (marker, bukan angsuran pertama)
         $data_rencana[strtotime($tgl_cair_asli)] = $this->fmtRencana($pinkel->id, 0, $tgl_cair_asli, 0, 0, 0, 0);
@@ -281,7 +282,8 @@ class GenerateService
         // untuk tampilan Kartu/Rencana Angsuran ANGGOTA, bukan untuk DB
         // rencana_angsuran_xxx KELOMPOK — supaya Σ di label & tabel KELOMPOK
         // match (1.4% × alokasi, bukan 1.6% × alokasi).
-        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $kec->pembulatan);
+        $pembulatan = Keuangan::pembulatanPinjaman($pinkel, $kec);
+        $sch = $this->rencana_angsuran($pinkel, $sis_p, $sis_j, $alokasi_total, $pembulatan);
         $rec_p = $sch['pokok'];
         $rec_j = $sch['jasa'];
 
@@ -322,7 +324,7 @@ class GenerateService
             'pros_jasa' => $pinkel->pros_jasa,
             'jangka' => $pinkel->jangka,
             'jenis_jasa' => $pinkel->jenis_jasa,
-        ], $kec->pembulatan);
+        ], $pembulatan);
 
         $rencana_anggota = [];
         if ($anggota) {
@@ -330,12 +332,13 @@ class GenerateService
                 // Pakai $pa->pros_jasa (yg bisa sudah disesuaikan di level
                 // anggota — mis. lokasi 522) supaya total jasa anggota
                 // match dengan nilai pros_jasa yg ditampilkan di view.
+                // Pembulatan juga mengikat per anggota (NULL → warisan kecamatan).
                 $sch_pa = $this->rencana_angsuran(
                     $pinkel,
                     $sis_p,
                     $sis_j,
                     $this->getAlokasi($pa),
-                    $kec->pembulatan,
+                    Keuangan::pembulatanPinjaman($pa, $kec),
                     $pa->pros_jasa
                 );
                 $target_pa_p = array_sum($sch_pa['pokok']);
@@ -415,8 +418,8 @@ class GenerateService
                 $post_hapus = true;
                 $sisa_tempo = $jangka - $i;
                 if ($sisa_tempo > 0) {
-                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $kec->pembulatan);
-                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $kec->pembulatan);
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $pembulatan);
                 }
                 $penghapusan[$k]['inserted'] = true;
                 $h_inserted_this_iter = true;
@@ -449,8 +452,8 @@ class GenerateService
             if ($post_hapus && $sisa_tempo > 0) {
                 $sisa_tempo--;
                 if ($sisa_tempo > 0) {
-                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $kec->pembulatan);
-                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $kec->pembulatan);
+                    $sisa_dibulatkan_p = Keuangan::pembulatan($sisa_alokasi_p / $sisa_tempo, $pembulatan);
+                    $sisa_dibulatkan_j = Keuangan::pembulatan($sisa_alokasi_j / $sisa_tempo, $pembulatan);
                 } else {
                     // Bulan terakhir pascahapus: pakai seluruh sisa
                     $sisa_dibulatkan_p = $sisa_alokasi_p;
@@ -475,6 +478,7 @@ class GenerateService
         $data_idtp = [];
         $alokasi_p = $this->getAlokasi($pinkel);
         // Total jasa mengikuti METODE pinjaman (flat vs anuitas menurun).
+        // Pembulatan mengikat pinjaman ini (NULL → warisan kecamatan).
         $alokasi_j = Keuangan::totalJasaPinjaman((object) [
             'status' => $pinkel->status,
             'alokasi' => $alokasi_p,
@@ -483,7 +487,7 @@ class GenerateService
             'pros_jasa' => $pinkel->pros_jasa,
             'jangka' => $pinkel->jangka,
             'jenis_jasa' => $pinkel->jenis_jasa,
-        ], '500');
+        ], Keuangan::pembulatanPinjaman($pinkel));
 
         ksort($data_rencana);
         foreach ($pinkel->trx as $trx) {

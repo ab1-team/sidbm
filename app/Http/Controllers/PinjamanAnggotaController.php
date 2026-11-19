@@ -737,7 +737,7 @@ class PinjamanAnggotaController extends Controller
                 $alokasi,
                 $pros_jasa,
                 (int) $jangka,
-                (string) ($kecamatan->pembulatan ?? '500')
+                Keuangan::pembulatanPinjaman($pinkel, $kecamatan)
             );
 
             // Interval-N (mis. master 8 = sekali dalam 8 bulan): matematika
@@ -819,8 +819,12 @@ class PinjamanAnggotaController extends Controller
             $ke_jasa = $i / $sistem_jasa - $grace_jasa;
             $alokasi_jasa = ($alokasi * ($pros_jasa / 100)) - $jasa_penghapusan;
 
-            $wajib_pokok = Keuangan::bulatkan($alokasi / $tempo_pokok);
-            $wajib_jasa = Keuangan::bulatkan($alokasi_jasa / $tempo_jasa);
+            // Pembulatan mengikat pinjaman: bila pinjaman punya nilai eksplisit
+            // pakai itu (via bulatkan → satu rumus dengan pembulatan); bila
+            // NULL, pertahankan jalur legacy bulatkan() tanpa override.
+            $bulatkan = Keuangan::pembulatanEksplisit($pinkel);
+            $wajib_pokok = Keuangan::bulatkan($alokasi / $tempo_pokok, $bulatkan);
+            $wajib_jasa = Keuangan::bulatkan($alokasi_jasa / $tempo_jasa, $bulatkan);
 
             if ($jatuh_tempo < Session::get('tgl_penghapusan')) {
                 $wajib_pokok = $rencana_angs->wajib_pokok;
@@ -854,8 +858,8 @@ class PinjamanAnggotaController extends Controller
                     continue;
                 }
 
-                $wajib_pokok = Keuangan::bulatkan($_alokasi_pokok / $_tempo_pokok);
-                $wajib_jasa = Keuangan::bulatkan($_alokasi_jasa / $_tempo_jasa);
+                $wajib_pokok = Keuangan::bulatkan($_alokasi_pokok / $_tempo_pokok, $bulatkan);
+                $wajib_jasa = Keuangan::bulatkan($_alokasi_jasa / $_tempo_jasa, $bulatkan);
                 $x = $i + 1;
             }
 
