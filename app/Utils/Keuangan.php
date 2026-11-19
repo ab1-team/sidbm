@@ -85,17 +85,23 @@ class Keuangan
     }
 
     /**
-     * Gabungkan jadwal bulanan (mis. anuitas) ke titik pembayaran tiap
-     * `interval` bulan. Nilai bulan 1..N-1 dijumlahkan dan dibayarkan pada
-     * bulan N; bulan tanpa pembayaran bernilai 0. Tenor yang tidak habis
-     * dibagi interval diselesaikan pada bulan terakhir.
+     * Gabungkan jadwal bulanan (mis. anuitas) ke titik pembayaran sesuai
+     * interval POKOK dan JASA secara terpisah.
+     *
+     * Contoh loan 1364: sistem_angsuran = 8 (pokok 8-bulanan) dan sa_jasa = 1
+     * (jasa bulanan) → pokok dijumlahkan dan dibayar di bulan ke-8, sedangkan
+     * jasa tetap muncul tiap bulan.
+     *
+     * Bulan tanpa pembayaran bernilai 0. Tenor yang tidak habis dibagi
+     * interval diselesaikan pada bulan terakhir.
      *
      * @param  array{pokok: array<int,float|int>, jasa: array<int,float|int>, angsuran?: float|int}  $jadwal
      * @return array{pokok: array<int,float|int>, jasa: array<int,float|int>, angsuran: float|int, total_jasa: float}
      */
-    public static function gabungInterval(array $jadwal, int $interval, int $jangka): array
+    public static function gabungInterval(array $jadwal, int $interval_pokok, int $interval_jasa, int $jangka): array
     {
-        $interval = max(1, $interval);
+        $interval_pokok = max(1, $interval_pokok);
+        $interval_jasa = max(1, $interval_jasa);
         $jangka = max(1, $jangka);
 
         $pokok = [];
@@ -107,19 +113,26 @@ class Keuangan
             $akum_p += $jadwal['pokok'][$i] ?? 0;
             $akum_j += $jadwal['jasa'][$i] ?? 0;
 
-            if ($i % $interval === 0) {
+            if ($i % $interval_pokok === 0) {
                 $pokok[$i] = $akum_p;
-                $jasa[$i] = $akum_j;
                 $akum_p = 0;
-                $akum_j = 0;
             } else {
                 $pokok[$i] = 0;
+            }
+
+            if ($i % $interval_jasa === 0) {
+                $jasa[$i] = $akum_j;
+                $akum_j = 0;
+            } else {
                 $jasa[$i] = 0;
             }
         }
 
-        if (($akum_p != 0 || $akum_j != 0) && $jangka > 0) {
+        // Tenor tidak habis dibagi interval: sisa dibayar di bulan terakhir.
+        if ($akum_p != 0) {
             $pokok[$jangka] = ($pokok[$jangka] ?? 0) + $akum_p;
+        }
+        if ($akum_j != 0) {
             $jasa[$jangka] = ($jasa[$jangka] ?? 0) + $akum_j;
         }
 

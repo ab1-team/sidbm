@@ -133,6 +133,25 @@ class RencanaIntervalNTest extends TestCase
         $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) $rows[7]['wajib_jasa'], 1.0, 'jasa = total anuitas bulanan');
     }
 
+    public function test_sistem_8_jangka_8_anuitas_jasa_bulanan_tetap_bulanan(): void
+    {
+        // Loan 1364: pokok 8-bulanan, jasa 1-bulanan. Pokok hanya di bulan 8,
+        // jasa tetap muncul tiap bulan.
+        $rows = $this->baris(8, 8, 1, 50000000, '2026-11-19', '3', 12.0, 8, 1);
+
+        $this->assertCount(8, $rows);
+        $pokokNonNol = array_values(array_filter($rows, fn ($r) => $r['wajib_pokok'] != 0));
+        $this->assertCount(1, $pokokNonNol, 'pokok hanya di satu baris');
+        $this->assertSame('2027-07-19', $pokokNonNol[0]['jatuh_tempo']);
+
+        $bulanan = \App\Utils\Keuangan::jadwalAnuitas(50000000, 12.0, 8, '500');
+        foreach ($rows as $i => $r) {
+            $this->assertGreaterThan(0, (float) $r['wajib_jasa'], 'jasa bulan ke-'.($i + 1).' harus terisi');
+            $this->assertEqualsWithDelta($bulanan['jasa'][$i + 1], (float) $r['wajib_jasa'], 1.0);
+        }
+        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) array_sum(array_column($rows, 'wajib_jasa')), 1.0);
+    }
+
     public function test_sistem_8_jangka_8_dengan_jasa_bulanan(): void
     {
         // sa_jasa=1: baris jasa tetap tiap bulan; pokok hanya muncul di baris bulan ke-8.

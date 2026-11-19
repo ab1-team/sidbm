@@ -741,10 +741,13 @@ class PinjamanAnggotaController extends Controller
             );
 
             // Interval-N (mis. master 8 = sekali dalam 8 bulan): matematika
-            // anuitas tetap bulanan, lalu nilai tiap blok interval dijumlahkan
-            // ke bulan kelipatan interval. Bulan lain tetap dibuat bernilai 0.
-            if ((int) $sistem_pokok > 1) {
-                $jadwal = Keuangan::gabungInterval($jadwal, (int) $sistem_pokok, (int) $jangka);
+            // anuitas tetap bulanan, lalu nilai pokok/jasa dikelompokkan ke
+            // bulan kelipatan interval MASING-MASING. Contoh: pokok 8-bulanan
+            // + jasa bulanan → pokok menumpuk di bulan 8, jasa tetap tiap bulan.
+            $interval_p = max(1, (int) $sistem_pokok);
+            $interval_j = max(1, (int) $sistem_jasa);
+            if ($interval_p > 1 || $interval_j > 1) {
+                $jadwal = Keuangan::gabungInterval($jadwal, $interval_p, $interval_j, (int) $jangka);
             }
 
             $baris = [];

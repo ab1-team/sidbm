@@ -669,13 +669,14 @@ class GenerateService
             );
 
             // Sistem interval-N (master "8 Bulan" dst.): pembayaran dilakukan
-            // sekali per N bulan. Matematika anuitas tetap dihitung per bulan
-            // (jasa menurun), lalu nilai bulan-bulan yang jatuh di antara dua
-            // titik interval DIJUMLAHKAN ke bulan kelipatan interval. Bulan
-            // lain tetap ada sebagai baris nol (target tidak naik).
-            $interval = max(1, (int) ($ang_pokok['sistem'] ?? 1));
-            if ($interval > 1) {
-                $jadwal = Keuangan::gabungInterval($jadwal, $interval, (int) $pinkel->jangka);
+            // sekali per N bulan, dan interval POKOK vs JASA bisa berbeda
+            // (mis. pokok 8-bulanan + jasa bulanan). Matematika anuitas tetap
+            // dihitung per bulan, lalu masing-masing nilai dikelompokkan ke
+            // bulan kelipatan intervalnya. Bulan lain tetap ada sebagai 0.
+            $interval_p = max(1, (int) ($ang_pokok['sistem'] ?? 1));
+            $interval_j = max(1, (int) ($ang_jasa['sistem'] ?? 1));
+            if ($interval_p > 1 || $interval_j > 1) {
+                $jadwal = Keuangan::gabungInterval($jadwal, $interval_p, $interval_j, (int) $pinkel->jangka);
             }
 
             return $jadwal;

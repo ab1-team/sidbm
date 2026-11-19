@@ -127,11 +127,11 @@ class RencanaAnuitasTest extends TestCase
     }
 
     /**
-     * Regresi keluhan produksi: sistem_angsuran = 8 (sekali dalam 8 bulan)
-     * dengan jenis_jasa anuitas tidak boleh dibayar bulanan. Total jasa tetap
-     * hasil anuitas bulanan, tetapi seluruhnya jatuh di bulan ke-8.
+     * Kasus produksi loan 1364: pokok 8-bulanan (sistem_angsuran = 8) tetapi
+     * jasa BULANAN (sa_jasa = 1). Pokok menumpuk di bulan ke-8; jasa tetap
+     * muncul setiap bulan sesuai jadwal anuitas.
      */
-    public function test_anuitas_interval_8_jangka_8_hanya_satu_periode_di_bulan_8(): void
+    public function test_anuitas_pokok_8_bulanan_jasa_tetap_bulanan(): void
     {
         $alokasi = 250000000;
         $jangka = 8;
@@ -139,20 +139,47 @@ class RencanaAnuitasTest extends TestCase
 
         $pinkel = $this->pinkel($jangka, '3', $pros);
         $ang_p = $this->sistem(8, $jangka, 8);   // master id 8 = "8 Bulan"
-        $ang_j = $this->sistem(1, $jangka, 1);   // jasa bulanan
+        $ang_j = $this->sistem(1, $jangka, 1);   // master id 1 = "Bulanan"
+
+        // Loan 1364 memakai pembulatan -500 (pembulatan ke bawah 500).
+        $ra = $this->call('rencana_angsuran', [$pinkel, $ang_p, $ang_j, $alokasi, '-500']);
+        $bulanan = Keuangan::jadwalAnuitas($alokasi, $pros, $jangka, '-500');
+
+        $this->assertSame(range(1, 8), array_keys($ra['pokok']), 'baris tetap ada tiap bulan');
+        $this->assertCount(1, array_filter($ra['pokok']), 'pokok hanya dibayar sekali');
+        $this->assertSame($alokasi, (int) $ra['pokok'][8], 'pokok sekali bayar = alokasi');
+
+        // Jasa TIDAK dikelompokkan karena sa_jasa = 1 (bulanan).
+        for ($i = 1; $i <= $jangka; $i++) {
+            $this->assertEqualsWithDelta($bulanan['jasa'][$i], (float) $ra['jasa'][$i], 1, "jasa bulan {$i} ikut jadwal bulanan");
+        }
+        for ($i = 1; $i <= 7; $i++) {
+            $this->assertSame(0, (int) $ra['pokok'][$i], "bulan {$i} tanpa pokok");
+        }
+        $this->assertEqualsWithDelta(11376000, (float) array_sum($ra['jasa']), 1, 'total jasa tetap 11.376.000');
+    }
+
+    /**
+     * Bila pokok DAN jasa sama-sama 8-bulanan, keduanya dibayar di bulan ke-8.
+     */
+    public function test_anuitas_pokok_dan_jasa_8_bulanan_dibayar_di_bulan_8(): void
+    {
+        $alokasi = 250000000;
+        $jangka = 8;
+        $pros = 8;
+
+        $pinkel = $this->pinkel($jangka, '3', $pros);
+        $ang_p = $this->sistem(8, $jangka, 8);
+        $ang_j = $this->sistem(8, $jangka, 8);
 
         $ra = $this->call('rencana_angsuran', [$pinkel, $ang_p, $ang_j, $alokasi, '500']);
         $bulanan = Keuangan::jadwalAnuitas($alokasi, $pros, $jangka, '500');
 
-        $this->assertSame(range(1, 8), array_keys($ra['pokok']), 'baris tetap ada tiap bulan');
-        $this->assertCount(1, array_filter($ra['pokok']), 'pokok hanya dibayar sekali');
-        $this->assertCount(1, array_filter($ra['jasa']), 'jasa hanya dibayar sekali');
-        $this->assertSame($alokasi, (int) $ra['pokok'][8], 'pokok sekali bayar = alokasi');
-        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) $ra['jasa'][8], 1, 'jasa = total anuitas bulanan');
-        for ($i = 1; $i <= 7; $i++) {
-            $this->assertSame(0, (int) $ra['pokok'][$i], "bulan {$i} tanpa pokok");
-            $this->assertSame(0, (int) $ra['jasa'][$i], "bulan {$i} tanpa jasa");
-        }
+        $this->assertSame(range(1, 8), array_keys($ra['pokok']));
+        $this->assertCount(1, array_filter($ra['pokok']), 'pokok hanya di bulan 8');
+        $this->assertCount(1, array_filter($ra['jasa']), 'jasa hanya di bulan 8');
+        $this->assertSame($alokasi, (int) $ra['pokok'][8]);
+        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) $ra['jasa'][8], 1, 'jasa 8-bulanan = total');
     }
 
     public function test_anuitas_interval_3_jangka_12_empat_periode(): void
