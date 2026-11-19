@@ -189,17 +189,10 @@ class GenerateService
             $target_p += $pokok;
             $target_j += $jasa;
 
-            // Sistem angsuran interval-N (mis. id 8 = "8 Bulan", kolom sistem
-            // = 8): angsuran jatuh hanya di bulan kelipatan interval. Bulan
-            // tanpa pokok DAN tanpa jasa bukan angsuran — jangan dibuat baris.
-            // Sistem grace (M24/M12/...) punya sistem=1: baris nolnya tetap
-            // dipertahankan (dipakai rumus kolektibilitas & penanda lunas).
+            // Baris angsuran tetap dibuat untuk SETIAP bulan (termasuk bulan
+            // tanpa pembayaran pada sistem interval-N) agar tanggal jatuh
+            // tempo bulanan tetap terlihat di tabel rencana angsuran.
             // angsuran_ke TETAP nomor bulan.
-            $intervalN = ($ang_p['sistem'] > 1 || $ang_j['sistem'] > 1);
-            if ($intervalN && $pokok == 0 && $jasa == 0) {
-                continue;
-            }
-
             $data_rencana[strtotime($jatuh_tempo)] = $this->fmtRencana(
                 $pinkel->id, $i, $jatuh_tempo, $pokok, $jasa, $target_p, $target_j
             );
@@ -445,16 +438,11 @@ class GenerateService
             $target_p += $cur_p;
             $target_j += $cur_j;
 
-            // Sistem interval-N (kolom sistem > 1): lewati bulan tanpa pokok
-            // DAN tanpa jasa. Sistem grace (sistem=1) tetap membuat baris nol.
-            // (Lihat catatan di buildRencanaV1.) Saldo pascahapus ikut
-            // dikurangi dulu agar akumulasi target tetap benar.
+            // Baris tetap dibuat untuk setiap bulan. Pada sistem interval-N
+            // bulan tanpa pembayaran bernilai 0 (lihat Keuangan::gabungInterval).
+            // Saldo pascahapus tetap dikurangi agar akumulasi target benar.
             $sisa_alokasi_p = max(0, $sisa_alokasi_p - $cur_p);
             $sisa_alokasi_j = max(0, $sisa_alokasi_j - $cur_j);
-            $intervalN = ($sis_p['sistem'] > 1 || $sis_j['sistem'] > 1);
-            if ($intervalN && $cur_p == 0 && $cur_j == 0) {
-                continue;
-            }
 
             $data_rencana[$tempo_ts] = $this->fmtRencana($pinkel->id, $i, $tempo, $cur_p, $cur_j, $target_p, $target_j);
             $rencana[] = $data_rencana[$tempo_ts];
@@ -673,12 +661,24 @@ class GenerateService
         // Sumber tunggal matematikanya ada di Keuangan::jadwalAnuitas() agar
         // jadwal, saldo jasa, dan laporan memakai angka yang sama.
         if ((string) $pinkel->jenis_jasa === '3') {
-            return Keuangan::jadwalAnuitas(
+            $jadwal = Keuangan::jadwalAnuitas(
                 $alokasi,
                 $pros_jasa_override ?? $pinkel->pros_jasa,
                 (int) $pinkel->jangka,
                 $pembulatan
             );
+
+            // Sistem interval-N (master "8 Bulan" dst.): pembayaran dilakukan
+            // sekali per N bulan. Matematika anuitas tetap dihitung per bulan
+            // (jasa menurun), lalu nilai bulan-bulan yang jatuh di antara dua
+            // titik interval DIJUMLAHKAN ke bulan kelipatan interval. Bulan
+            // lain tetap ada sebagai baris nol (target tidak naik).
+            $interval = max(1, (int) ($ang_pokok['sistem'] ?? 1));
+            if ($interval > 1) {
+                $jadwal = Keuangan::gabungInterval($jadwal, $interval, (int) $pinkel->jangka);
+            }
+
+            return $jadwal;
         }
 
         $rencana = ['pokok' => [], 'jasa' => []];

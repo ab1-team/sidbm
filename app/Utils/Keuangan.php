@@ -24,8 +24,11 @@ class Keuangan
      *   - Jasa periode ke-k = pembulatan(saldo_pokok_awal * i).
      *   - Pokok periode terakhir = sisa saldo (amortisasi penutup) sehingga
      *     Σ pokok == alokasi PERSIS.
-     *   - Interval `sistem_angsuran`/`sa_jasa` TIDAK dipakai: anuitas selalu
-     *     dipecah per bulan sebanyak $jangka periode (sama seperti legacy).
+     *   - Interval `sistem_angsuran` TIDAK mengubah matematika anuitas:
+     *     jadwal tetap dipecah per bulan sebanyak $jangka periode. Pengelompokan
+     *     pembayaran tiap N bulan (sistem 8-bulanan dst.) dilakukan pemanggil
+     *     (GenerateService) dengan menjumlahkan nilai bulanan ke bulan kelipatan
+     *     interval, sehingga total jasa tetap sama dengan jadwal bulanan.
      *
      * Method ini adalah SATU-SATUNYA sumber matematika anuitas. GenerateService
      * (jadwal), totalJasaPinjaman() (saldo jasa), dan laporan wajib memanggilnya
@@ -77,6 +80,53 @@ class Keuangan
             'pokok' => $pokok,
             'jasa' => $jasa,
             'angsuran' => $angsuran,
+            'total_jasa' => (float) array_sum($jasa),
+        ];
+    }
+
+    /**
+     * Gabungkan jadwal bulanan (mis. anuitas) ke titik pembayaran tiap
+     * `interval` bulan. Nilai bulan 1..N-1 dijumlahkan dan dibayarkan pada
+     * bulan N; bulan tanpa pembayaran bernilai 0. Tenor yang tidak habis
+     * dibagi interval diselesaikan pada bulan terakhir.
+     *
+     * @param  array{pokok: array<int,float|int>, jasa: array<int,float|int>, angsuran?: float|int}  $jadwal
+     * @return array{pokok: array<int,float|int>, jasa: array<int,float|int>, angsuran: float|int, total_jasa: float}
+     */
+    public static function gabungInterval(array $jadwal, int $interval, int $jangka): array
+    {
+        $interval = max(1, $interval);
+        $jangka = max(1, $jangka);
+
+        $pokok = [];
+        $jasa = [];
+        $akum_p = 0;
+        $akum_j = 0;
+
+        for ($i = 1; $i <= $jangka; $i++) {
+            $akum_p += $jadwal['pokok'][$i] ?? 0;
+            $akum_j += $jadwal['jasa'][$i] ?? 0;
+
+            if ($i % $interval === 0) {
+                $pokok[$i] = $akum_p;
+                $jasa[$i] = $akum_j;
+                $akum_p = 0;
+                $akum_j = 0;
+            } else {
+                $pokok[$i] = 0;
+                $jasa[$i] = 0;
+            }
+        }
+
+        if (($akum_p != 0 || $akum_j != 0) && $jangka > 0) {
+            $pokok[$jangka] = ($pokok[$jangka] ?? 0) + $akum_p;
+            $jasa[$jangka] = ($jasa[$jangka] ?? 0) + $akum_j;
+        }
+
+        return [
+            'pokok' => $pokok,
+            'jasa' => $jasa,
+            'angsuran' => $jadwal['angsuran'] ?? 0,
             'total_jasa' => (float) array_sum($jasa),
         ];
     }

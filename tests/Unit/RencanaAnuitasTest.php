@@ -19,9 +19,10 @@ use PHPUnit\Framework\TestCase;
  *   4. Jasa periode ke-k = pembulatan(saldo_pokok_awal * i).
  *   5. Pokok periode terakhir = sisa saldo (amortisasi penutup), sehingga
  *      Σ pokok == alokasi PERSIS.
- *   6. Interval `sistem_angsuran` / `sa_jasa` TIDAK dipakai untuk anuitas —
- *      anuitas selalu dipecah per bulan sebanyak $jangka periode (legacy
- *      berperilaku sama).
+ *   6. Interval `sistem_angsuran` tidak mengubah matematika: jadwal tetap
+ *      dihitung bulanan. Untuk sistem 8-bulanan (master id 8), nilai tiap
+ *      blok 8 bulan dijumlahkan dan dibayarkan sekali di bulan ke-8, dst.
+ *      Baris bulan lain tetap ada dengan nilai 0 (target tidak naik).
  *
  * Kasus acuan nyata: BUMDesma Mojogedang (kecamatan 357), loan 5835,
  * alokasi Rp 850.000.000, pros_jasa 2,8%, jangka 4 bulan, sistem_angsuran 3.
@@ -89,7 +90,7 @@ class RencanaAnuitasTest extends TestCase
         $jangka = 4;
         $pros = 2.8;
 
-        $ang_p = $this->sistem(3, $jangka, 4);   // sistem_angsuran = 3 (interval 4 bln)
+        $ang_p = $this->sistem(1, $jangka, 1);   // sistem_angsuran = 1 (bulanan)
         $ang_j = $this->sistem(1, $jangka, 1);   // sa_jasa = 1 (bulanan)
 
         $ra = $this->call('rencana_angsuran', [$this->pinkel($jangka, '3', $pros), $ang_p, $ang_j, $alokasi, '500']);
@@ -124,6 +125,62 @@ class RencanaAnuitasTest extends TestCase
         $this->assertSame(210281500, (int) $ra['pokok'][1], 'pokok periode 1 harus 210.281.500');
         $this->assertSame(5950000, (int) $ra['jasa'][1], 'jasa periode 1 = 850jt x 0,7% = 5.950.000');
     }
+
+    /**
+     * Regresi keluhan produksi: sistem_angsuran = 8 (sekali dalam 8 bulan)
+     * dengan jenis_jasa anuitas tidak boleh dibayar bulanan. Total jasa tetap
+     * hasil anuitas bulanan, tetapi seluruhnya jatuh di bulan ke-8.
+     */
+    public function test_anuitas_interval_8_jangka_8_hanya_satu_periode_di_bulan_8(): void
+    {
+        $alokasi = 250000000;
+        $jangka = 8;
+        $pros = 8;
+
+        $pinkel = $this->pinkel($jangka, '3', $pros);
+        $ang_p = $this->sistem(8, $jangka, 8);   // master id 8 = "8 Bulan"
+        $ang_j = $this->sistem(1, $jangka, 1);   // jasa bulanan
+
+        $ra = $this->call('rencana_angsuran', [$pinkel, $ang_p, $ang_j, $alokasi, '500']);
+        $bulanan = Keuangan::jadwalAnuitas($alokasi, $pros, $jangka, '500');
+
+        $this->assertSame(range(1, 8), array_keys($ra['pokok']), 'baris tetap ada tiap bulan');
+        $this->assertCount(1, array_filter($ra['pokok']), 'pokok hanya dibayar sekali');
+        $this->assertCount(1, array_filter($ra['jasa']), 'jasa hanya dibayar sekali');
+        $this->assertSame($alokasi, (int) $ra['pokok'][8], 'pokok sekali bayar = alokasi');
+        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) $ra['jasa'][8], 1, 'jasa = total anuitas bulanan');
+        for ($i = 1; $i <= 7; $i++) {
+            $this->assertSame(0, (int) $ra['pokok'][$i], "bulan {$i} tanpa pokok");
+            $this->assertSame(0, (int) $ra['jasa'][$i], "bulan {$i} tanpa jasa");
+        }
+    }
+
+    public function test_anuitas_interval_3_jangka_12_empat_periode(): void
+    {
+        $alokasi = 9000000;
+        $jangka = 12;
+        $pros = 12;
+
+        $pinkel = $this->pinkel($jangka, '3', $pros);
+        $ang_p = $this->sistem(2, $jangka, 3);   // master id 2 = "3 Bulan"
+        $ang_j = $this->sistem(2, $jangka, 3);
+
+        $ra = $this->call('rencana_angsuran', [$pinkel, $ang_p, $ang_j, $alokasi, '500']);
+        $bulanan = Keuangan::jadwalAnuitas($alokasi, $pros, $jangka, '500');
+
+        $this->assertSame(range(1, 12), array_keys($ra['pokok']), 'baris tetap ada tiap bulan');
+        $this->assertSame($alokasi, (int) array_sum($ra['pokok']), 'Σ pokok = alokasi');
+        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) array_sum($ra['jasa']), 1, 'total jasa = anuitas bulanan');
+        foreach ([3, 6, 9, 12] as $bulan) {
+            $this->assertGreaterThan(0, (int) $ra['pokok'][$bulan], "pokok dibayar di bulan {$bulan}");
+            $this->assertGreaterThan(0, (int) $ra['jasa'][$bulan], "jasa dibayar di bulan {$bulan}");
+        }
+        foreach ([1, 2, 4, 5, 7, 8, 10, 11] as $bulan) {
+            $this->assertSame(0, (int) $ra['pokok'][$bulan], "bulan {$bulan} tanpa pokok");
+            $this->assertSame(0, (int) $ra['jasa'][$bulan], "bulan {$bulan} tanpa jasa");
+        }
+    }
+
 
     public function test_anuitas_total_jasa_lebih_kecil_dari_flat(): void
     {

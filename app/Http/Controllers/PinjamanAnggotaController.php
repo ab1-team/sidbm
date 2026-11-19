@@ -740,10 +740,20 @@ class PinjamanAnggotaController extends Controller
                 (string) ($kecamatan->pembulatan ?? '500')
             );
 
+            // Interval-N (mis. master 8 = sekali dalam 8 bulan): matematika
+            // anuitas tetap bulanan, lalu nilai tiap blok interval dijumlahkan
+            // ke bulan kelipatan interval. Bulan lain tetap dibuat bernilai 0.
+            if ((int) $sistem_pokok > 1) {
+                $jadwal = Keuangan::gabungInterval($jadwal, (int) $sistem_pokok, (int) $jangka);
+            }
+
             $baris = [];
             $akum_p = 0;
             $akum_j = 0;
             for ($i = 1; $i <= $jangka; $i++) {
+                $pokok = $jadwal['pokok'][$i] ?? 0;
+                $jasa = $jadwal['jasa'][$i] ?? 0;
+
                 if ($sa_pokok == 12) {
                     $penambahan = '+'.($i * 7).' days';
                 } else {
@@ -751,8 +761,6 @@ class PinjamanAnggotaController extends Controller
                 }
                 $jatuh_tempo = date('Y-m-d', strtotime($penambahan, strtotime($tgl)));
 
-                $pokok = $jadwal['pokok'][$i] ?? 0;
-                $jasa = $jadwal['jasa'][$i] ?? 0;
                 $akum_p += $pokok;
                 $akum_j += $jasa;
 

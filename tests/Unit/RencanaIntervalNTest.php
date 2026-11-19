@@ -93,15 +93,44 @@ class RencanaIntervalNTest extends TestCase
         return array_values(array_filter($res['rencana'], fn ($r) => $r['angsuran_ke'] != 0));
     }
 
-    public function test_sistem_8_jangka_8_hanya_satu_baris_di_bulan_ke8(): void
+    public function test_sistem_8_jangka_8_pembayaran_hanya_di_bulan_ke8(): void
     {
         $rows = $this->baris(8, 8, 8, 50000000, '2026-11-19');
 
-        $this->assertCount(1, $rows, 'sistem 8-bulanan jangka 8 = TEPAT SATU baris angsuran, bukan 8 baris bulanan');
-        $this->assertSame('2027-07-19', $rows[0]['jatuh_tempo'], 'jatuh tempo = cair + 8 bulan');
-        $this->assertSame(50000000.0, (float) $rows[0]['wajib_pokok']);
+        // Baris bulanan tetap ada (bulan 1..8); hanya bulan ke-8 berisi.
+        $this->assertCount(8, $rows, 'sistem 8-bulanan tetap punya 8 baris bulanan');
+        $this->assertSame('2027-07-19', $rows[7]['jatuh_tempo'], 'jatuh tempo = cair + 8 bulan');
+
+        for ($i = 0; $i < 7; $i++) {
+            $this->assertSame(0.0, (float) $rows[$i]['wajib_pokok'], 'bulan ke-'.($i + 1).' tanpa pokok');
+            $this->assertSame(0.0, (float) $rows[$i]['wajib_jasa'], 'bulan ke-'.($i + 1).' tanpa jasa');
+            $this->assertSame(0.0, (float) $rows[$i]['target_pokok'], 'target pokok belum naik');
+            $this->assertSame(0.0, (float) $rows[$i]['target_jasa'], 'target jasa belum naik');
+        }
+
+        $this->assertSame(50000000.0, (float) $rows[7]['wajib_pokok']);
         // jasa = 12% x 50jt = 6jt (sekali bayar).
-        $this->assertEqualsWithDelta(6000000.0, (float) $rows[0]['wajib_jasa'], 1.0);
+        $this->assertEqualsWithDelta(6000000.0, (float) $rows[7]['wajib_jasa'], 1.0);
+        $this->assertSame(50000000.0, (float) $rows[7]['target_pokok']);
+    }
+
+    public function test_sistem_8_jangka_8_anuitas_pembayaran_hanya_di_bulan_ke8(): void
+    {
+        // jenis_jasa=3 (anuitas): total jasa tetap hasil anuitas bulanan,
+        // tetapi seluruhnya dibayar di bulan kelipatan interval.
+        $rows = $this->baris(8, 8, 8, 50000000, '2026-11-19', '3', 12.0, 8, 8);
+
+        $this->assertCount(8, $rows, 'anuitas interval 8 tetap 8 baris bulanan');
+        $this->assertSame('2027-07-19', $rows[7]['jatuh_tempo'], 'jatuh tempo = cair + 8 bulan');
+
+        for ($i = 0; $i < 7; $i++) {
+            $this->assertSame(0.0, (float) $rows[$i]['wajib_pokok'], 'bulan ke-'.($i + 1).' tanpa pokok');
+            $this->assertSame(0.0, (float) $rows[$i]['wajib_jasa'], 'bulan ke-'.($i + 1).' tanpa jasa');
+        }
+
+        $bulanan = \App\Utils\Keuangan::jadwalAnuitas(50000000, 12.0, 8, '500');
+        $this->assertSame(50000000.0, (float) $rows[7]['wajib_pokok']);
+        $this->assertEqualsWithDelta(array_sum($bulanan['jasa']), (float) $rows[7]['wajib_jasa'], 1.0, 'jasa = total anuitas bulanan');
     }
 
     public function test_sistem_8_jangka_8_dengan_jasa_bulanan(): void
@@ -118,37 +147,43 @@ class RencanaIntervalNTest extends TestCase
         }
     }
 
-    public function test_sistem_8_jangka_16_dua_cicilan(): void
+    public function test_sistem_8_jangka_16_dua_kali_bayar(): void
     {
         $rows = $this->baris(16, 8, 8, 50000000, '2026-11-19');
 
-        $this->assertCount(2, $rows, 'jangka 16, interval 8 = 2 baris');
-        $this->assertSame('2027-07-19', $rows[0]['jatuh_tempo']);
-        $this->assertSame('2028-03-19', $rows[1]['jatuh_tempo']);
+        $this->assertCount(16, $rows, 'jangka 16 = 16 baris bulanan');
+        $nonZero = array_values(array_filter($rows, fn ($r) => $r['wajib_pokok'] != 0));
+        $this->assertCount(2, $nonZero, 'jangka 16, interval 8 = 2 kali bayar');
+        $this->assertSame('2027-07-19', $nonZero[0]['jatuh_tempo']);
+        $this->assertSame('2028-03-19', $nonZero[1]['jatuh_tempo']);
         $this->assertSame(50000000.0, (float) array_sum(array_column($rows, 'wajib_pokok')));
     }
 
-    public function test_sistem_4_jangka_8_dua_cicilan(): void
+    public function test_sistem_4_jangka_8_dua_kali_bayar(): void
     {
         // interval 4 bulan (master id 3 = "4 Bulan", sistem = 4).
         $rows = $this->baris(8, 3, 3, 20000000, '2026-11-19', '1', 12.0, 4);
 
-        $this->assertCount(2, $rows);
-        $this->assertSame('2027-03-19', $rows[0]['jatuh_tempo']);
-        $this->assertSame('2027-07-19', $rows[1]['jatuh_tempo']);
+        $this->assertCount(8, $rows);
+        $nonZero = array_values(array_filter($rows, fn ($r) => $r['wajib_pokok'] != 0));
+        $this->assertCount(2, $nonZero);
+        $this->assertSame('2027-03-19', $nonZero[0]['jatuh_tempo']);
+        $this->assertSame('2027-07-19', $nonZero[1]['jatuh_tempo']);
         $this->assertSame(20000000.0, (float) array_sum(array_column($rows, 'wajib_pokok')));
     }
 
-    public function test_sistem_3_jangka_12_empat_cicilan(): void
+    public function test_sistem_3_jangka_12_empat_kali_bayar(): void
     {
         // master id 2 = "3 Bulan" → kolom sistem = 3 (interval 3 bulan).
         $rows = $this->baris(12, 2, 2, 9000000, '2026-11-19', '1', 12.0, 3, 3);
 
-        $this->assertCount(4, $rows);
-        $this->assertSame('2027-02-19', $rows[0]['jatuh_tempo']);
-        $this->assertSame('2027-05-19', $rows[1]['jatuh_tempo']);
-        $this->assertSame('2027-08-19', $rows[2]['jatuh_tempo']);
-        $this->assertSame('2027-11-19', $rows[3]['jatuh_tempo']);
+        $this->assertCount(12, $rows);
+        $nonZero = array_values(array_filter($rows, fn ($r) => $r['wajib_pokok'] != 0));
+        $this->assertCount(4, $nonZero);
+        $this->assertSame('2027-02-19', $nonZero[0]['jatuh_tempo']);
+        $this->assertSame('2027-05-19', $nonZero[1]['jatuh_tempo']);
+        $this->assertSame('2027-08-19', $nonZero[2]['jatuh_tempo']);
+        $this->assertSame('2027-11-19', $nonZero[3]['jatuh_tempo']);
         $this->assertSame(9000000.0, (float) array_sum(array_column($rows, 'wajib_pokok')));
     }
 
