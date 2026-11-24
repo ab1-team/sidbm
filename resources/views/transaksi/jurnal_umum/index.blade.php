@@ -549,7 +549,10 @@
 
             var id = value[0]
             var unit = parseInt(value[1])
-            var nilai_buku = parseInt(value[2])
+            // NB pada opsi dropdown bisa berupa desimal (mis. 1500.75).
+            // parseInt memotongnya; parseFloat + maskMoney membuat penyusutan
+            // sisa bulan (round 2 desimal di Inventaris::nilaiBuku) tampil benar.
+            var nilai_buku = parseFloat(value[2])
 
             var harga = nilai_buku / unit
 
@@ -576,7 +579,7 @@
                 unit = max
             }
 
-            var harga = parseInt($('#harsat').val())
+            var harga = parseFloat($('#harsat').val())
             var nilai_buku = unit * harga
 
             $('#_nilai_buku').val(nilai_buku)
