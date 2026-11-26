@@ -203,4 +203,26 @@ class ProfilRasio476GenerateTest extends TestCase
         $this->assertSame(self::ALOKASI, (float) $rows->sum('wajib_pokok'));
         $this->assertSame(180000.0, (float) $rows->sum('wajib_jasa'));
     }
+
+    /** generate() nyata: 75jt/24 bulan mengabaikan pembulatan '+50000'. */
+    public function test_generate_476_75jt_24_bulan_jadwal_eksak(): void
+    {
+        DB::table('pinjaman_kelompok_'.self::LOKASI)->where('id', self::PINJEL_ID)->update([
+            'jangka' => 24,
+            'pros_jasa' => 36,
+            'alokasi' => 75000000.0,
+            'pembulatan' => '+50000',
+        ]);
+
+        $rows = $this->runGenerate();
+        $berangsur = $rows->filter(fn ($r) => (float) $r->wajib_pokok > 0);
+
+        $this->assertCount(24, $berangsur);
+        foreach ($berangsur as $r) {
+            $this->assertSame(3125000.0, (float) $r->wajib_pokok, 'pokok rutin');
+            $this->assertSame(1125000.0, (float) $r->wajib_jasa, 'jasa bulanan');
+        }
+        $this->assertSame(75000000.0, (float) $rows->sum('wajib_pokok'));
+        $this->assertSame(27000000.0, (float) $rows->sum('wajib_jasa'));
+    }
 }

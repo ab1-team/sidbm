@@ -20,6 +20,19 @@
  * Contoh lokasi 476: alokasi Rp1 juta, tenor 12 bulan →
  * pokok rutin Rp85.000 + jasa Rp15.000 per bulan; pokok bulan ke-12
  * = sisa Rp65.000 (total bulan terakhir Rp80.000).
+ *
+ * angsuran_eksak — profil TANPA pembulatan kecamatan:
+ *   - pokok = alokasi / jangka
+ *   - jasa  = alokasi * pros_jasa / 100 / jangka
+ *   - dibulatkan ke rupiah bulat dengan round(), bukan Keuangan::pembulatan()
+ *   - jangka           : tenor yang dipakai profil ini
+ *   - pros_jasa        : persentase jasa total sepanjang tenor
+ *   - alokasi_min      : profil hanya untuk alokasi di atas nominal ini;
+ *                        pinjaman kecil tetap memakai pembulatan kecamatan
+ *   - tanpa_pembulatan : penanda jalur eksak
+ *
+ * Contoh lokasi 476: alokasi Rp75 juta, tenor 24 bulan, jasa 36% →
+ * 24× pokok Rp3.125.000 + jasa Rp1.125.000 (Σ jasa Rp27 juta).
  */
 return [
     'profil_rasio' => [
@@ -27,6 +40,14 @@ return [
             'pokok_per_juta' => 85000,
             'jasa_per_juta' => 15000,
             'jangka' => 12,
+        ],
+    ],
+    'angsuran_eksak' => [
+        476 => [
+            'jangka' => 24,
+            'pros_jasa' => 36,
+            'alokasi_min' => 20000000,
+            'tanpa_pembulatan' => true,
         ],
     ],
 ];

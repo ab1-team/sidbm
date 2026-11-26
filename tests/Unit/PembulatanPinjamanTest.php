@@ -84,8 +84,8 @@ class PembulatanPinjamanTest extends TestCase
         $profil = ['pokok_per_juta' => 85000, 'jasa_per_juta' => 15000, 'jangka' => 12];
 
         foreach ([1000000 => [85000, 15000, 65000, 80000],
-                  10000000 => [850000, 150000, 650000, 800000],
-                  100000000 => [8500000, 1500000, 6500000, 8000000]] as $a => [$rp, $rj, $p12, $t12]) {
+            10000000 => [850000, 150000, 650000, 800000],
+            100000000 => [8500000, 1500000, 6500000, 8000000]] as $a => [$rp, $rj, $p12, $t12]) {
             $j = Keuangan::jadwalProfilRasio($a, 12, $profil);
 
             $this->assertSame((float) $rp, $j['pokok'][1], "pokok rutin alokasi $a");
@@ -103,7 +103,65 @@ class PembulatanPinjamanTest extends TestCase
     public function test_profil_angsuran_tenor_lain_tidak_aktif(): void
     {
         session(['lokasi' => 476]);
-        $this->assertNull(Keuangan::profilAngsuranRasio((object) [], 24));
+        $this->assertNull(Keuangan::profilAngsuranRasio((object) [], 6));
+        $this->assertNull(Keuangan::profilAngsuranRasio((object) [], 36));
+    }
+
+    /** Entri eksak 476/24 berdampingan dengan profil 12 bulan yang lama. */
+    public function test_profil_eksak_476_tenor_24_dari_config(): void
+    {
+        session(['lokasi' => 476]);
+        $pin = (object) ['alokasi' => 75000000.0];
+
+        $profil = Keuangan::profilAngsuranRasio($pin, 24);
+        $this->assertNotNull($profil);
+        $this->assertSame(24, $profil['jangka']);
+        $this->assertSame(36, $profil['pros_jasa']);
+        $this->assertTrue($profil['tanpa_pembulatan']);
+
+        $profil12 = Keuangan::profilAngsuranRasio($pin, 12);
+        $this->assertSame(85000, $profil12['pokok_per_juta']);
+        $this->assertSame(15000, $profil12['jasa_per_juta']);
+        $this->assertSame(12, $profil12['jangka']);
+    }
+
+    /** 75jt / 24 bulan / 36% → 24× (3.125.000 + 1.125.000), tanpa pembulatan. */
+    public function test_jadwal_eksak_75jt_24_bulan(): void
+    {
+        session(['lokasi' => 476]);
+        $alokasi = 75000000.0;
+        $profil = Keuangan::profilAngsuranRasio((object) ['alokasi' => $alokasi], 24);
+        $jadwal = Keuangan::jadwalProfilRasio($alokasi, 24, $profil);
+
+        $this->assertCount(24, $jadwal['pokok']);
+        $this->assertCount(24, $jadwal['jasa']);
+        for ($i = 1; $i <= 24; $i++) {
+            $this->assertSame(3125000.0, $jadwal['pokok'][$i], "pokok ke-$i");
+            $this->assertSame(1125000.0, $jadwal['jasa'][$i], "jasa ke-$i");
+        }
+        $this->assertSame($alokasi, array_sum($jadwal['pokok']));
+        $this->assertSame(27000000.0, array_sum($jadwal['jasa']));
+    }
+
+    /** Pinjaman kecil di 476 tetap memakai pembulatan kecamatan. */
+    public function test_pinjaman_kecil_476_tidak_memakai_profil_eksak(): void
+    {
+        session(['lokasi' => 476]);
+        $pin = (object) ['alokasi' => 8665000.0, 'pembulatan' => null];
+        $kec = (object) ['pembulatan' => '+50000'];
+
+        $this->assertNull(Keuangan::profilAngsuranRasio($pin, 24));
+        $this->assertSame('+50000', Keuangan::pembulatanPinjaman($pin, $kec));
+        $this->assertSame(3150000.0, Keuangan::pembulatan(3125000, Keuangan::pembulatanPinjaman($pin, $kec)));
+    }
+
+    /** Profil eksak hanya untuk lokasi 476; lokasi lain jangka 24 normal. */
+    public function test_lokasi_lain_jangka_24_tidak_terkena_profil(): void
+    {
+        session(['lokasi' => 301]);
+        $pin = (object) ['alokasi' => 75000000.0];
+
+        $this->assertNull(Keuangan::profilAngsuranRasio($pin, 24));
     }
 
     public function test_normalisasi_pembulatan_dari_form(): void

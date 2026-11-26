@@ -258,9 +258,9 @@ class Keuangan
      * Lokasi diambil dari $pinjaman->lokasi bila ada, otherwise Session
      * 'lokasi', otherwise field relasi kecamatan.
      *
-     * Mengembalikan ['pokok_per_juta', 'jasa_per_juta', 'jangka'] atau null.
+     * Mengembalikan profil config (rasio atau eksak) yang cocok, atau null.
      */
-    public static function profilAngsuranRasio($pinjaman, $jangkaPinjaman = null)
+    public static function profilAngsuranRasio($pinjaman, $jangkaPinjaman = null, $alokasi = null)
     {
         // Lokasi: preferensi dari pinjaman, lalu relasi kecamatan.
         // Session hanya dibaca bila container Laravel & session terikat
@@ -277,21 +277,49 @@ class Keuangan
             return null;
         }
 
-        $profil = ($hasApp && app()->bound('config'))
-            ? config("angsuran_khusus.profil_rasio.{$lokasi}")
-            : null;
-        if (! is_array($profil)) {
+        if (! $hasApp || ! app()->bound('config')) {
             return null;
         }
 
-        // Profil hanya berlaku untuk tenor yang ditentukan. Pinjaman lokasi
-        // yang sama dengan tenor lain memakai perhitungan normal.
-        if (isset($profil['jangka']) && $jangkaPinjaman !== null
-            && (int) $profil['jangka'] !== (int) $jangkaPinjaman) {
-            return null;
+        $alokasi = $alokasi ?? ($pinjaman->alokasi ?? null);
+
+        // Profil rasio dan eksak adalah dua entri config terpisah untuk
+        // lokasi yang sama. Yang cocok dengan tenor (dan batas alokasi)
+        // yang dipakai; selebihnya jatuh ke perhitungan normal.
+        foreach (['angsuran_khusus.profil_rasio', 'angsuran_khusus.angsuran_eksak'] as $sumber) {
+            $profil = config("{$sumber}.{$lokasi}");
+            if (! is_array($profil)) {
+                continue;
+            }
+            if (! self::jangkaProfilSesuai($profil, $jangkaPinjaman)
+                || ! self::alokasiProfilSesuai($profil, $alokasi)) {
+                continue;
+            }
+
+            return $profil;
         }
 
-        return $profil;
+        return null;
+    }
+
+    /** Profil hanya berlaku pada tenor yang ditentukan di config. */
+    private static function jangkaProfilSesuai($profil, $jangkaPinjaman)
+    {
+        if (! isset($profil['jangka']) || $jangkaPinjaman === null) {
+            return true;
+        }
+
+        return (int) $profil['jangka'] === (int) $jangkaPinjaman;
+    }
+
+    /** Batas bawah alokasi untuk profil eksak; pinjaman kecil tetap normal. */
+    private static function alokasiProfilSesuai($profil, $alokasi)
+    {
+        if (! isset($profil['alokasi_min']) || $alokasi === null || $alokasi === '') {
+            return true;
+        }
+
+        return (float) $alokasi > (float) $profil['alokasi_min'];
     }
 
     /**
@@ -300,14 +328,23 @@ class Keuangan
      * Pokok rutin = alokasi * pokok_per_juta / 1.000.000; jasa bulan sama,
      * sehingga nominal mengikuti kelipatan alokasi. Angsuran terakhir pokok =
      * sisa sehingga Σ pokok == alokasi persis.
+     *
+     * Profil `tanpa_pembulatan` memakai pokok = alokasi / jangka dan
+     * jasa = alokasi * pros_jasa / 100 / jangka, dibulatkan ke rupiah
+     * bulat dengan round() — tanpa memanggil pembulatan().
      */
     public static function jadwalProfilRasio($alokasi, $jangka, $profil)
     {
-        $pokok_rutin = round(($alokasi / 1000000) * $profil['pokok_per_juta']);
-        $jasa_rutin = round(($alokasi / 1000000) * $profil['jasa_per_juta']);
-
         if ($jangka < 1) {
             return null;
+        }
+
+        if (! empty($profil['tanpa_pembulatan'])) {
+            $pokok_rutin = round($alokasi / $jangka, 0);
+            $jasa_rutin = round($alokasi * (float) ($profil['pros_jasa'] ?? 0) / 100 / $jangka, 0);
+        } else {
+            $pokok_rutin = round(($alokasi / 1000000) * $profil['pokok_per_juta'], 0);
+            $jasa_rutin = round(($alokasi / 1000000) * $profil['jasa_per_juta'], 0);
         }
 
         $rencana = ['pokok' => [], 'jasa' => []];
