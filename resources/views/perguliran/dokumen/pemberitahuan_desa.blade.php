@@ -126,6 +126,12 @@
                 <td class="t l b r" align="right">{{ number_format($pa->alokasi) }}</td>
             </tr>
         @endforeach
+
+        <tr style="font-weight: bold;">
+            <td width="50">&nbsp;</td>
+            <td class="t l b" colspan="3">Jumlah</td>
+            <td class="t l b r" align="right">{{ number_format($pinkel->pinjaman_anggota->sum('alokasi')) }}</td>
+        </tr>
     </table>
 
     <table border="0" width="100%" cellspacing="0" cellpadding="0" style="font-size: 12px;">
